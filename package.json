@@ -1,0 +1,14 @@
+{
+  "name": "pooli",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@pooli/web",
+    "build:web": "npm run build --workspace=@pooli/web",
+    "lint:web": "npm run lint --workspace=@pooli/web",
+    "test:web": "npm run test --workspace=@pooli/web"
+  }
+}
