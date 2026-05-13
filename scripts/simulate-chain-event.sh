@@ -14,7 +14,8 @@ if [[ -z "${NETWORK:-}" ]]; then
   exit 1
 fi
 
-EVENT_ID="sim:${OPTION_ID}:$(date +%s)"
+UNIQ="$(date +%s)-${RANDOM}-$$"
+EVENT_ID="sim:${OPTION_ID}:${UNIQ}"
 CHAIN_JSON=""
 if [[ "$NETWORK" == "bsc" ]]; then
   CHAIN_JSON='"chain_id": 56,'
@@ -25,7 +26,7 @@ BODY=$(cat <<EOF
   "event_id": "$EVENT_ID",
   "network": "$NETWORK",
   $CHAIN_JSON
-  "tx_hash": "0xsim$(date +%s)",
+  "tx_hash": "0xsim${UNIQ}",
   "log_index": 0,
   "token_contract": "$TOKEN",
   "from": "simulator",
