@@ -1,27 +1,33 @@
+"use client";
+
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { useLocale, useT } from "@/i18n/LocaleProvider";
 
 export default function LandingPage() {
+  const t = useT();
+  const { locale } = useLocale();
+
   return (
     <main className="shell rise">
-      <p className="brand" style={{ fontSize: "2.4rem", margin: "2rem 0 0.4rem" }}>
-        Pooli
-      </p>
-      <h1 style={{ fontSize: "1.55rem", margin: "0 0 0.75rem", maxWidth: "18ch" }}>
-        Turn a DM order into a checkout link.
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+        <BrandMark localeHint={locale} size={32} />
+        <LanguageSwitch />
+      </header>
+
+      <h1 style={{ fontSize: "1.75rem", margin: "0 0 0.75rem", maxWidth: "16ch", lineHeight: 1.2 }}>
+        {t.tagline}
       </h1>
-      <p className="muted" style={{ marginBottom: "1.5rem", lineHeight: 1.5 }}>
-        Create a payment link. Get paid directly in USDT. Know automatically when the payment is real.
+      <p className="muted" style={{ marginBottom: "2rem", lineHeight: 1.55, maxWidth: "34ch" }}>
+        {t.taglineSub}
       </p>
-      <div className="card-panel" style={{ marginBottom: "1rem" }}>
-        <p style={{ margin: 0, lineHeight: 1.5 }}>
-          Non-custodial TRON + BNB Smart Chain checkout for Instagram, Telegram, and WhatsApp sellers.
-        </p>
-      </div>
+
       <Link className="btn btn-primary" href="/login" style={{ marginBottom: "0.75rem" }}>
-        Open seller app
+        {t.openSeller}
       </Link>
       <Link className="btn btn-secondary" href="/register">
-        Create account
+        {t.createAccount}
       </Link>
     </main>
   );
