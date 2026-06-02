@@ -21,6 +21,7 @@ const CookieName = "pooli_session"
 type User struct {
 	ID      string `json:"id"`
 	Email   string `json:"email"`
+	Phone   string `json:"phone,omitempty"`
 	Name    string `json:"name"`
 	IsAdmin bool   `json:"is_admin"`
 }
@@ -28,6 +29,81 @@ type User struct {
 type Service struct {
 	Pool        *pgxpool.Pool
 	AdminEmails map[string]bool
+}
+
+func (s *Service) createMerchantForUser(ctx context.Context, userID, merchantName string) (string, error) {
+	baseSlug := slugify(merchantName)
+	if baseSlug == "" {
+		baseSlug = "merchant"
+	}
+	var merchantID string
+	for i := 0; i < 8; i++ {
+		slug := baseSlug
+		if i > 0 {
+			slug = fmt.Sprintf("%s-%s", baseSlug, userID[:6+i%3])
+		}
+		err := s.Pool.QueryRow(ctx, `
+			INSERT INTO merchants (name, display_name, slug) VALUES ($1,$1,$2) RETURNING id::text`, merchantName, slug).Scan(&merchantID)
+		if err == nil {
+			break
+		}
+		if i == 7 {
+			return "", err
+		}
+	}
+	_, err := s.Pool.Exec(ctx, `
+		INSERT INTO merchant_users (merchant_id, user_id, role) VALUES ($1::uuid,$2::uuid,'owner')`, merchantID, userID)
+	if err != nil {
+		return "", err
+	}
+	_, _ = s.Pool.Exec(ctx, `
+		INSERT INTO subscriptions (merchant_id, plan_id)
+		SELECT $1::uuid, id FROM subscription_plans WHERE code='free' LIMIT 1`, merchantID)
+	return merchantID, nil
+}
+
+func (s *Service) RegisterWithPhone(ctx context.Context, phone, name, merchantName string) (User, string, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return User{}, "", errors.New("phone required")
+	}
+	if merchantName == "" {
+		merchantName = name
+	}
+	if merchantName == "" {
+		merchantName = "Store"
+	}
+	var userID string
+	err := s.Pool.QueryRow(ctx, `
+		INSERT INTO users (email, password_hash, phone_e164, name, phone_verified_at)
+		VALUES (NULL,'',$1,$2,now()) RETURNING id::text`, phone, name).Scan(&userID)
+	if err != nil {
+		return User{}, "", err
+	}
+	if _, err := s.createMerchantForUser(ctx, userID, merchantName); err != nil {
+		return User{}, "", err
+	}
+	token, err := s.createSession(ctx, userID)
+	if err != nil {
+		return User{}, "", err
+	}
+	return User{ID: userID, Phone: phone, Name: name}, token, nil
+}
+
+func (s *Service) LoginWithPhone(ctx context.Context, phone string) (User, string, error) {
+	var u User
+	err := s.Pool.QueryRow(ctx, `
+		SELECT id::text, COALESCE(email,''), COALESCE(phone_e164,''), name, is_admin
+		FROM users WHERE phone_e164=$1`, phone).
+		Scan(&u.ID, &u.Email, &u.Phone, &u.Name, &u.IsAdmin)
+	if err != nil {
+		return User{}, "", errors.New("account not found")
+	}
+	token, err := s.createSession(ctx, u.ID)
+	if err != nil {
+		return User{}, "", err
+	}
+	return u, token, nil
 }
 
 func (s *Service) Register(ctx context.Context, email, password, name, merchantName string) (User, string, error) {
@@ -42,39 +118,14 @@ func (s *Service) Register(ctx context.Context, email, password, name, merchantN
 	isAdmin := s.AdminEmails[email]
 	var userID string
 	err = s.Pool.QueryRow(ctx, `
-		INSERT INTO users (email, password_hash, name, is_admin)
-		VALUES ($1,$2,$3,$4) RETURNING id::text`, email, string(hash), name, isAdmin).Scan(&userID)
+		INSERT INTO users (email, password_hash, name, is_admin, email_verified_at)
+		VALUES ($1,$2,$3,$4,now()) RETURNING id::text`, email, string(hash), name, isAdmin).Scan(&userID)
 	if err != nil {
 		return User{}, "", err
 	}
-	baseSlug := slugify(merchantName)
-	if baseSlug == "" {
-		baseSlug = "merchant"
-	}
-	var merchantID string
-	for i := 0; i < 8; i++ {
-		slug := baseSlug
-		if i > 0 {
-			slug = fmt.Sprintf("%s-%s", baseSlug, userID[:6+i%3])
-		}
-		err = s.Pool.QueryRow(ctx, `
-			INSERT INTO merchants (name, slug) VALUES ($1,$2) RETURNING id::text`, merchantName, slug).Scan(&merchantID)
-		if err == nil {
-			break
-		}
-		if i == 7 {
-			return User{}, "", err
-		}
-	}
-	_, err = s.Pool.Exec(ctx, `
-		INSERT INTO merchant_users (merchant_id, user_id, role) VALUES ($1::uuid,$2::uuid,'owner')`, merchantID, userID)
-	if err != nil {
+	if _, err := s.createMerchantForUser(ctx, userID, merchantName); err != nil {
 		return User{}, "", err
 	}
-	// free plan subscription
-	_, _ = s.Pool.Exec(ctx, `
-		INSERT INTO subscriptions (merchant_id, plan_id)
-		SELECT $1::uuid, id FROM subscription_plans WHERE code='free' LIMIT 1`, merchantID)
 
 	token, err := s.createSession(ctx, userID)
 	if err != nil {
@@ -88,7 +139,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (User, stri
 	var u User
 	var hash string
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id::text, email, name, is_admin, password_hash FROM users WHERE email=$1`, email).
+		SELECT id::text, COALESCE(email,''), name, is_admin, COALESCE(password_hash,'') FROM users WHERE email=$1`, email).
 		Scan(&u.ID, &u.Email, &u.Name, &u.IsAdmin, &hash)
 	if err != nil {
 		return User{}, "", errors.New("invalid credentials")
@@ -134,10 +185,10 @@ func (s *Service) UserFromRequest(ctx context.Context, r *http.Request) (User, e
 	sum := sha256.Sum256([]byte(c.Value))
 	var u User
 	err = s.Pool.QueryRow(ctx, `
-		SELECT u.id::text, u.email, u.name, u.is_admin
+		SELECT u.id::text, COALESCE(u.email,''), COALESCE(u.phone_e164,''), u.name, u.is_admin
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash=$1 AND s.expires_at > now()`, hex.EncodeToString(sum[:])).
-		Scan(&u.ID, &u.Email, &u.Name, &u.IsAdmin)
+		Scan(&u.ID, &u.Email, &u.Phone, &u.Name, &u.IsAdmin)
 	if err != nil {
 		return User{}, errors.New("unauthenticated")
 	}

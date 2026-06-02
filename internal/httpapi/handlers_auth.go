@@ -60,12 +60,23 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
 	merchantID, _ := s.Auth.MerchantIDForUser(r.Context(), u.ID)
-	var merchantName, merchantSlug string
-	_ = s.Pool.QueryRow(r.Context(), `SELECT name, slug FROM merchants WHERE id=$1::uuid`, merchantID).Scan(&merchantName, &merchantSlug)
+	var merchantName, displayName, description, logoPath, support, merchantSlug string
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT name, COALESCE(NULLIF(display_name,''), name), description, logo_path, support_contact, slug
+		FROM merchants WHERE id=$1::uuid`, merchantID).
+		Scan(&merchantName, &displayName, &description, &logoPath, &support, &merchantSlug)
+	var telegramChatID string
+	_ = s.Pool.QueryRow(r.Context(), `SELECT chat_id FROM telegram_connections WHERE merchant_id=$1::uuid`, merchantID).Scan(&telegramChatID)
+	logoURL := ""
+	if logoPath != "" {
+		logoURL = "/api/v1/public/uploads/" + logoPath
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user": u,
 		"merchant": map[string]any{
-			"id": merchantID, "name": merchantName, "slug": merchantSlug,
+			"id": merchantID, "name": merchantName, "display_name": displayName,
+			"description": description, "logo_url": logoURL, "support_contact": support,
+			"slug": merchantSlug, "telegram_chat_id": telegramChatID,
 		},
 	})
 }

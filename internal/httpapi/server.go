@@ -15,6 +15,7 @@ import (
 	"github.com/pooli-shop/pooli/internal/chain"
 	"github.com/pooli-shop/pooli/internal/config"
 	"github.com/pooli-shop/pooli/internal/notify"
+	"github.com/pooli-shop/pooli/internal/otp"
 	"github.com/pooli-shop/pooli/internal/payment"
 	"github.com/pooli-shop/pooli/internal/rate"
 	"github.com/pooli-shop/pooli/internal/sse"
@@ -24,6 +25,7 @@ type Server struct {
 	Cfg      config.Config
 	Pool     *pgxpool.Pool
 	Auth     *auth.Service
+	OTP      *otp.Service
 	Rates    rate.Provider
 	Hub      *sse.Hub
 	Matcher  *payment.Matcher
@@ -36,6 +38,7 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *
 	return &Server{
 		Cfg: cfg, Pool: pool,
 		Auth: &auth.Service{Pool: pool, AdminEmails: cfg.AdminEmails},
+		OTP:  otp.NewService(pool, otp.MockProvider{}, cfg.AppEnv),
 		Rates: rates, Hub: hub, Matcher: matcher, Telegram: tg, EVM: evm, Tron: tron,
 	}
 }
@@ -59,11 +62,17 @@ func (s *Server) Router() http.Handler {
 		r.Post("/auth/register", s.handleRegister)
 		r.Post("/auth/login", s.handleLogin)
 		r.Post("/auth/logout", s.handleLogout)
+		r.Post("/auth/otp/send", s.handleOTPSend)
+		r.Post("/auth/otp/verify", s.handleOTPVerify)
+		r.Post("/auth/otp/register", s.handleOTPRegister)
+		r.Get("/public/uploads/*", s.handlePublicUpload)
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
 			r.Get("/me", s.handleMe)
 			r.Get("/home", s.handleHome)
+			r.Patch("/merchant", s.handlePatchMerchant)
+			r.Post("/merchant/logo", s.handleMerchantLogo)
 
 			r.Get("/wallets", s.handleListWallets)
 			r.Post("/wallets", s.handleCreateWallet)
@@ -98,6 +107,7 @@ func (s *Server) Router() http.Handler {
 
 		if s.Cfg.EnableChainSimulator {
 			r.Post("/internal/simulate/chain-event", s.handleSimulateChainEvent)
+			r.Post("/internal/simulate/confirmations", s.handleSimulateConfirmations)
 		}
 	})
 
