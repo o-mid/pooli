@@ -22,7 +22,7 @@ func (n *NoopAdapter) ValidateAddress(address string) error {
 		}
 		return nil
 	}
-	if !strings.HasPrefix(address, "T") || len(address) < 30 {
+	if !strings.HasPrefix(address, "T") || len(address) != 34 {
 		return fmt.Errorf("invalid TRON address")
 	}
 	return nil

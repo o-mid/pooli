@@ -36,7 +36,15 @@ func NewTronAdapter(baseURL, apiKey, token string, confirmations int) *TronAdapt
 func (a *TronAdapter) Network() string { return a.NetworkName }
 
 func (a *TronAdapter) ValidateAddress(address string) error {
-	if !strings.HasPrefix(address, "T") || len(address) < 30 {
+	address = strings.TrimSpace(address)
+	if !strings.HasPrefix(address, "T") || len(address) != 34 {
+		return fmt.Errorf("invalid TRON address")
+	}
+	for _, r := range address {
+		if (r >= '1' && r <= '9') || (r >= 'A' && r <= 'H') || (r >= 'J' && r <= 'N') ||
+			(r >= 'P' && r <= 'Z') || (r >= 'a' && r <= 'k') || (r >= 'm' && r <= 'z') {
+			continue
+		}
 		return fmt.Errorf("invalid TRON address")
 	}
 	return nil

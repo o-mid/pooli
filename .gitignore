@@ -12,3 +12,5 @@ tmp/
 .turbo/
 *.exe
 vendor/
+uploads/
+!uploads/.gitkeep

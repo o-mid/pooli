@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -33,6 +34,9 @@ type Config struct {
 	ChainPollInterval    time.Duration
 	TelegramBotToken     string
 	TelegramEnabled      bool
+	UploadDir            string
+	TronExplorerTxURL    string
+	BSCExplorerTxURL     string
 }
 
 func Load() Config {
@@ -69,6 +73,20 @@ func Load() Config {
 		ChainPollInterval:    durationSeconds("CHAIN_POLL_INTERVAL_SECONDS", 8),
 		TelegramBotToken:     getenv("TELEGRAM_BOT_TOKEN", ""),
 		TelegramEnabled:      getenv("TELEGRAM_ENABLED", "false") == "true",
+		UploadDir:            getenv("UPLOAD_DIR", "uploads"),
+		TronExplorerTxURL:    getenv("TRON_EXPLORER_TX_URL", "https://tronscan.org/#/transaction/%s"),
+		BSCExplorerTxURL:     getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
+	}
+}
+
+func (c Config) ExplorerTxURL(network, txHash string) string {
+	switch network {
+	case "tron":
+		return fmt.Sprintf(c.TronExplorerTxURL, txHash)
+	case "bsc":
+		return fmt.Sprintf(c.BSCExplorerTxURL, txHash)
+	default:
+		return ""
 	}
 }
 

@@ -162,12 +162,13 @@ func (s *Server) loadPaymentIntent(ctx context.Context, intentID string) (map[st
 }
 
 func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]any, error) {
-	var orderID, merchantID, title, desc, storeName, status string
+	var orderID, merchantID, title, desc, storeName, logoPath, status string
 	var amount int64
 	err := s.Pool.QueryRow(ctx, `
-		SELECT o.id::text, o.merchant_id::text, o.title, o.description, o.fiat_amount_toman, o.status, m.name
+		SELECT o.id::text, o.merchant_id::text, o.title, o.description, o.fiat_amount_toman, o.status,
+		       COALESCE(NULLIF(m.display_name,''), m.name), COALESCE(m.logo_path,'')
 		FROM orders o JOIN merchants m ON m.id = o.merchant_id
-		WHERE o.slug=$1`, slug).Scan(&orderID, &merchantID, &title, &desc, &amount, &status, &storeName)
+		WHERE o.slug=$1`, slug).Scan(&orderID, &merchantID, &title, &desc, &amount, &status, &storeName, &logoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -178,13 +179,49 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 	var intent map[string]any
 	if intentID != "" {
 		intent, _ = s.loadPaymentIntent(ctx, intentID)
+		if intent != nil {
+			s.attachMatchedTx(ctx, intent)
+		}
+	}
+	logoURL := ""
+	if logoPath != "" {
+		logoURL = "/api/v1/public/uploads/" + logoPath
 	}
 	return map[string]any{
-		"slug": slug, "store_name": storeName, "title": title, "description": desc,
+		"slug": slug, "store_name": storeName, "store_logo_url": logoURL, "title": title, "description": desc,
 		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status,
 		"fields": fields, "field_values": values, "payment_intent": intent,
 		"customer_submitted": len(values) > 0,
 	}, nil
+}
+
+func (s *Server) attachMatchedTx(ctx context.Context, intent map[string]any) {
+	intentID, _ := intent["id"].(string)
+	if intentID == "" {
+		return
+	}
+	var txHash, network string
+	var confirmations int
+	err := s.Pool.QueryRow(ctx, `
+		SELECT ce.tx_hash, ce.network, ce.confirmations
+		FROM matched_transactions mt
+		JOIN chain_events ce ON ce.id = mt.chain_event_id
+		WHERE mt.payment_intent_id=$1::uuid AND mt.match_type='EXACT'
+		ORDER BY mt.created_at DESC LIMIT 1`, intentID).Scan(&txHash, &network, &confirmations)
+	if err != nil {
+		return
+	}
+	required := s.Cfg.TronConfirmations
+	if network == "bsc" {
+		required = s.Cfg.BSCConfirmations
+	}
+	intent["matched_tx"] = map[string]any{
+		"tx_hash":                txHash,
+		"network":                network,
+		"confirmations":          confirmations,
+		"required_confirmations": required,
+		"explorer_url":           s.Cfg.ExplorerTxURL(network, txHash),
+	}
 }
 
 func fmtErr(err error) string {

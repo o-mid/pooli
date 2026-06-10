@@ -18,6 +18,21 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+export async function apiMultipart<T>(path: string, formData: FormData, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    ...init,
+    credentials: "include",
+    body: formData,
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `request failed (${res.status})`);
+  }
+  return data as T;
+}
+
 export function apiBase() {
   return API_BASE || (typeof window !== "undefined" ? window.location.origin : "");
 }
