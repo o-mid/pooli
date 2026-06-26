@@ -73,6 +73,9 @@ func main() {
 				if err := pollNetwork(ctx, pool, matcher, ad); err != nil {
 					log.Printf("poll %s: %v", ad.Network(), err)
 				}
+				if err := advanceConfirmations(ctx, pool, matcher, ad); err != nil {
+					log.Printf("confirm %s: %v", ad.Network(), err)
+				}
 			}
 			expireIntents(ctx, pool)
 		}
@@ -127,6 +130,49 @@ func pollNetwork(ctx context.Context, pool *pgxpool.Pool, matcher *payment.Match
 			ad.Network(), next)
 	}
 	return nil
+}
+
+func advanceConfirmations(ctx context.Context, pool *pgxpool.Pool, matcher *payment.Matcher, ad chain.Adapter) error {
+	rows, err := pool.Query(ctx, `
+		SELECT ce.event_id, ce.tx_hash, ce.network, COALESCE(ce.chain_id, 0), ce.confirmations, ce.block_number
+		FROM chain_events ce
+		JOIN matched_transactions mt ON mt.chain_event_id = ce.id
+		JOIN payment_intents pi ON pi.id = mt.payment_intent_id
+		WHERE ce.network=$1
+		  AND mt.match_type='EXACT'
+		  AND pi.status IN ('SEEN','CONFIRMING')
+		ORDER BY ce.observed_at ASC
+		LIMIT 50`, ad.Network())
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var eventID, txHash, network string
+		var chainID int64
+		var confs int
+		var blockNumber int64
+		if err := rows.Scan(&eventID, &txHash, &network, &chainID, &confs, &blockNumber); err != nil {
+			return err
+		}
+		var chainIDPtr *int64
+		if chainID != 0 {
+			chainIDPtr = &chainID
+		}
+		ev := domain.ChainEvent{
+			EventID: eventID, TxHash: txHash, Network: network, ChainID: chainIDPtr,
+			Confirmations: confs, BlockNumber: blockNumber,
+		}
+		conf, err := ad.ConfirmationStatus(ctx, ev)
+		if err != nil {
+			log.Printf("confirmation status %s: %v", txHash, err)
+			continue
+		}
+		if err := matcher.ApplyConfirmations(ctx, eventID, conf); err != nil {
+			log.Printf("apply confirmations %s: %v", eventID, err)
+		}
+	}
+	return rows.Err()
 }
 
 func expireIntents(ctx context.Context, pool *pgxpool.Pool) {

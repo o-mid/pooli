@@ -188,3 +188,24 @@ func (s *Server) handleSimulateChainEvent(w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, http.StatusOK, res)
 }
+
+func (s *Server) handleSimulateConfirmations(w http.ResponseWriter, r *http.Request) {
+	if !s.Cfg.EnableChainSimulator {
+		writeErr(w, http.StatusForbidden, "simulator disabled")
+		return
+	}
+	var req struct {
+		EventID       string `json:"event_id"`
+		Confirmations int    `json:"confirmations"`
+	}
+	if err := decodeJSON(r, &req); err != nil || req.EventID == "" {
+		writeErr(w, http.StatusBadRequest, "event_id required")
+		return
+	}
+	if err := s.Matcher.ApplyConfirmations(r.Context(), req.EventID, req.Confirmations); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+

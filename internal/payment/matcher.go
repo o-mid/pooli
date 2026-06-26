@@ -166,6 +166,8 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 		m.emit(merchantID, intentID, eventType, map[string]any{
 			"status": next, "tx_hash": ev.TxHash, "network": ev.Network,
 			"amount_base_units": ev.AmountBaseUnits,
+			"confirmations":     ev.Confirmations,
+			"required_confirmations": needed,
 		})
 		return nil
 	})
@@ -362,7 +364,7 @@ func (m *Matcher) ApplyConfirmations(ctx context.Context, eventID string, confir
 		if err != nil {
 			return err
 		}
-		m.emit(merchantID, intentID, evt, map[string]any{"status": next, "tx_hash": txHash, "confirmations": confirmations})
+		m.emit(merchantID, intentID, evt, map[string]any{"status": next, "tx_hash": txHash, "network": network, "confirmations": confirmations, "required_confirmations": needed})
 		return nil
 	})
 }
