@@ -40,3 +40,6 @@ simulate-pay:
 # Full MVP verification including API restart persistence check
 verify:
 	./scripts/verify-mvp-runner.sh
+
+verify-web:
+	npm run verify --workspace=@pooli/web
