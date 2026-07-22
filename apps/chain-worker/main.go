@@ -20,6 +20,9 @@ import (
 func main() {
 	_ = godotenv.Load()
 	cfg := config.Load()
+	if err := cfg.ValidateTronPilot(); err != nil {
+		log.Fatal(err)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -45,7 +48,7 @@ func main() {
 			txHash, _ := payload["tx_hash"].(string)
 			_ = pool.QueryRow(context.Background(), `
 				SELECT o.fiat_amount_toman, COALESCE(NULLIF(o.merchant_reference,''), o.slug),
-				       COALESCE((SELECT pay_usdt_amount_base_units FROM payment_options WHERE payment_intent_id=$1::uuid LIMIT 1),0)
+				       COALESCE((SELECT pay_usdt_amount_base_units FROM payment_options WHERE payment_intent_id=$1::uuid AND status='SETTLED' LIMIT 1),0)
 				FROM payment_intents pi JOIN orders o ON o.id=pi.order_id WHERE pi.id=$1::uuid`, intentID).
 				Scan(&toman, &orderRef, &usdt)
 			_ = tg.NotifyPaid(context.Background(), merchantID, orderRef, toman, usdt, network, txHash)
@@ -53,14 +56,20 @@ func main() {
 	}
 
 	var adapters []chain.Adapter
-	if evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, domain.NetworkBSC, cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCConfirmations); err == nil {
-		adapters = append(adapters, evm)
+	if cfg.EnableBSCWatcher {
+		if evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, domain.NetworkBSC, cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCConfirmations); err == nil {
+			adapters = append(adapters, evm)
+		} else {
+			log.Printf("evm adapter disabled: %v", err)
+		}
 	} else {
-		log.Printf("evm adapter disabled: %v", err)
+		log.Printf("BSC watcher disabled (ENABLE_BSC_WATCHER=false)")
 	}
-	adapters = append(adapters, chain.NewTronAdapter(cfg.TronGridBaseURL, cfg.TronGridAPIKey, cfg.TronUSDTContract, cfg.TronConfirmations))
+	adapters = append(adapters, chain.NewTronAdapterWithNetwork(
+		cfg.TronGridBaseURL, cfg.TronGridAPIKey, cfg.TronUSDTContract, cfg.TronConfirmations, cfg.TronNetwork,
+	))
 
-	log.Printf("chain-worker started; poll=%s", cfg.ChainPollInterval)
+	log.Printf("chain-worker started; tron=%s conf=%d poll=%s", cfg.TronNetwork, cfg.TronConfirmations, cfg.ChainPollInterval)
 	ticker := time.NewTicker(cfg.ChainPollInterval)
 	defer ticker.Stop()
 
