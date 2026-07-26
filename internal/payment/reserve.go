@@ -36,7 +36,7 @@ func ReserveUniqueAmount(ctx context.Context, tx pgx.Tx, destinationNorm, networ
 				  AND network = $2
 				  AND token_contract = $3
 				  AND pay_amount_base_units = $4
-				  AND status = 'active'
+				  AND status IN ('active', 'matched')
 			)`, destinationNorm, network, token, candidate).Scan(&exists)
 		if err != nil {
 			return 0, err
@@ -64,7 +64,7 @@ func ClaimUniqueReservation(ctx context.Context, tx pgx.Tx, optionID, destinatio
 				pay_amount_base_units, status, expires_at
 			) VALUES ($1::uuid, $2, $3, $4, $5, 'active', $6)
 			ON CONFLICT (destination_address_normalized, network, token_contract, pay_amount_base_units)
-				WHERE status = 'active'
+				WHERE status IN ('active', 'matched')
 			DO NOTHING`,
 			optionID, destinationNorm, network, token, candidate, expiresAt)
 		if err != nil {
@@ -127,5 +127,7 @@ func isUniqueViolation(err error) bool {
 	if errors.As(err, &pgErr) {
 		return pgErr.Code == "23505"
 	}
-	return strings.Contains(err.Error(), "amount_reservations_active_uniq") || strings.Contains(err.Error(), "23505")
+	return strings.Contains(err.Error(), "amount_reservations_held_uniq") ||
+		strings.Contains(err.Error(), "amount_reservations_active_uniq") ||
+		strings.Contains(err.Error(), "23505")
 }

@@ -447,6 +447,61 @@ func TestMerchantIsolationQuery(t *testing.T) {
 	}
 }
 
+func TestReservationMatchedThenSettledViaConfirmations(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(21)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(900)
+	intentID, optionID := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 12}
+	ev := bscEvent(dest, contract, pay, 0)
+	res, err := m.Ingest(ctx, ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NewStatus != domain.StatusSeen {
+		t.Fatalf("expected SEEN got %s", res.NewStatus)
+	}
+	var resStatus, optStatus string
+	_ = pool.QueryRow(ctx, `SELECT status FROM amount_reservations WHERE payment_option_id=$1::uuid`, optionID).Scan(&resStatus)
+	if resStatus != "matched" {
+		t.Fatalf("expected matched reservation, got %s", resStatus)
+	}
+	if err := m.ApplyConfirmations(ctx, ev.EventID, 12); err != nil {
+		t.Fatal(err)
+	}
+	var intentStatus string
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentID).Scan(&intentStatus)
+	_ = pool.QueryRow(ctx, `SELECT status FROM amount_reservations WHERE payment_option_id=$1::uuid`, optionID).Scan(&resStatus)
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_options WHERE id=$1::uuid`, optionID).Scan(&optStatus)
+	if intentStatus != domain.StatusPaid || resStatus != "consumed" || optStatus != "SETTLED" {
+		t.Fatalf("settle incomplete intent=%s res=%s opt=%s", intentStatus, resStatus, optStatus)
+	}
+}
+
+func TestSecondExactWhileMatchedNeedsReview(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(22)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(910)
+	_, _ = createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 12}
+	if _, err := m.Ingest(ctx, bscEvent(dest, contract, pay, 1)); err != nil {
+		t.Fatal(err)
+	}
+	res, err := m.Ingest(ctx, bscEvent(dest, contract, pay, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.MatchType != "DUPLICATE_PAYMENT" || res.NewStatus != domain.StatusNeedsReview {
+		t.Fatalf("expected DUPLICATE→NEEDS_REVIEW got %#v", res)
+	}
+}
+
 func TestResetClearsLeftoverState(t *testing.T) {
 	pool := setup(t)
 	ctx := context.Background()
