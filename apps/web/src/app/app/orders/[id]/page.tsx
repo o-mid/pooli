@@ -7,6 +7,7 @@ import { PaymentProgress } from "@/components/PaymentProgress";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
 import { orderStatusLabel } from "@/lib/orderStatus";
+import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type PaymentOption = {
   network: string;
@@ -64,11 +65,14 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.payment_intent?.id]);
 
+  const intent = order?.payment_intent;
+  const status = intent?.status || order?.status;
+  usePaymentStatusPoll(status, () => load().catch(() => undefined));
+
   if (!order) return <p className="muted">{t.common.loading}</p>;
 
-  const intent = order.payment_intent;
-  const status = intent?.status || order.status;
   const matched = intent?.matched_tx;
+  const displayStatus = status || order.status;
 
   async function copyLink() {
     if (!order) return;
@@ -85,10 +89,10 @@ export default function OrderDetailPage() {
         <p className="tabular" style={{ fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.5rem" }}>
           {order.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
         </p>
-        <p className="muted">{orderStatusLabel(status, t)}</p>
+        <p className="muted">{orderStatusLabel(displayStatus, t)}</p>
 
         <PaymentProgress
-          status={status}
+          status={displayStatus}
           confirmations={matched?.confirmations}
           requiredConfirmations={matched?.required_confirmations}
           txHash={matched?.tx_hash}

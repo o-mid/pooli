@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
+import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type PaymentOption = {
   id: string;
@@ -86,6 +87,8 @@ export default function PublicCheckoutPage() {
   const countdown = useCountdown(selected?.expires_at || pay?.payment_intent?.expires_at);
   const intentStatus = pay?.payment_intent?.status || pay?.status || "AWAITING_PAYMENT";
   const matched = pay?.payment_intent?.matched_tx;
+
+  usePaymentStatusPoll(intentStatus, () => load().catch(() => undefined));
 
   const qrPayload = useMemo(() => {
     if (!selected) return "";
