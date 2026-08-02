@@ -44,6 +44,7 @@ make simulate-pay PAYMENT_OPTION_ID=<option-uuid>
 - [Architecture](docs/architecture.md)
 - [Payment lifecycle](docs/payment-lifecycle.md)
 - [Local development](docs/local-development.md)
+- [TRON mainnet pilot](docs/tron-mainnet-pilot.md)
 - [Security](docs/security.md)
 - [Implementation plan](docs/implementation-plan.md)
 - [ADRs](docs/decisions/)
