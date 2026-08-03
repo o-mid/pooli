@@ -206,8 +206,10 @@ func (s *Server) attachMatchedTx(ctx context.Context, intent map[string]any) {
 		SELECT ce.tx_hash, ce.network, ce.confirmations
 		FROM matched_transactions mt
 		JOIN chain_events ce ON ce.id = mt.chain_event_id
-		WHERE mt.payment_intent_id=$1::uuid AND mt.match_type='EXACT'
-		ORDER BY mt.created_at DESC LIMIT 1`, intentID).Scan(&txHash, &network, &confirmations)
+		WHERE mt.payment_intent_id=$1::uuid
+		  AND mt.match_type IN ('EXACT', 'LATE_PAYMENT')
+		ORDER BY CASE mt.match_type WHEN 'EXACT' THEN 0 ELSE 1 END, mt.created_at DESC
+		LIMIT 1`, intentID).Scan(&txHash, &network, &confirmations)
 	if err != nil {
 		return
 	}

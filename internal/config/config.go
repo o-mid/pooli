@@ -19,9 +19,10 @@ type Config struct {
 	AdminEmails          map[string]bool
 	RateProvider         string
 	MockUSDTTmnRate      string
-	QuoteTTL             time.Duration
-	RateStale            time.Duration
-	EnableChainSimulator bool
+	QuoteTTL                    time.Duration
+	LatePaymentReconcileWindow  time.Duration
+	RateStale                   time.Duration
+	EnableChainSimulator        bool
 	TronNetwork          string
 	TronGridBaseURL      string
 	TronGridAPIKey       string
@@ -71,9 +72,10 @@ func Load() Config {
 		AdminEmails:          admin,
 		RateProvider:         getenv("RATE_PROVIDER", "mock"),
 		MockUSDTTmnRate:      getenv("MOCK_USDT_TMN_RATE", "126000"),
-		QuoteTTL:             durationSeconds("QUOTE_TTL_SECONDS", 600),
-		RateStale:            durationSeconds("RATE_STALE_SECONDS", 180),
-		EnableChainSimulator: getenv("ENABLE_CHAIN_SIMULATOR", "true") == "true",
+		QuoteTTL:                   durationSeconds("QUOTE_TTL_SECONDS", 600),
+		LatePaymentReconcileWindow: durationSeconds("LATE_PAYMENT_RECONCILE_WINDOW_SECONDS", 7200),
+		RateStale:                  durationSeconds("RATE_STALE_SECONDS", 180),
+		EnableChainSimulator:       getenv("ENABLE_CHAIN_SIMULATOR", "true") == "true",
 		TronNetwork:          tronNet,
 		TronGridBaseURL:      getenv("TRONGRID_BASE_URL", "https://nile.trongrid.io"),
 		TronGridAPIKey:       getenv("TRONGRID_API_KEY", ""),

@@ -217,6 +217,203 @@ func TestExpiredBecomesLate(t *testing.T) {
 	}
 }
 
+func releaseExpiredReservation(t *testing.T, pool *pgxpool.Pool, intentID, optionID string, expiredAgo time.Duration) time.Time {
+	t.Helper()
+	ctx := context.Background()
+	expiresAt := time.Now().UTC().Add(-expiredAgo)
+	_, err := pool.Exec(ctx, `
+		UPDATE payment_intents SET status='EXPIRED', expires_at=$2, updated_at=now() WHERE id=$1::uuid`,
+		intentID, expiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(ctx, `
+		UPDATE payment_options SET expires_at=$2 WHERE id=$1::uuid`, optionID, expiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(ctx, `
+		UPDATE amount_reservations
+		SET status='released', expires_at=$2
+		WHERE payment_option_id=$1::uuid`, optionID, expiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return expiresAt
+}
+
+func bscEventAt(dest, contract string, amount int64, conf int, at time.Time) domain.ChainEvent {
+	ev := bscEvent(dest, contract, amount, conf)
+	ev.ObservedAt = at
+	ev.Raw = map[string]any{"block_timestamp": at.UnixMilli()}
+	return ev
+}
+
+func TestReleasedExactInsideWindowBecomesLate(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(31)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(931)
+	intentID, optionID := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	expiresAt := releaseExpiredReservation(t, pool, intentID, optionID, 10*time.Minute)
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 12, LateReconcileWindow: 2 * time.Hour}
+	ev := bscEventAt(dest, contract, pay, 99, expiresAt.Add(5*time.Minute))
+	res, err := m.Ingest(ctx, ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NewStatus != domain.StatusLatePayment || res.MatchType != "LATE_PAYMENT" || res.PaymentIntentID != intentID {
+		t.Fatalf("expected LATE_PAYMENT link got %#v", res)
+	}
+	var intentStatus, optStatus, resStatus, matchType string
+	var usage int
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentID).Scan(&intentStatus)
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_options WHERE id=$1::uuid`, optionID).Scan(&optStatus)
+	_ = pool.QueryRow(ctx, `SELECT status FROM amount_reservations WHERE payment_option_id=$1::uuid`, optionID).Scan(&resStatus)
+	_ = pool.QueryRow(ctx, `
+		SELECT match_type FROM matched_transactions
+		WHERE payment_intent_id=$1::uuid AND payment_option_id=$2::uuid`, intentID, optionID).Scan(&matchType)
+	_ = pool.QueryRow(ctx, `SELECT COALESCE(SUM(verified_payments),0) FROM usage_counters WHERE merchant_id=$1::uuid`, mid).Scan(&usage)
+	if intentStatus != domain.StatusLatePayment || matchType != "LATE_PAYMENT" {
+		t.Fatalf("intent/match wrong status=%s match=%s", intentStatus, matchType)
+	}
+	if optStatus == "SETTLED" || resStatus == "consumed" || usage != 0 {
+		t.Fatalf("late must not settle opt=%s res=%s usage=%d", optStatus, resStatus, usage)
+	}
+	// Confirmations must not promote LATE_PAYMENT to PAID.
+	if err := m.ApplyConfirmations(ctx, ev.EventID, 99); err != nil {
+		t.Fatal(err)
+	}
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentID).Scan(&intentStatus)
+	if intentStatus != domain.StatusLatePayment {
+		t.Fatalf("ApplyConfirmations must not settle late payment, got %s", intentStatus)
+	}
+}
+
+func TestReleasedExactLinksCorrectExpiredIntent(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(32)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	payOld := uniqAmount(932)
+	payNew := payOld + 5
+	oldIntent, oldOpt := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, payOld-1, payOld)
+	newIntent, newOpt := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, payNew-1, payNew)
+	expiresOld := releaseExpiredReservation(t, pool, oldIntent, oldOpt, 15*time.Minute)
+	_ = releaseExpiredReservation(t, pool, newIntent, newOpt, 8*time.Minute)
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 1, LateReconcileWindow: 2 * time.Hour}
+	res, err := m.Ingest(ctx, bscEventAt(dest, contract, payOld, 1, expiresOld.Add(2*time.Minute)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.PaymentIntentID != oldIntent || res.NewStatus != domain.StatusLatePayment {
+		t.Fatalf("expected old intent late link got %#v", res)
+	}
+	var otherStatus string
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, newIntent).Scan(&otherStatus)
+	if otherStatus != domain.StatusExpired {
+		t.Fatalf("unrelated intent mutated: %s", otherStatus)
+	}
+}
+
+func TestReleasedExactIdempotentReplay(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(33)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(933)
+	intentID, optionID := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	expiresAt := releaseExpiredReservation(t, pool, intentID, optionID, 12*time.Minute)
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 1, LateReconcileWindow: 2 * time.Hour}
+	ev := bscEventAt(dest, contract, pay, 1, expiresAt.Add(time.Minute))
+	if _, err := m.Ingest(ctx, ev); err != nil {
+		t.Fatal(err)
+	}
+	res2, err := m.Ingest(ctx, ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res2.Duplicate || !res2.Ignored {
+		t.Fatalf("expected idempotent ignore got %#v", res2)
+	}
+	var n int
+	_ = pool.QueryRow(ctx, `SELECT COUNT(*) FROM matched_transactions WHERE payment_intent_id=$1::uuid`, intentID).Scan(&n)
+	if n != 1 {
+		t.Fatalf("expected one match row, got %d", n)
+	}
+}
+
+func TestReleasedExactOutsideWindowIgnored(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(34)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(934)
+	intentID, optionID := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	expiresAt := releaseExpiredReservation(t, pool, intentID, optionID, 3*time.Hour)
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 1, LateReconcileWindow: 2 * time.Hour}
+	res, err := m.Ingest(ctx, bscEventAt(dest, contract, pay, 1, expiresAt.Add(150*time.Minute)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Ignored || res.MatchType == "LATE_PAYMENT" {
+		t.Fatalf("outside window must stay unmatched got %#v", res)
+	}
+	var status string
+	var matches int
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentID).Scan(&status)
+	_ = pool.QueryRow(ctx, `SELECT COUNT(*) FROM matched_transactions WHERE payment_intent_id=$1::uuid`, intentID).Scan(&matches)
+	if status != domain.StatusExpired || matches != 0 {
+		t.Fatalf("status=%s matches=%d", status, matches)
+	}
+}
+
+func TestAmbiguousReleasedExactNotAutoAssociated(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(35)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(935)
+	intentA, optA := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	// Second reservation with same amount requires releasing the unique hold first, then inserting another.
+	expiresA := releaseExpiredReservation(t, pool, intentA, optA, 20*time.Minute)
+	intentB, optB := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+	expiresB := releaseExpiredReservation(t, pool, intentB, optB, 9*time.Minute)
+	_ = expiresA
+	m := &payment.Matcher{Pool: pool, BSCConfirmations: 1, LateReconcileWindow: 2 * time.Hour}
+	ev := bscEventAt(dest, contract, pay, 1, expiresB.Add(2*time.Minute))
+	res, err := m.Ingest(ctx, ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.MatchType != "AMBIGUOUS_LATE" || res.PaymentIntentID != "" {
+		t.Fatalf("expected ambiguous unmatched got %#v", res)
+	}
+	var matches int
+	_ = pool.QueryRow(ctx, `SELECT COUNT(*) FROM matched_transactions`).Scan(&matches)
+	if matches != 0 {
+		t.Fatalf("ambiguous must not insert matches, got %d", matches)
+	}
+	var statusA, statusB string
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentA).Scan(&statusA)
+	_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentB).Scan(&statusB)
+	if statusA != domain.StatusExpired || statusB != domain.StatusExpired {
+		t.Fatalf("intents mutated A=%s B=%s", statusA, statusB)
+	}
+	var note string
+	_ = pool.QueryRow(ctx, `
+		SELECT raw_json->>'late_reconcile' FROM chain_events WHERE event_id=$1`, ev.EventID).Scan(&note)
+	if note != "ambiguous_released_candidates" {
+		t.Fatalf("expected observable ambiguity marker, got %q", note)
+	}
+}
+
 func TestUnderpayment(t *testing.T) {
 	pool := setup(t)
 	ctx := context.Background()

@@ -34,9 +34,10 @@ func main() {
 
 	tg := &notify.Telegram{Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled}
 	matcher := &payment.Matcher{
-		Pool:              pool,
-		BSCConfirmations:  cfg.BSCConfirmations,
-		TronConfirmations: cfg.TronConfirmations,
+		Pool:                pool,
+		BSCConfirmations:    cfg.BSCConfirmations,
+		TronConfirmations:   cfg.TronConfirmations,
+		LateReconcileWindow: cfg.LatePaymentReconcileWindow,
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			log.Printf("transition %s intent=%s", eventType, intentID)
 			if eventType != "payment.paid" {
@@ -127,8 +128,13 @@ func pollNetwork(ctx context.Context, pool *pgxpool.Pool, matcher *payment.Match
 			log.Printf("verify skip %s: %v", ev.EventID, err)
 			continue
 		}
-		if _, err := matcher.Ingest(ctx, verified); err != nil {
+		res, err := matcher.Ingest(ctx, verified)
+		if err != nil {
 			log.Printf("ingest %s: %v", ev.EventID, err)
+			continue
+		}
+		if res.MatchType == "AMBIGUOUS_LATE" {
+			log.Printf("late reconcile ambiguous (left unmatched) event=%s tx=%s", verified.EventID, verified.TxHash)
 		}
 	}
 	if next != "" {
@@ -191,7 +197,14 @@ func expireIntents(ctx context.Context, pool *pgxpool.Pool) {
 	_, _ = pool.Exec(ctx, `
 		UPDATE amount_reservations SET status='released'
 		WHERE status='active' AND expires_at < now()`)
+	// Orders often have NULL expires_at; sync EXPIRED from the linked intent.
 	_, _ = pool.Exec(ctx, `
-		UPDATE orders SET status='EXPIRED', updated_at=now()
-		WHERE status='AWAITING_PAYMENT' AND expires_at IS NOT NULL AND expires_at < now()`)
+		UPDATE orders o SET status='EXPIRED', updated_at=now()
+		FROM payment_intents pi
+		WHERE pi.order_id = o.id
+		  AND o.status = 'AWAITING_PAYMENT'
+		  AND (
+		    pi.status = 'EXPIRED'
+		    OR (o.expires_at IS NOT NULL AND o.expires_at < now())
+		  )`)
 }

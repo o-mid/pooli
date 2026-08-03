@@ -25,7 +25,53 @@ type Matcher struct {
 	Pool              *pgxpool.Pool
 	BSCConfirmations  int
 	TronConfirmations int
-	OnTransition      func(merchantID, intentID, eventType string, payload map[string]any)
+	// LateReconcileWindow bounds exact matches against released reservations
+	// after quote/reservation expiry. Zero defaults to 2 hours.
+	LateReconcileWindow time.Duration
+	OnTransition        func(merchantID, intentID, eventType string, payload map[string]any)
+}
+
+func (m *Matcher) lateWindow() time.Duration {
+	if m.LateReconcileWindow <= 0 {
+		return 2 * time.Hour
+	}
+	return m.LateReconcileWindow
+}
+
+// eventTime prefers on-chain block_timestamp from Raw when present; otherwise ObservedAt.
+func eventTime(ev domain.ChainEvent) time.Time {
+	if ev.Raw != nil {
+		switch v := ev.Raw["block_timestamp"].(type) {
+		case int64:
+			if v > 1_000_000_000_000 {
+				return time.UnixMilli(v).UTC()
+			}
+			if v > 0 {
+				return time.Unix(v, 0).UTC()
+			}
+		case float64:
+			iv := int64(v)
+			if iv > 1_000_000_000_000 {
+				return time.UnixMilli(iv).UTC()
+			}
+			if iv > 0 {
+				return time.Unix(iv, 0).UTC()
+			}
+		case json.Number:
+			if iv, err := v.Int64(); err == nil {
+				if iv > 1_000_000_000_000 {
+					return time.UnixMilli(iv).UTC()
+				}
+				if iv > 0 {
+					return time.Unix(iv, 0).UTC()
+				}
+			}
+		}
+	}
+	if !ev.ObservedAt.IsZero() {
+		return ev.ObservedAt.UTC()
+	}
+	return time.Now().UTC()
 }
 
 func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult, error) {
@@ -82,6 +128,13 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 			toNorm, ev.Network, tokenNorm, ev.AmountBaseUnits,
 		).Scan(&optionID, &intentID, &intentStatus, &expiresAt, &merchantID, &reservationStatus)
 		if err == pgx.ErrNoRows {
+			handled, herr := m.reconcileReleasedExact(ctx, tx, chainEventID, toNorm, tokenNorm, ev, &result)
+			if herr != nil {
+				return herr
+			}
+			if handled {
+				return nil
+			}
 			// Try near-miss detection for review
 			return m.handleUnmatched(ctx, tx, chainEventID, toNorm, ev, &result)
 		}
@@ -117,13 +170,13 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 			return err
 		}
 
-		now := time.Now().UTC()
-		if now.After(expiresAt) && intentStatus != domain.StatusPaid {
+		if eventTime(ev).After(expiresAt) && intentStatus != domain.StatusPaid {
 			result.MatchType = "LATE_PAYMENT"
 			result.NewStatus = domain.StatusLatePayment
 			if err := m.transition(ctx, tx, intentID, intentStatus, domain.StatusLatePayment, "payment after expiry", optionID, chainEventID, result.MatchType); err != nil {
 				return err
 			}
+			_, _ = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
 			m.emit(merchantID, intentID, "payment.needs_review", map[string]any{"status": result.NewStatus, "tx_hash": ev.TxHash})
 			return nil
 		}
@@ -169,6 +222,93 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 		return nil
 	})
 	return result, err
+}
+
+// reconcileReleasedExact associates an exact transfer with a recently released reservation.
+// Returns handled=true when the event was resolved as LATE_PAYMENT or left unmatched due to ambiguity.
+// Returns handled=false when zero candidates — caller should fall through to near-miss handling.
+func (m *Matcher) reconcileReleasedExact(
+	ctx context.Context, tx pgx.Tx, chainEventID, toNorm, tokenNorm string,
+	ev domain.ChainEvent, result *MatchResult,
+) (bool, error) {
+	evAt := eventTime(ev)
+	windowSecs := int64(m.lateWindow() / time.Second)
+	rows, err := tx.Query(ctx, `
+		SELECT po.id::text, pi.id::text, pi.status, pi.merchant_id::text, ar.expires_at
+		FROM amount_reservations ar
+		JOIN payment_options po ON po.id = ar.payment_option_id
+		JOIN payment_intents pi ON pi.id = po.payment_intent_id
+		WHERE ar.status = 'released'
+		  AND ar.destination_address_normalized = $1
+		  AND ar.network = $2
+		  AND ar.token_contract = $3
+		  AND ar.pay_amount_base_units = $4
+		  AND pi.status <> $5
+		  AND ar.expires_at <= $6::timestamptz
+		  AND $6::timestamptz <= ar.expires_at + make_interval(secs => $7::int)
+		ORDER BY ar.expires_at DESC, ar.created_at DESC
+		LIMIT 5`,
+		toNorm, ev.Network, tokenNorm, ev.AmountBaseUnits, domain.StatusPaid,
+		evAt, windowSecs,
+	)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	type cand struct {
+		optionID, intentID, status, merchantID string
+		expiresAt                              time.Time
+	}
+	var cands []cand
+	for rows.Next() {
+		var c cand
+		if err := rows.Scan(&c.optionID, &c.intentID, &c.status, &c.merchantID, &c.expiresAt); err != nil {
+			return false, err
+		}
+		cands = append(cands, c)
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	if len(cands) == 0 {
+		return false, nil
+	}
+	if len(cands) > 1 {
+		// Ambiguous historical exact matches — never guess; leave unmatched for operator review.
+		result.MatchType = "AMBIGUOUS_LATE"
+		result.Ignored = true
+		_, _ = tx.Exec(ctx, `
+			UPDATE chain_events
+			SET processed_at = now(),
+			    raw_json = COALESCE(raw_json, '{}'::jsonb) || jsonb_build_object(
+			      'late_reconcile', 'ambiguous_released_candidates',
+			      'candidate_count', $2::int
+			    )
+			WHERE id = $1::uuid`, chainEventID, len(cands))
+		m.emit(cands[0].merchantID, "", "payment.unmatched_ambiguous", map[string]any{
+			"reason":           "ambiguous_released_exact",
+			"tx_hash":          ev.TxHash,
+			"candidate_count":  len(cands),
+			"amount_base_units": ev.AmountBaseUnits,
+			"network":          ev.Network,
+		})
+		return true, nil
+	}
+
+	c := cands[0]
+	result.PaymentIntentID = c.intentID
+	result.PaymentOptionID = c.optionID
+	result.MatchType = "LATE_PAYMENT"
+	result.NewStatus = domain.StatusLatePayment
+	if err := m.transition(ctx, tx, c.intentID, c.status, domain.StatusLatePayment, "exact payment after reservation release", c.optionID, chainEventID, result.MatchType); err != nil {
+		return true, err
+	}
+	_, _ = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
+	m.emit(c.merchantID, c.intentID, "payment.needs_review", map[string]any{
+		"status": result.NewStatus, "tx_hash": ev.TxHash, "match_type": result.MatchType,
+	})
+	return true, nil
 }
 
 func (m *Matcher) handleUnmatched(ctx context.Context, tx pgx.Tx, chainEventID, toNorm string, ev domain.ChainEvent, result *MatchResult) error {

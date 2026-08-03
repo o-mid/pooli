@@ -38,6 +38,7 @@ func main() {
 	tg := &notify.Telegram{Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled}
 	matcher := &payment.Matcher{
 		Pool: pool, BSCConfirmations: cfg.BSCConfirmations, TronConfirmations: cfg.TronConfirmations,
+		LateReconcileWindow: cfg.LatePaymentReconcileWindow,
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			hub.PublishIntent(intentID, sse.Event{Type: eventType, Payload: payload})
 			hub.PublishMerchant(merchantID, sse.Event{Type: eventType, Payload: payload})
