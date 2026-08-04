@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { BrandMark } from "@/components/BrandMark";
 import { PaymentProgress } from "@/components/PaymentProgress";
@@ -55,6 +55,8 @@ export default function PublicCheckoutPage() {
   const [selected, setSelected] = useState<PaymentOption | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"addr" | "amt" | null>(null);
+  const selectedRef = useRef<PaymentOption | null>(null);
+  selectedRef.current = selected;
 
   function resolveStep(data: Pay): Step {
     const hasFields = data.fields.length > 0 && !data.customer_submitted;
@@ -66,8 +68,15 @@ export default function PublicCheckoutPage() {
   async function load() {
     const d = await api<Pay>(`/api/v1/public/pay/${params.slug}`);
     setPay(d);
-    setStep((prev) => (prev === "pay" && selected ? "pay" : resolveStep(d)));
+    // Use ref so poll/SSE reloads do not clobber an in-progress pay step when
+    // `selected` is still null in a stale closure after chooseNetwork.
+    setStep((prev) => (prev === "pay" && selectedRef.current ? "pay" : resolveStep(d)));
     if (d.payment_intent?.status === "PAID") setStep("pay");
+    // Keep selected option in sync when intent options refresh (e.g. after PAID).
+    if (selectedRef.current) {
+      const match = d.payment_intent?.options?.find((o) => o.id === selectedRef.current?.id);
+      if (match) setSelected(match);
+    }
   }
 
   useEffect(() => {
@@ -77,15 +86,22 @@ export default function PublicCheckoutPage() {
 
   useEffect(() => {
     if (!pay?.payment_intent?.id) return;
+    // SSE is best-effort only (worker transitions do not publish into the API hub).
     const es = openSSE(`/api/v1/public/pay/${params.slug}/events`, () => {
       load().catch(() => undefined);
     });
+    es.onerror = () => {
+      // Keep REST polling authoritative; do not tear down the page on SSE errors.
+    };
     return () => es.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pay?.payment_intent?.id, params.slug]);
 
   const countdown = useCountdown(selected?.expires_at || pay?.payment_intent?.expires_at);
-  const intentStatus = pay?.payment_intent?.status || pay?.status || "AWAITING_PAYMENT";
+  // Prefer payment_intent.status — top-level status is the order snapshot.
+  // Do not invent AWAITING_PAYMENT before the first load; that would start
+  // polling against a missing/stale payload.
+  const intentStatus = pay?.payment_intent?.status || pay?.status;
   const matched = pay?.payment_intent?.matched_tx;
 
   usePaymentStatusPoll(intentStatus, () => load().catch(() => undefined));
@@ -276,7 +292,7 @@ export default function PublicCheckoutPage() {
           )}
 
           <PaymentProgress
-            status={intentStatus}
+            status={intentStatus || "AWAITING_PAYMENT"}
             network={selected.network}
             confirmations={matched?.confirmations}
             requiredConfirmations={matched?.required_confirmations}

@@ -1,55 +1,41 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { pollIntervalMs, shouldPollPaymentStatus } from "./paymentPoll";
+import { createPaymentStatusPoller, shouldPollPaymentStatus } from "./paymentPoll";
 
 /**
  * REST poll while payment is awaiting chain confirmation.
- * SSE remains best-effort; this covers worker→DB→UI across process boundaries.
+ * SSE remains best-effort and must not gate this loop — chain transitions are
+ * applied by the worker process, so the API SSE hub often never sees them.
  */
 export function usePaymentStatusPoll(status: string | undefined, reload: () => void | Promise<void>) {
-  const attempt = useRef(0);
+  const statusRef = useRef(status);
   const reloadRef = useRef(reload);
+  statusRef.current = status;
   reloadRef.current = reload;
 
+  // Stay on one poller across AWAITING_PAYMENT → SEEN → CONFIRMING; only
+  // tear down when we leave the pollable set (e.g. PAID).
+  const active = shouldPollPaymentStatus(status);
+
   useEffect(() => {
-    if (!shouldPollPaymentStatus(status)) {
-      attempt.current = 0;
-      return;
-    }
+    if (!active) return;
 
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const tick = async () => {
-      if (cancelled) return;
-      if (typeof document !== "undefined" && document.hidden) {
-        timer = setTimeout(tick, 5000);
-        return;
-      }
-      attempt.current += 1;
-      try {
-        await reloadRef.current();
-      } catch {
-        // ignore transient errors; next tick retries
-      }
-      if (cancelled) return;
-      timer = setTimeout(tick, pollIntervalMs(attempt.current));
-    };
-
-    timer = setTimeout(tick, pollIntervalMs(0));
+    const poller = createPaymentStatusPoller({
+      getStatus: () => statusRef.current,
+      reload: () => reloadRef.current(),
+    });
+    poller.start();
+    poller.setHidden(typeof document !== "undefined" ? document.hidden : false);
 
     const onVis = () => {
-      if (!document.hidden && shouldPollPaymentStatus(status)) {
-        void reloadRef.current();
-      }
+      poller.setHidden(document.hidden);
     };
     document.addEventListener("visibilitychange", onVis);
 
     return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVis);
+      poller.stop();
     };
-  }, [status]);
+  }, [active]);
 }
