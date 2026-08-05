@@ -23,6 +23,9 @@ func main() {
 	if err := cfg.ValidateTronPilot(); err != nil {
 		log.Fatal(err)
 	}
+	if err := cfg.ValidateBSCPilot(); err != nil {
+		log.Fatal(err)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -58,8 +61,9 @@ func main() {
 
 	var adapters []chain.Adapter
 	if cfg.EnableBSCWatcher {
-		if evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, domain.NetworkBSC, cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCConfirmations); err == nil {
+		if evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, domain.NetworkBSC, cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCUSDTDecimals, cfg.BSCConfirmations); err == nil {
 			adapters = append(adapters, evm)
+			log.Printf("BSC watcher enabled; network=%s chain_id=%d conf=%d decimals=%d", cfg.BSCNetwork, cfg.BSCChainID, cfg.BSCConfirmations, cfg.BSCUSDTDecimals)
 		} else {
 			log.Printf("evm adapter disabled: %v", err)
 		}

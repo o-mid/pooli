@@ -27,9 +27,11 @@ type Config struct {
 	TronGridBaseURL      string
 	TronGridAPIKey       string
 	TronUSDTContract     string
+	BSCNetwork           string
 	BSCRPCURL            string
 	BSCChainID           int64
 	BSCUSDTContract      string
+	BSCUSDTDecimals      int
 	BSCConfirmations     int
 	TronConfirmations    int
 	ChainPollInterval    time.Duration
@@ -40,6 +42,9 @@ type Config struct {
 	BSCExplorerTxURL     string
 	EnableBSCWatcher     bool
 }
+
+// Canonical Binance-Peg USDT on BNB Smart Chain mainnet (18 decimals).
+const MainnetUSDTBEP20 = "0x55d398326f99059fF775485246999027B3197955"
 
 const (
 	MainnetUSDTTRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
@@ -80,10 +85,12 @@ func Load() Config {
 		TronGridBaseURL:      getenv("TRONGRID_BASE_URL", "https://nile.trongrid.io"),
 		TronGridAPIKey:       getenv("TRONGRID_API_KEY", ""),
 		TronUSDTContract:     getenv("TRON_USDT_CONTRACT", NileUSDTTRC20),
+		BSCNetwork:           strings.ToLower(getenv("BSC_NETWORK", "mainnet")),
 		BSCRPCURL:            getenv("BSC_RPC_URL", "https://bsc-dataseed.binance.org"),
 		BSCChainID:           int64(getenvInt("BSC_CHAIN_ID", 56)),
-		BSCUSDTContract:      getenv("BSC_USDT_CONTRACT", "0x55d398326f99059fF775485246999027B3197955"),
-		BSCConfirmations:     getenvInt("BSC_CONFIRMATIONS", 12),
+		BSCUSDTContract:      getenv("BSC_USDT_CONTRACT", MainnetUSDTBEP20),
+		BSCUSDTDecimals:      getenvInt("BSC_USDT_DECIMALS", 18),
+		BSCConfirmations:     getenvInt("BSC_CONFIRMATIONS", 15),
 		TronConfirmations:    getenvInt("TRON_CONFIRMATIONS", tronConfDefault),
 		ChainPollInterval:    durationSeconds("CHAIN_POLL_INTERVAL_SECONDS", 8),
 		TelegramBotToken:     getenv("TELEGRAM_BOT_TOKEN", ""),
@@ -94,6 +101,35 @@ func Load() Config {
 		EnableBSCWatcher:     getenv("ENABLE_BSC_WATCHER", "true") == "true",
 	}
 	return cfg
+}
+
+// ValidateBSCPilot returns a fatal configuration error for unsafe BSC mainnet settings.
+func (c Config) ValidateBSCPilot() error {
+	if !c.EnableBSCWatcher {
+		return nil
+	}
+	if c.BSCNetwork != "mainnet" {
+		return nil
+	}
+	if strings.TrimSpace(c.BSCRPCURL) == "" {
+		return fmt.Errorf("BSC_RPC_URL is required when ENABLE_BSC_WATCHER=true")
+	}
+	if !strings.EqualFold(c.BSCUSDTContract, MainnetUSDTBEP20) {
+		return fmt.Errorf("BSC_USDT_CONTRACT must be canonical Binance-Peg USDT %s", MainnetUSDTBEP20)
+	}
+	if c.BSCUSDTDecimals != 18 {
+		return fmt.Errorf("BSC_USDT_DECIMALS must be 18 for Binance-Peg USDT (got %d)", c.BSCUSDTDecimals)
+	}
+	if c.BSCChainID != 56 {
+		return fmt.Errorf("BSC_CHAIN_ID must be 56 for BNB Smart Chain mainnet (got %d)", c.BSCChainID)
+	}
+	if c.BSCConfirmations < 12 {
+		return fmt.Errorf("BSC_CONFIRMATIONS=%d is below the pilot minimum of 12", c.BSCConfirmations)
+	}
+	if c.EnableChainSimulator {
+		return fmt.Errorf("ENABLE_CHAIN_SIMULATOR must be false when running the BSC mainnet watcher")
+	}
+	return nil
 }
 
 // ValidateTronPilot returns a fatal configuration error for unsafe mainnet settings.

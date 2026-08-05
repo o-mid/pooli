@@ -69,7 +69,7 @@ func main() {
 	}
 
 	var evmAdapter chain.Adapter
-	evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, "bsc", cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCConfirmations)
+	evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, "bsc", cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCUSDTDecimals, cfg.BSCConfirmations)
 	if err != nil {
 		log.Printf("warn: evm adapter unavailable: %v", err)
 		evmAdapter = &chain.NoopAdapter{Name: "bsc"}

@@ -420,7 +420,7 @@ func (m *Matcher) appendState(ctx context.Context, tx pgx.Tx, intentID, from, to
 func (m *Matcher) requiredConfirmations(network string) int {
 	if network == domain.NetworkBSC {
 		if m.BSCConfirmations <= 0 {
-			return 12
+			return 15
 		}
 		return m.BSCConfirmations
 	}
