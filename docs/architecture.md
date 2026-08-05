@@ -13,7 +13,8 @@ Pooli is a non-custodial USDT payment/order product for social-commerce sellers.
 ## Money model
 
 - Seller amounts are **TMN (toman)** integers.
-- USDT is tracked in **base units** (6 decimals) as `int64`.
+- USDT is tracked in **base units** (6 decimals) as `int64` across the product.
+- BNB Smart Chain Binance-Peg USDT is **18 decimals on-chain**; the EVM adapter scales to/from Pooli’s 6-decimal units at the observation / payment-URI boundary (see ADR-006).
 - Rates are `NUMERIC` with source + timestamps; never float for matching.
 
 ## Payment matching

@@ -2,7 +2,7 @@
 
 ## Context
 
-Phase 3 makes USDT-TRC20 on TRON the first real payment rail. BSC remains code-complete but out of pilot scope.
+Phase 3 makes USDT-TRC20 on TRON the first real payment rail. BSC mainnet is covered separately in ADR-006 (Phase 4).
 
 ## Decisions
 
