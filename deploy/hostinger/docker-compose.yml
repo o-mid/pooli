@@ -1,0 +1,114 @@
+name: pooli
+
+networks:
+  pooli-network:
+    name: pooli-network
+    driver: bridge
+
+volumes:
+  pooli-postgres-data:
+    name: pooli-postgres-data
+  pooli-uploads:
+    name: pooli-uploads
+
+services:
+  pooli-postgres:
+    image: postgres:16-alpine
+    container_name: pooli-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pooli-postgres-data:/var/lib/postgresql/data
+    networks:
+      - pooli-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  pooli-migrate:
+    image: pooli-api:local
+    container_name: pooli-migrate
+    profiles: ["migrate"]
+    working_dir: /app
+    entrypoint: ["/app/migrate", "up"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pooli-postgres:5432/${POSTGRES_DB}?sslmode=disable
+    networks:
+      - pooli-network
+    depends_on:
+      pooli-postgres:
+        condition: service_healthy
+
+  pooli-api:
+    build:
+      context: ../..
+      dockerfile: deploy/hostinger/Dockerfile.api
+    image: pooli-api:local
+    container_name: pooli-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      API_ADDR: ":8080"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pooli-postgres:5432/${POSTGRES_DB}?sslmode=disable
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - pooli-uploads:/data/uploads
+    ports:
+      - "127.0.0.1:8180:8080"
+    networks:
+      - pooli-network
+    depends_on:
+      pooli-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 6
+
+  pooli-chain-worker:
+    build:
+      context: ../..
+      dockerfile: deploy/hostinger/Dockerfile.worker
+    image: pooli-chain-worker:local
+    container_name: pooli-chain-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pooli-postgres:5432/${POSTGRES_DB}?sslmode=disable
+    networks:
+      - pooli-network
+    depends_on:
+      pooli-postgres:
+        condition: service_healthy
+      pooli-api:
+        condition: service_healthy
+
+  pooli-web:
+    build:
+      context: ../..
+      dockerfile: deploy/hostinger/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://pooli-api:8080
+    image: pooli-web:local
+    container_name: pooli-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:3100:3000"
+    networks:
+      - pooli-network
+    depends_on:
+      pooli-api:
+        condition: service_healthy

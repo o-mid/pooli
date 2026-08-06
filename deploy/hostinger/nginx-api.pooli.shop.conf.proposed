@@ -1,0 +1,45 @@
+# Reference nginx vhost for api.pooli.shop (as installed on Hostinger).
+# Destination: /etc/nginx/sites-available/api.pooli.shop
+# Do NOT edit kasramadihi.com.
+#
+# Certbot manages the listen 443 ssl blocks and HTTP→HTTPS redirects.
+# After first install of the HTTP-only skeleton, run:
+#   certbot --nginx -d api.pooli.shop
+
+server {
+    server_name api.pooli.shop;
+
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8180;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        add_header Cache-Control "no-store" always;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    listen [::]:443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/api.pooli.shop/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/api.pooli.shop/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    if ($host = api.pooli.shop) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    listen [::]:80;
+    server_name api.pooli.shop;
+    return 404; # managed by Certbot
+}

@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+FROM golang:1.23-bookworm AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/api ./apps/api \
+ && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10001 --create-home pooli
+WORKDIR /app
+COPY --from=build /out/api /app/api
+COPY --from=build /out/migrate /app/migrate
+COPY --from=build /src/infra/migrations /app/infra/migrations
+RUN mkdir -p /data/uploads && chown -R pooli:pooli /app /data
+USER pooli
+EXPOSE 8080
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
+  CMD curl -fsS http://127.0.0.1:8080/healthz >/dev/null || exit 1
+ENTRYPOINT ["/app/api"]

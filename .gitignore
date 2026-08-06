@@ -14,3 +14,4 @@ tmp/
 vendor/
 uploads/
 !uploads/.gitkeep
+deploy/hostinger/.env

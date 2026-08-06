@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+FROM golang:1.23-bookworm AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/chain-worker ./apps/chain-worker
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10001 --create-home pooli
+WORKDIR /app
+COPY --from=build /out/chain-worker /app/chain-worker
+USER pooli
+ENTRYPOINT ["/app/chain-worker"]
