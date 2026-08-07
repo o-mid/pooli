@@ -45,7 +45,8 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *
 
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
+	// redactGoogleCallbackURI must sit inside Logger so access logs never print OAuth code/state.
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, redactGoogleCallbackURI, middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{s.Cfg.WebOrigin, "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},

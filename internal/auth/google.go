@@ -3,9 +3,17 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+)
+
+// Stage-tagged errors for Google OAuth callback diagnostics (safe to log by stage only).
+var (
+	ErrGoogleIdentityLink = errors.New("google_identity_link_failed")
+	ErrGoogleMerchantCreate = errors.New("google_merchant_create_failed")
+	ErrGoogleSession = errors.New("google_session_failed")
 )
 
 // GoogleIdentity is the verified profile from Google's userinfo endpoint.
@@ -23,10 +31,10 @@ func (s *Service) LoginOrRegisterWithGoogle(ctx context.Context, id GoogleIdenti
 	email := strings.ToLower(strings.TrimSpace(id.Email))
 	name := strings.TrimSpace(id.Name)
 	if sub == "" {
-		return User{}, "", errors.New("google subject required")
+		return User{}, "", fmt.Errorf("%w: subject required", ErrGoogleIdentityLink)
 	}
 	if email == "" || !id.EmailVerified {
-		return User{}, "", errors.New("verified google email required")
+		return User{}, "", fmt.Errorf("%w: verified email required", ErrGoogleIdentityLink)
 	}
 	if name == "" {
 		if at := strings.IndexByte(email, '@'); at > 0 {
@@ -40,7 +48,7 @@ func (s *Service) LoginOrRegisterWithGoogle(ctx context.Context, id GoogleIdenti
 	if u, err := s.userByGoogleSub(ctx, sub); err == nil {
 		return s.finishGoogleLogin(ctx, u)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return User{}, "", err
+		return User{}, "", fmt.Errorf("%w: lookup by sub", ErrGoogleIdentityLink)
 	}
 
 	// 2) Link to existing email account (password or phone+email)
@@ -52,19 +60,19 @@ func (s *Service) LoginOrRegisterWithGoogle(ctx context.Context, id GoogleIdenti
 		Scan(&u.ID, &u.Email, &u.Phone, &u.Name, &u.IsAdmin, &existingSub)
 	if err == nil {
 		if existingSub != "" && existingSub != sub {
-			return User{}, "", errors.New("email already linked to another google account")
+			return User{}, "", fmt.Errorf("%w: email linked to another google account", ErrGoogleIdentityLink)
 		}
 		_, err = s.Pool.Exec(ctx, `
 			UPDATE users
 			SET google_sub=$2, email_verified_at=COALESCE(email_verified_at, now())
 			WHERE id=$1::uuid`, u.ID, sub)
 		if err != nil {
-			return User{}, "", err
+			return User{}, "", fmt.Errorf("%w: link update", ErrGoogleIdentityLink)
 		}
 		return s.finishGoogleLogin(ctx, u)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return User{}, "", err
+		return User{}, "", fmt.Errorf("%w: lookup by email", ErrGoogleIdentityLink)
 	}
 
 	// 3) Create new merchant account
@@ -74,18 +82,18 @@ func (s *Service) LoginOrRegisterWithGoogle(ctx context.Context, id GoogleIdenti
 		INSERT INTO users (email, password_hash, name, is_admin, email_verified_at, google_sub)
 		VALUES ($1,'',$2,$3,now(),$4) RETURNING id::text`, email, name, isAdmin, sub).Scan(&userID)
 	if err != nil {
-		return User{}, "", err
+		return User{}, "", fmt.Errorf("%w: insert user", ErrGoogleIdentityLink)
 	}
 	merchantName := name
 	if merchantName == "" {
 		merchantName = "Store"
 	}
 	if _, err := s.createMerchantForUser(ctx, userID, merchantName); err != nil {
-		return User{}, "", err
+		return User{}, "", fmt.Errorf("%w: %v", ErrGoogleMerchantCreate, err)
 	}
 	token, err := s.createSession(ctx, userID)
 	if err != nil {
-		return User{}, "", err
+		return User{}, "", fmt.Errorf("%w: %v", ErrGoogleSession, err)
 	}
 	return User{ID: userID, Email: email, Name: name, IsAdmin: isAdmin}, token, nil
 }
@@ -107,7 +115,7 @@ func (s *Service) finishGoogleLogin(ctx context.Context, u User) (User, string, 
 	}
 	token, err := s.createSession(ctx, u.ID)
 	if err != nil {
-		return User{}, "", err
+		return User{}, "", fmt.Errorf("%w: %v", ErrGoogleSession, err)
 	}
 	return u, token, nil
 }
