@@ -11,6 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/shopspring/decimal v1.4.0
 	golang.org/x/crypto v0.36.0
+	golang.org/x/oauth2 v0.28.0
 )
 
 require (

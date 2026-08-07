@@ -19,6 +19,10 @@ export const en = {
   resendOtp: "Resend code",
   loginWithEmail: "Log in with email",
   loginWithPhone: "Log in with phone",
+  continueWithGoogle: "Continue with Google",
+  signUpWithGoogle: "Sign up with Google",
+  orContinueWith: "or",
+  googleAuthError: "Google sign-in failed. Try again or use email.",
   logout: "Log out",
   nav: {
     home: "Home",

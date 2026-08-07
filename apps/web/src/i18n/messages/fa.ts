@@ -20,6 +20,10 @@ export const fa: Messages = {
   resendOtp: "ارسال مجدد",
   loginWithEmail: "ورود با ایمیل",
   loginWithPhone: "ورود با موبایل",
+  continueWithGoogle: "ادامه با گوگل",
+  signUpWithGoogle: "ثبت‌نام با گوگل",
+  orContinueWith: "یا",
+  googleAuthError: "ورود با گوگل انجام نشد. دوباره تلاش کنید یا از ایمیل استفاده کنید.",
   logout: "خروج",
   nav: {
     home: "خانه",

@@ -29,6 +29,20 @@ func TestValidateBSCPilot(t *testing.T) {
 	}
 }
 
+func TestGoogleRedirectDefault(t *testing.T) {
+	t.Setenv("PUBLIC_BASE_URL", "https://pooli.shop")
+	t.Setenv("GOOGLE_CLIENT_ID", "cid")
+	t.Setenv("GOOGLE_CLIENT_SECRET", "sec")
+	t.Setenv("GOOGLE_REDIRECT_URL", "")
+	cfg := Load()
+	if cfg.GoogleRedirectURL != "https://pooli.shop/api/v1/auth/google/callback" {
+		t.Fatalf("redirect=%q", cfg.GoogleRedirectURL)
+	}
+	if !cfg.GoogleOAuthEnabled() {
+		t.Fatal("expected google oauth enabled")
+	}
+}
+
 func TestValidateBSCPilotRejectsSimulator(t *testing.T) {
 	cfg := Config{
 		EnableBSCWatcher: true, BSCNetwork: "mainnet", BSCRPCURL: "https://x",

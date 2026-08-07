@@ -41,6 +41,9 @@ type Config struct {
 	TronExplorerTxURL    string
 	BSCExplorerTxURL     string
 	EnableBSCWatcher     bool
+	GoogleClientID       string
+	GoogleClientSecret   string
+	GoogleRedirectURL    string
 }
 
 // Canonical Binance-Peg USDT on BNB Smart Chain mainnet (18 decimals).
@@ -99,8 +102,21 @@ func Load() Config {
 		TronExplorerTxURL:    getenv("TRON_EXPLORER_TX_URL", tronExplorer),
 		BSCExplorerTxURL:     getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
 		EnableBSCWatcher:     getenv("ENABLE_BSC_WATCHER", "true") == "true",
+		GoogleClientID:       getenv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:   getenv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURL:    getenv("GOOGLE_REDIRECT_URL", ""),
+	}
+	if cfg.GoogleRedirectURL == "" && cfg.PublicBaseURL != "" {
+		cfg.GoogleRedirectURL = strings.TrimRight(cfg.PublicBaseURL, "/") + "/api/v1/auth/google/callback"
 	}
 	return cfg
+}
+
+// GoogleOAuthEnabled reports whether Google sign-in is configured.
+func (c Config) GoogleOAuthEnabled() bool {
+	return strings.TrimSpace(c.GoogleClientID) != "" &&
+		strings.TrimSpace(c.GoogleClientSecret) != "" &&
+		strings.TrimSpace(c.GoogleRedirectURL) != ""
 }
 
 // ValidateBSCPilot returns a fatal configuration error for unsafe BSC mainnet settings.

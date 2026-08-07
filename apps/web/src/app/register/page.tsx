@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
@@ -116,6 +117,8 @@ export default function RegisterPage() {
       </header>
 
       <h1 style={{ marginTop: 0, fontSize: "1.5rem" }}>{t.register}</h1>
+
+      <GoogleAuthButton mode="register" />
 
       <div className="lang-switch" style={{ marginBottom: "1rem", width: "100%" }} role="tablist">
         <button

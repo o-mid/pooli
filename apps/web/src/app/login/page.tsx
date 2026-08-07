@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
@@ -23,6 +24,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error")?.startsWith("google")) {
+      setError(t.googleAuthError);
+    }
+  }, [t.googleAuthError]);
 
   async function onEmailSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -99,6 +107,8 @@ export default function LoginPage() {
       </header>
 
       <h1 style={{ marginTop: 0, fontSize: "1.5rem" }}>{t.login}</h1>
+
+      <GoogleAuthButton mode="login" />
 
       <div className="lang-switch" style={{ marginBottom: "1rem", width: "100%" }} role="tablist">
         <button
