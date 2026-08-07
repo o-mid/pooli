@@ -1,4 +1,4 @@
-const CACHE = "pooli-shell-v1";
+const CACHE = "pooli-shell-v2";
 const STATIC = ["/", "/app", "/manifest.webmanifest", "/brand/logo-color.svg", "/brand/mark.svg"];
 
 self.addEventListener("install", (event) => {
@@ -15,7 +15,27 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
   if (request.method !== "GET") return;
+  // Never intercept API — always hit the network/origin rewrite.
   if (url.pathname.startsWith("/api")) return;
+
+  // Auth pages + HTML navigations: network-first so login/register updates are visible.
+  const isNavigate = request.mode === "navigate" || request.destination === "document";
+  const isAuthPage = url.pathname === "/login" || url.pathname === "/register";
+  if (isNavigate || isAuthPage) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          if (res.ok && url.origin === self.location.origin) {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match("/") || Response.error())),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

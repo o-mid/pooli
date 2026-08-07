@@ -9,17 +9,20 @@ type Props = {
 
 export function GoogleAuthButton({ mode }: Props) {
   const t = useT();
-  const [enabled, setEnabled] = useState(false);
+  // Optimistic show: hide only when providers explicitly reports google disabled.
+  // Avoids a blank gap (and stale-cache misses) while /auth/providers loads.
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/v1/auth/providers", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : { google: false }))
-      .then((data: { google?: boolean }) => {
-        if (!cancelled) setEnabled(Boolean(data.google));
+    fetch("/api/v1/auth/providers", { credentials: "include", cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { google?: boolean } | null) => {
+        if (cancelled || data == null) return;
+        setEnabled(Boolean(data.google));
       })
       .catch(() => {
-        if (!cancelled) setEnabled(false);
+        // Keep optimistic button; /auth/google/start will surface config errors.
       });
     return () => {
       cancelled = true;
