@@ -42,7 +42,7 @@ export const viewport: Viewport = {
   themeColor: "#0F8F6B",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // Allow pinch-zoom (HIG / WCAG); do not lock maximumScale.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

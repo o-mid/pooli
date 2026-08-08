@@ -6,6 +6,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 import { isValidIranianPhone, normalizeIranianPhone } from "@/lib/phone";
@@ -53,8 +55,8 @@ export default function LoginPage() {
     }
   }
 
-  async function sendOtp(e: FormEvent) {
-    e.preventDefault();
+  async function sendOtp(e?: FormEvent) {
+    e?.preventDefault();
     setError("");
     setInfo("");
     const normalized = normalizeIranianPhone(phone);
@@ -100,47 +102,30 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="shell rise">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+    <main className="shell rise page-stack">
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <BrandMark localeHint={locale} size={28} />
         <LanguageSwitch />
       </header>
 
-      <h1 style={{ marginTop: 0, fontSize: "1.5rem" }}>{t.login}</h1>
+      <PageHeader title={t.login} />
 
       <GoogleAuthButton mode="login" />
 
-      <div className="lang-switch" style={{ marginBottom: "1rem", width: "100%" }} role="tablist">
-        <button
-          type="button"
-          role="tab"
-          className={mode === "email" ? "active" : ""}
-          aria-selected={mode === "email"}
-          onClick={() => {
-            setMode("email");
-            setError("");
-            setInfo("");
-          }}
-          style={{ flex: 1 }}
-        >
-          {t.loginWithEmail}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={mode === "phone" ? "active" : ""}
-          aria-selected={mode === "phone"}
-          onClick={() => {
-            setMode("phone");
-            setPhoneStep("phone");
-            setError("");
-            setInfo("");
-          }}
-          style={{ flex: 1 }}
-        >
-          {t.loginWithPhone}
-        </button>
-      </div>
+      <SegmentedControl
+        ariaLabel={t.login}
+        value={mode}
+        onChange={(v) => {
+          setMode(v);
+          setPhoneStep("phone");
+          setError("");
+          setInfo("");
+        }}
+        options={[
+          { value: "email", label: t.loginWithEmail },
+          { value: "phone", label: t.loginWithPhone },
+        ]}
+      />
 
       {mode === "email" ? (
         <form className="card-panel" onSubmit={onEmailSubmit}>
@@ -150,9 +135,20 @@ export default function LoginPage() {
           </div>
           <div className="field">
             <label htmlFor="password">{t.password}</label>
-            <input id="password" name="password" type="password" required minLength={8} autoComplete="current-password" />
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="current-password"
+            />
           </div>
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           <button className="btn btn-primary" disabled={loading}>
             {loading ? t.common.loading : t.login}
           </button>
@@ -170,12 +166,15 @@ export default function LoginPage() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="09121234567"
               required
+              className="mono-ltr"
             />
-            <span className="muted" style={{ fontSize: "0.85rem" }}>
-              {t.phoneHint}
-            </span>
+            <span className="field-hint">{t.phoneHint}</span>
           </div>
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           {info && <p className="ok">{info}</p>}
           <button className="btn btn-primary" disabled={loading || !isValidIranianPhone(phone)}>
             {loading ? t.common.loading : t.sendOtp}
@@ -193,25 +192,26 @@ export default function LoginPage() {
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               required
+              className="mono-ltr"
             />
           </div>
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-          <button className="btn btn-primary" disabled={loading}>
-            {loading ? t.common.loading : t.verifyOtp}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{ width: "100%", marginTop: "0.5rem" }}
-            disabled={loading}
-            onClick={() => sendOtp({ preventDefault: () => undefined } as FormEvent)}
-          >
-            {t.resendOtp}
-          </button>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="cta-stack">
+            <button className="btn btn-primary" disabled={loading}>
+              {loading ? t.common.loading : t.verifyOtp}
+            </button>
+            <button type="button" className="btn btn-tertiary btn-block" disabled={loading} onClick={() => sendOtp()}>
+              {t.resendOtp}
+            </button>
+          </div>
         </form>
       )}
 
-      <p className="muted" style={{ marginTop: "1rem" }}>
+      <p className="muted">
         <Link href="/register">{t.createAccount}</Link>
       </p>
     </main>

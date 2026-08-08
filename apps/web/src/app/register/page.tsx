@@ -6,6 +6,8 @@ import { FormEvent, useState } from "react";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 import { isValidIranianPhone, normalizeIranianPhone } from "@/lib/phone";
@@ -50,8 +52,8 @@ export default function RegisterPage() {
     }
   }
 
-  async function sendPhoneOtp(e: FormEvent) {
-    e.preventDefault();
+  async function sendPhoneOtp(e?: FormEvent) {
+    e?.preventDefault();
     setError("");
     setInfo("");
     const normalized = normalizeIranianPhone(phone);
@@ -110,47 +112,30 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="shell rise">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+    <main className="shell rise page-stack">
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <BrandMark localeHint={locale} size={28} />
         <LanguageSwitch />
       </header>
 
-      <h1 style={{ marginTop: 0, fontSize: "1.5rem" }}>{t.register}</h1>
+      <PageHeader title={t.register} />
 
       <GoogleAuthButton mode="register" />
 
-      <div className="lang-switch" style={{ marginBottom: "1rem", width: "100%" }} role="tablist">
-        <button
-          type="button"
-          role="tab"
-          className={mode === "email" ? "active" : ""}
-          aria-selected={mode === "email"}
-          onClick={() => {
-            setMode("email");
-            setError("");
-            setInfo("");
-          }}
-          style={{ flex: 1 }}
-        >
-          {t.email}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={mode === "phone" ? "active" : ""}
-          aria-selected={mode === "phone"}
-          onClick={() => {
-            setMode("phone");
-            setPhoneStep("details");
-            setError("");
-            setInfo("");
-          }}
-          style={{ flex: 1 }}
-        >
-          {t.phone}
-        </button>
-      </div>
+      <SegmentedControl
+        ariaLabel={t.register}
+        value={mode}
+        onChange={(v) => {
+          setMode(v);
+          setPhoneStep("details");
+          setError("");
+          setInfo("");
+        }}
+        options={[
+          { value: "email", label: t.email },
+          { value: "phone", label: t.phone },
+        ]}
+      />
 
       {mode === "email" ? (
         <form className="card-panel" onSubmit={onEmailSubmit}>
@@ -168,9 +153,20 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label htmlFor="password">{t.password}</label>
-            <input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
           </div>
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           <button className="btn btn-primary" disabled={loading}>
             {loading ? t.common.loading : t.register}
           </button>
@@ -183,7 +179,12 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label htmlFor="phone-store">{t.settings.displayName}</label>
-            <input id="phone-store" value={merchantName} onChange={(e) => setMerchantName(e.target.value)} required />
+            <input
+              id="phone-store"
+              value={merchantName}
+              onChange={(e) => setMerchantName(e.target.value)}
+              required
+            />
           </div>
           <div className="field">
             <label htmlFor="phone">{t.phone}</label>
@@ -195,12 +196,15 @@ export default function RegisterPage() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="09121234567"
               required
+              className="mono-ltr"
             />
-            <span className="muted" style={{ fontSize: "0.85rem" }}>
-              {t.phoneHint}
-            </span>
+            <span className="field-hint">{t.phoneHint}</span>
           </div>
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           {info && <p className="ok">{info}</p>}
           <button className="btn btn-primary" disabled={loading || !isValidIranianPhone(phone)}>
             {loading ? t.common.loading : t.sendOtp}
@@ -217,25 +221,31 @@ export default function RegisterPage() {
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               required
+              className="mono-ltr"
             />
           </div>
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-          <button className="btn btn-primary" disabled={loading}>
-            {loading ? t.common.loading : t.register}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{ width: "100%", marginTop: "0.5rem" }}
-            disabled={loading}
-            onClick={() => sendPhoneOtp({ preventDefault: () => undefined } as FormEvent)}
-          >
-            {t.resendOtp}
-          </button>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="cta-stack">
+            <button className="btn btn-primary" disabled={loading}>
+              {loading ? t.common.loading : t.register}
+            </button>
+            <button
+              type="button"
+              className="btn btn-tertiary btn-block"
+              disabled={loading}
+              onClick={() => sendPhoneOtp()}
+            >
+              {t.resendOtp}
+            </button>
+          </div>
         </form>
       )}
 
-      <p className="muted" style={{ marginTop: "1rem" }}>
+      <p className="muted">
         <Link href="/login">{t.login}</Link>
       </p>
     </main>

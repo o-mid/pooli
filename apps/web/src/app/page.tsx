@@ -8,27 +8,29 @@ import { useLocale, useT } from "@/i18n/LocaleProvider";
 export default function LandingPage() {
   const t = useT();
   const { locale } = useLocale();
+  const brand = locale === "fa" ? t.brandFa : t.brand;
 
   return (
-    <main className="shell rise">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-        <BrandMark localeHint={locale} size={32} />
+    <main className="hero-landing rise">
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <BrandMark localeHint={locale} size={36} />
         <LanguageSwitch />
       </header>
 
-      <h1 style={{ fontSize: "1.75rem", margin: "0 0 0.75rem", maxWidth: "16ch", lineHeight: 1.2 }}>
-        {t.tagline}
-      </h1>
-      <p className="muted" style={{ marginBottom: "2rem", lineHeight: 1.55, maxWidth: "34ch" }}>
-        {t.taglineSub}
-      </p>
+      <section style={{ marginTop: "auto", marginBottom: "auto", paddingBlock: "2rem" }}>
+        <h1 className="hero-brand">{brand}</h1>
+        <p className="hero-tagline">{t.tagline}</p>
+        <p className="hero-sub">{t.taglineSub}</p>
+      </section>
 
-      <Link className="btn btn-primary" href="/login" style={{ marginBottom: "0.75rem" }}>
-        {t.openSeller}
-      </Link>
-      <Link className="btn btn-secondary" href="/register">
-        {t.createAccount}
-      </Link>
+      <div className="cta-stack">
+        <Link className="btn btn-primary" href="/login">
+          {t.openSeller}
+        </Link>
+        <Link className="btn btn-secondary" href="/register">
+          {t.createAccount}
+        </Link>
+      </div>
     </main>
   );
 }

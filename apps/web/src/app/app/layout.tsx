@@ -23,11 +23,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <main className="shell app-shell">
-        <header style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "0.25rem",
+          }}
+        >
           <LanguageSwitch />
-        </header>
-        {offline && <div className="offline-banner">{t.common.offline}</div>}
-        {children}
+        </div>
+        {offline && (
+          <div className="offline-banner" role="status">
+            {t.common.offline}
+          </div>
+        )}
+        <div className="page-stack">{children}</div>
       </main>
       <Nav />
     </>
