@@ -78,8 +78,12 @@ export function PaymentProgress({
         {stageOrder.map((key, i) => {
           const done = i < active || status === "PAID";
           const current = i === active && status !== "PAID";
+          const upcoming = !done && !current;
           return (
-            <li key={key} className={`${done ? "done" : ""} ${current ? "current" : ""}`}>
+            <li
+              key={key}
+              className={`${done ? "done" : ""} ${current ? "current" : ""} ${upcoming ? "upcoming" : ""}`.trim()}
+            >
               <span className="dot" aria-hidden />
               <span className="label">{labels[key]}</span>
             </li>
