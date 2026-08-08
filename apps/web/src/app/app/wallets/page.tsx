@@ -1,6 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { WalletAddress } from "@/components/ui/WalletAddress";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 
@@ -32,7 +35,6 @@ export default function WalletsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function load() {
@@ -88,12 +90,6 @@ export default function WalletsPage() {
     }
   }
 
-  async function copyAddress(address: string, id: string) {
-    await navigator.clipboard.writeText(address);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  }
-
   async function setDefault(id: string) {
     setLoading(true);
     try {
@@ -110,8 +106,14 @@ export default function WalletsPage() {
   }
 
   return (
-    <div className="rise">
-      <h1 style={{ marginTop: 0 }}>{t.wallets.title}</h1>
+    <div className="rise page-stack">
+      <PageHeader title={t.wallets.title} />
+
+      {!draft && (
+        <div className="alert alert-warning" role="note">
+          {t.wallets.confirmWarn}
+        </div>
+      )}
 
       {!draft ? (
         <form className="card-panel" onSubmit={onFormSubmit}>
@@ -131,76 +133,107 @@ export default function WalletsPage() {
             <input id="label" name="label" />
           </div>
           {wallets.length > 0 && (
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.85rem" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                marginBottom: "var(--space-3)",
+              }}
+            >
               <input type="checkbox" name="is_default" defaultChecked />
               <span>{t.wallets.default}</span>
             </label>
           )}
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           <button className="btn btn-primary">{t.wallets.add}</button>
         </form>
       ) : (
         <div className="card-panel">
-          <h3 style={{ marginTop: 0 }}>{t.wallets.confirmTitle}</h3>
-          <p className="warn" style={{ lineHeight: 1.5 }}>
+          <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.wallets.confirmTitle}</h2>
+          <div className="alert alert-warning" role="alert" style={{ marginTop: "var(--space-3)" }}>
             {t.wallets.confirmWarn}
-          </p>
-          <div style={{ marginBottom: "0.75rem" }}>
-            <div className="muted">{t.wallets.network}</div>
-            <strong>{draft.network.toUpperCase()}</strong>
           </div>
-          <div style={{ marginBottom: "0.75rem" }}>
-            <div className="muted">{t.wallets.address}</div>
-            <div className="mono-ltr wallet-addr">{draft.address}</div>
-          </div>
-          {draft.label && (
-            <div style={{ marginBottom: "0.75rem" }}>
-              <div className="muted">{t.wallets.label}</div>
-              <div>{draft.label}</div>
+          <div className="list-group" style={{ marginBottom: "var(--space-4)" }}>
+            <div className="list-row" style={{ cursor: "default" }}>
+              <div className="list-row-body">
+                <div className="list-row-meta">{t.wallets.network}</div>
+                <div className="list-row-title">{draft.network.toUpperCase()}</div>
+              </div>
             </div>
+            <div className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
+              <div className="list-row-body">
+                <div className="list-row-meta">{t.wallets.address}</div>
+                <WalletAddress address={draft.address} showCopy={false} />
+              </div>
+            </div>
+            {draft.label ? (
+              <div className="list-row" style={{ cursor: "default" }}>
+                <div className="list-row-body">
+                  <div className="list-row-meta">{t.wallets.label}</div>
+                  <div className="list-row-title">{draft.label}</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
           )}
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-          <button className="btn btn-primary" disabled={loading} onClick={confirmSave}>
-            {loading ? t.common.loading : t.wallets.save}
-          </button>
-          <button
-            className="btn btn-secondary"
-            style={{ marginTop: "0.5rem" }}
-            disabled={loading}
-            onClick={() => setDraft(null)}
-          >
-            {t.common.back}
-          </button>
+          <div className="cta-stack">
+            <button className="btn btn-primary" disabled={loading} onClick={confirmSave}>
+              {loading ? t.common.loading : t.wallets.save}
+            </button>
+            <button className="btn btn-secondary" disabled={loading} onClick={() => setDraft(null)}>
+              {t.common.back}
+            </button>
+          </div>
         </div>
       )}
 
-      <div style={{ marginTop: "1rem", display: "grid", gap: "0.65rem" }}>
-        {wallets.map((w) => (
-          <div key={w.id} className="card-panel">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
-              <strong>{w.label || w.network.toUpperCase()}</strong>
-              <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
-                {w.is_default && <span className="badge">{t.wallets.default}</span>}
-                {!w.is_active && <span className="badge">{t.wallets.inactive}</span>}
+      {wallets.length > 0 ? (
+        <section className="section">
+          <h2 className="section-title">{t.wallets.title}</h2>
+          <div className="list-group">
+            {wallets.map((w) => (
+              <div key={w.id} className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
+                <div className="list-row-body" style={{ gap: "var(--space-2)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-2)" }}>
+                    <div className="list-row-title">{w.label || w.network.toUpperCase()}</div>
+                    <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                      {w.is_default && <span className="status-badge paid">{t.wallets.default}</span>}
+                      {!w.is_active && <span className="status-badge expired">{t.wallets.inactive}</span>}
+                    </div>
+                  </div>
+                  <WalletAddress address={w.address} />
+                  {!w.is_default && w.is_active && (
+                    <button
+                      type="button"
+                      className="btn btn-tertiary"
+                      style={{ width: "auto", alignSelf: "flex-start", minHeight: "var(--control-height-sm)" }}
+                      disabled={loading}
+                      onClick={() => setDefault(w.id)}
+                    >
+                      {t.wallets.default}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="mono-ltr wallet-addr" style={{ marginTop: "0.35rem" }}>
-              {w.address}
-            </div>
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => copyAddress(w.address, w.id)}>
-                {copiedId === w.id ? t.common.copied : t.wallets.copy}
-              </button>
-              {!w.is_default && w.is_active && (
-                <button className="btn btn-ghost" style={{ flex: 1 }} disabled={loading} onClick={() => setDefault(w.id)}>
-                  {t.wallets.default}
-                </button>
-              )}
-            </div>
+            ))}
           </div>
-        ))}
-        {!wallets.length && !draft && <p className="muted">{t.wallets.empty}</p>}
-      </div>
+        </section>
+      ) : (
+        !draft && (
+          <EmptyState>
+            <p>{t.wallets.empty}</p>
+          </EmptyState>
+        )
+      )}
     </div>
   );
 }

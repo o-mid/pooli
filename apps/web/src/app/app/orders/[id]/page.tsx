@@ -1,12 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { PaymentProgress } from "@/components/PaymentProgress";
+import { AmountDisplay } from "@/components/ui/AmountDisplay";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
-import { orderStatusLabel } from "@/lib/orderStatus";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type PaymentOption = {
@@ -82,14 +85,20 @@ export default function OrderDetailPage() {
   }
 
   return (
-    <div className="rise">
-      <h1 style={{ marginTop: 0 }}>{order.title || t.checkout.orderRef}</h1>
+    <div className="rise page-stack">
+      <PageHeader
+        title={order.title || t.checkout.orderRef}
+        trailing={<StatusBadge status={displayStatus} t={t} />}
+      />
+
+      <Link href="/app/orders" className="btn btn-tertiary" style={{ alignSelf: "flex-start", width: "auto" }}>
+        {t.common.back}
+      </Link>
 
       <div className="card-panel">
-        <p className="tabular" style={{ fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.5rem" }}>
-          {order.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
-        </p>
-        <p className="muted">{orderStatusLabel(displayStatus, t)}</p>
+        <AmountDisplay
+          primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
+        />
 
         <PaymentProgress
           status={displayStatus}
@@ -99,27 +108,33 @@ export default function OrderDetailPage() {
           explorerUrl={matched?.explorer_url}
         />
 
-        <p className="mono-ltr muted" style={{ fontSize: "0.85rem", marginTop: "1rem" }}>
+        <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)", marginTop: "var(--space-4)" }}>
           {order.checkout_url}
         </p>
-        <div style={{ display: "flex", justifyContent: "center", margin: "1rem 0" }}>
-          <QRCodeSVG value={order.checkout_url} size={160} bgColor="#ffffff" fgColor="#0b1f1a" />
+        <div className="qr-card" style={{ marginTop: "var(--space-3)", border: 0, padding: 0 }}>
+          <div className="qr-frame">
+            <QRCodeSVG value={order.checkout_url} size={160} bgColor="#ffffff" fgColor="#0b1f1a" />
+          </div>
         </div>
-        <button className="btn btn-primary" onClick={copyLink}>
+        <button className="btn btn-primary" style={{ marginTop: "var(--space-3)" }} onClick={copyLink}>
           {copied ? t.common.copied : t.create.copyLink}
         </button>
       </div>
 
       {order.field_values && order.field_values.length > 0 && (
-        <div className="card-panel" style={{ marginTop: "1rem" }}>
-          <h3 style={{ marginTop: 0 }}>{t.checkout.customerInfo}</h3>
-          {order.field_values.map((f) => (
-            <div key={f.key} style={{ marginBottom: "0.5rem" }}>
-              <div className="muted">{f.label}</div>
-              <div>{f.value}</div>
-            </div>
-          ))}
-        </div>
+        <section className="section">
+          <h2 className="section-title">{t.checkout.customerInfo}</h2>
+          <div className="list-group">
+            {order.field_values.map((f) => (
+              <div key={f.key} className="list-row" style={{ cursor: "default" }}>
+                <div className="list-row-body">
+                  <div className="list-row-meta">{f.label}</div>
+                  <div className="list-row-title">{f.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

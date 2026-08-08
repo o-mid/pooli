@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 
@@ -27,7 +28,7 @@ export default function CreateOrderPage() {
         body: JSON.stringify({
           fiat_amount_toman: amount,
           title: fd.get("title") || "",
-          description: fd.get("description") || "",
+          description: "",
           merchant_reference: fd.get("reference") || "",
           networks: ["tron", "bsc"],
         }),
@@ -57,45 +58,57 @@ export default function CreateOrderPage() {
     }
   }
 
+  const canShare = typeof navigator !== "undefined" && "share" in navigator;
+
   if (result) {
     return (
-      <div className="rise">
-        <h1 style={{ marginTop: 0 }}>{t.create.created}</h1>
+      <div className="rise page-stack">
+        <PageHeader title={t.create.created} />
         <div className="qr-card">
-          <QRCodeSVG value={result.checkout_url} size={180} bgColor="#ffffff" fgColor="#0b1f1a" />
-          <p className="mono-ltr muted" style={{ marginTop: "1rem", fontSize: "0.85rem" }}>
+          <div className="qr-frame">
+            <QRCodeSVG value={result.checkout_url} size={180} bgColor="#ffffff" fgColor="#0b1f1a" />
+          </div>
+          <p className="mono-ltr muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-footnote)" }}>
             {result.checkout_url}
           </p>
-          <button className="btn btn-primary" style={{ marginTop: "0.75rem" }} onClick={copyLink}>
-            {copied ? t.common.copied : t.create.copyLink}
-          </button>
-          {typeof navigator !== "undefined" && "share" in navigator && (
-            <button className="btn btn-secondary" style={{ marginTop: "0.5rem" }} onClick={shareLink}>
-              {t.create.share}
-            </button>
-          )}
-          <Link className="btn btn-secondary" href={`/p/${result.slug}`} style={{ marginTop: "0.5rem" }}>
-            {t.create.openCheckout}
-          </Link>
+          <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
+            {canShare ? (
+              <>
+                <button className="btn btn-primary" onClick={shareLink}>
+                  {t.create.share}
+                </button>
+                <button className="btn btn-secondary" onClick={copyLink}>
+                  {copied ? t.common.copied : t.create.copyLink}
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-primary" onClick={copyLink}>
+                {copied ? t.common.copied : t.create.copyLink}
+              </button>
+            )}
+            <Link className="btn btn-secondary" href={`/p/${result.slug}`}>
+              {t.create.openCheckout}
+            </Link>
+          </div>
         </div>
         <button
-          className="btn btn-ghost"
-          style={{ width: "100%", marginTop: "1rem" }}
+          type="button"
+          className="btn btn-tertiary btn-block"
           onClick={() => router.push(`/app/orders/${result.id}`)}
         >
-          {t.nav.orders}
+          {t.common.back}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="rise">
-      <h1 style={{ marginTop: 0 }}>{t.create.title}</h1>
+    <div className="rise page-stack">
+      <PageHeader title={t.create.title} />
       <form className="card-panel" onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor="amount">{t.create.amount}</label>
-          <input id="amount" name="amount" inputMode="numeric" placeholder="3800000" required />
+          <input id="amount" name="amount" inputMode="numeric" placeholder="3800000" required className="tabular" />
         </div>
         <div className="field">
           <label htmlFor="title">{t.create.orderTitle}</label>
@@ -105,10 +118,14 @@ export default function CreateOrderPage() {
           <label htmlFor="reference">{t.create.reference}</label>
           <input id="reference" name="reference" />
         </div>
-        <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.85rem" }}>
+        <p className="field-hint" style={{ marginBottom: "var(--space-3)" }}>
           {t.create.networks}: TRON, BNB Chain
         </p>
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
         <button className="btn btn-primary" disabled={loading}>
           {loading ? t.common.loading : t.create.create}
         </button>

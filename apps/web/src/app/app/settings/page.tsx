@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, apiMultipart } from "@/lib/api";
 
@@ -112,6 +113,7 @@ export default function SettingsPage() {
   }
 
   async function logout() {
+    if (!window.confirm(t.logout)) return;
     await api("/api/v1/auth/logout", { method: "POST" });
     router.push("/login");
   }
@@ -119,78 +121,120 @@ export default function SettingsPage() {
   const isAdmin = me?.user?.is_admin || me?.user?.IsAdmin;
 
   return (
-    <div className="rise">
-      <h1 style={{ marginTop: 0 }}>{t.settings.title}</h1>
+    <div className="rise page-stack">
+      <PageHeader title={t.settings.title} />
 
-      <form className="card-panel" onSubmit={saveStore}>
-        <h3 style={{ marginTop: 0 }}>{t.settings.store}</h3>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-          <div className="merchant-avatar">
-            {me?.merchant?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={me.merchant.logo_url} alt="" />
-            ) : (
-              (displayName || me?.merchant?.name || "P").slice(0, 1).toUpperCase()
-            )}
+      <section className="section">
+        <h2 className="section-title">{t.settings.store}</h2>
+        <form className="card-panel" onSubmit={saveStore}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
+            <div className="merchant-avatar">
+              {me?.merchant?.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.merchant.logo_url} alt="" />
+              ) : (
+                (displayName || me?.merchant?.name || "P").slice(0, 1).toUpperCase()
+              )}
+            </div>
+            <div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={loading}
+                onClick={() => fileRef.current?.click()}
+              >
+                {t.settings.uploadLogo}
+              </button>
+            </div>
           </div>
-          <div>
+
+          <div className="field">
+            <label htmlFor="display_name">{t.settings.displayName}</label>
             <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+              id="display_name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
             />
-            <button type="button" className="btn btn-secondary" disabled={loading} onClick={() => fileRef.current?.click()}>
-              {t.settings.uploadLogo}
-            </button>
+          </div>
+          <div className="field">
+            <label htmlFor="description">{t.settings.description}</label>
+            <textarea
+              id="description"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="support">{t.settings.support}</label>
+            <input
+              id="support"
+              value={support}
+              onChange={(e) => setSupport(e.target.value)}
+              placeholder="@store or t.me/…"
+            />
+          </div>
+          {me?.user?.email && <p className="muted">{me.user.email}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          {msg && <p className="ok">{msg}</p>}
+          <button className="btn btn-primary" disabled={loading}>
+            {loading ? t.common.loading : t.settings.save}
+          </button>
+        </form>
+      </section>
+
+      <section className="section">
+        <h2 className="section-title">{t.settings.language}</h2>
+        <div className="list-group">
+          <div className="list-row" style={{ cursor: "default" }}>
+            <div className="list-row-body">
+              <div className="list-row-title">{t.settings.language}</div>
+            </div>
+            <div className="list-row-trailing">
+              <LanguageSwitch />
+            </div>
           </div>
         </div>
+      </section>
 
-        <div className="field">
-          <label htmlFor="display_name">{t.settings.displayName}</label>
-          <input id="display_name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
-        </div>
-        <div className="field">
-          <label htmlFor="description">{t.settings.description}</label>
-          <textarea id="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="support">{t.settings.support}</label>
-          <input id="support" value={support} onChange={(e) => setSupport(e.target.value)} placeholder="@store or t.me/…" />
-        </div>
-        {me?.user?.email && <p className="muted">{me.user.email}</p>}
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-        {msg && <p className="ok">{msg}</p>}
-        <button className="btn btn-primary" disabled={loading}>
-          {loading ? t.common.loading : t.settings.save}
-        </button>
-      </form>
-
-      <div className="card-panel" style={{ marginTop: "1rem" }}>
-        <h3 style={{ marginTop: 0 }}>{t.settings.language}</h3>
-        <LanguageSwitch />
-      </div>
-
-      <form className="card-panel" style={{ marginTop: "1rem" }} onSubmit={connectTelegram}>
-        <h3 style={{ marginTop: 0 }}>{t.settings.telegram}</h3>
-        <div className="field">
-          <label htmlFor="chat_id">{t.settings.telegram}</label>
-          <input id="chat_id" value={telegram} onChange={(e) => setTelegram(e.target.value)} placeholder="123456789" />
-        </div>
-        <button className="btn btn-primary" disabled={loading}>
-          {t.settings.save}
-        </button>
-      </form>
+      <section className="section">
+        <h2 className="section-title">{t.settings.telegram}</h2>
+        <form className="card-panel" onSubmit={connectTelegram}>
+          <div className="field">
+            <label htmlFor="chat_id">{t.settings.telegram}</label>
+            <input
+              id="chat_id"
+              value={telegram}
+              onChange={(e) => setTelegram(e.target.value)}
+              placeholder="123456789"
+              className="mono-ltr"
+            />
+          </div>
+          <button className="btn btn-primary" disabled={loading}>
+            {t.settings.save}
+          </button>
+        </form>
+      </section>
 
       {isAdmin && (
-        <a className="btn btn-secondary" href="/admin" style={{ marginTop: "1rem", display: "block", textAlign: "center" }}>
+        <a className="btn btn-secondary" href="/admin">
           Admin
         </a>
       )}
 
-      <button className="btn btn-secondary" style={{ marginTop: "1rem" }} onClick={logout}>
+      <button type="button" className="btn btn-destructive" onClick={logout}>
         {t.logout}
       </button>
     </div>
