@@ -9,7 +9,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { defaultLocale, detectInitialLocale, dirFor, persistLocale, type Locale } from "./config";
+import {
+  defaultLocale,
+  detectInitialLocale,
+  dirFor,
+  isLocale,
+  persistLocale,
+  type Locale,
+} from "./config";
 import { en, type Messages } from "./messages/en";
 import { fa } from "./messages/fa";
 
@@ -24,12 +31,20 @@ type Ctx = {
 
 const LocaleContext = createContext<Ctx | null>(null);
 
+function bootLocale(): Locale {
+  if (typeof document !== "undefined") {
+    const fromDom = document.documentElement.dataset.locale;
+    if (isLocale(fromDom)) return fromDom;
+  }
+  return detectInitialLocale();
+}
+
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const initial = detectInitialLocale();
+    const initial = bootLocale();
     setLocaleState(initial);
     persistLocale(initial);
     setReady(true);

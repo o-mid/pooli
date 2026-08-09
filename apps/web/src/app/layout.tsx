@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
@@ -42,16 +43,40 @@ export const viewport: Viewport = {
   themeColor: "#0F8F6B",
   width: "device-width",
   initialScale: 1,
-  // Allow pinch-zoom (HIG / WCAG); do not lock maximumScale.
 };
+
+const localeBoot = `
+(function(){
+  try {
+    var loc = "";
+    try { loc = localStorage.getItem("pooli_locale") || ""; } catch (e) {}
+    if (loc !== "en" && loc !== "fa") {
+      var m = document.cookie.match(/(?:^|; )pooli_locale=([^;]*)/);
+      loc = m ? decodeURIComponent(m[1]) : "";
+    }
+    if (loc !== "en" && loc !== "fa") {
+      var nav = (navigator.language || "").toLowerCase();
+      loc = (nav.indexOf("fa") === 0 || nav.indexOf("per") === 0) ? "fa" : "en";
+    }
+    document.documentElement.lang = loc;
+    document.documentElement.dir = loc === "fa" ? "rtl" : "ltr";
+    document.documentElement.dataset.locale = loc;
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: localeBoot }} />
+      </head>
       <body>
         <LocaleProvider>
-          <ServiceWorkerRegister />
-          {children}
+          <ToastProvider>
+            <ServiceWorkerRegister />
+            {children}
+          </ToastProvider>
         </LocaleProvider>
       </body>
     </html>

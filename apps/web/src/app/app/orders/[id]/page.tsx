@@ -1,13 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
+import { BackLink } from "@/components/ui/BackLink";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
@@ -46,8 +48,8 @@ type Order = {
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const t = useT();
+  const { showToast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
-  const [copied, setCopied] = useState(false);
 
   async function load() {
     setOrder(await api<Order>(`/api/v1/orders/${params.id}`));
@@ -72,28 +74,33 @@ export default function OrderDetailPage() {
   const status = intent?.status || order?.status;
   usePaymentStatusPoll(status, () => load().catch(() => undefined));
 
-  if (!order) return <p className="muted">{t.common.loading}</p>;
+  if (!order) {
+    return (
+      <div className="rise page-stack">
+        <Skeleton height="1.75rem" width="40%" />
+        <Skeleton height="3rem" width="100%" />
+        <Skeleton height="12rem" width="100%" />
+      </div>
+    );
+  }
 
   const matched = intent?.matched_tx;
   const displayStatus = status || order.status;
 
   async function copyLink() {
-    if (!order) return;
-    await navigator.clipboard.writeText(order.checkout_url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const url = order?.checkout_url;
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    showToast(t.common.copied);
   }
 
   return (
     <div className="rise page-stack">
+      <BackLink href="/app/orders" />
       <PageHeader
         title={order.title || t.checkout.orderRef}
         trailing={<StatusBadge status={displayStatus} t={t} />}
       />
-
-      <Link href="/app/orders" className="btn btn-tertiary" style={{ alignSelf: "flex-start", width: "auto" }}>
-        {t.common.back}
-      </Link>
 
       <div className="card-panel">
         <AmountDisplay
@@ -117,7 +124,7 @@ export default function OrderDetailPage() {
           </div>
         </div>
         <button className="btn btn-primary" style={{ marginTop: "var(--space-3)" }} onClick={copyLink}>
-          {copied ? t.common.copied : t.create.copyLink}
+          {t.create.copyLink}
         </button>
       </div>
 

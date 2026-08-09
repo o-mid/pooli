@@ -74,7 +74,7 @@ export function Nav() {
   ];
 
   return (
-    <nav className="nav" aria-label={t.nav.home === "Home" ? "Main" : "منو"}>
+    <nav className="nav" aria-label={t.common.mainNav}>
       {items.map((item) => (
         <Link key={item.href} href={item.href} className={item.match(path) ? "active" : ""}>
           <item.Icon />

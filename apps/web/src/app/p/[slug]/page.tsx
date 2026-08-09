@@ -7,6 +7,8 @@ import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/components/ui/Toast";
 import { WalletAddress } from "@/components/ui/WalletAddress";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
@@ -53,11 +55,11 @@ export default function PublicCheckoutPage() {
   const params = useParams<{ slug: string }>();
   const t = useT();
   const { locale } = useLocale();
+  const { showToast } = useToast();
   const [pay, setPay] = useState<Pay | null>(null);
   const [step, setStep] = useState<Step>("details");
   const [selected, setSelected] = useState<PaymentOption | null>(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState<"addr" | "amt" | null>(null);
   const selectedRef = useRef<PaymentOption | null>(null);
   selectedRef.current = selected;
 
@@ -149,22 +151,30 @@ export default function PublicCheckoutPage() {
     }
   }
 
-  async function copy(text: string, kind: "addr" | "amt") {
+  async function copy(text: string) {
     await navigator.clipboard.writeText(text);
-    setCopied(kind);
-    setTimeout(() => setCopied(null), 2000);
+    showToast(t.common.copied);
   }
 
   if (!pay) {
     return (
-      <main className="shell">
-        <p className="muted">{error || t.common.loading}</p>
+      <main className="shell rise page-stack">
+        <Skeleton height="2.5rem" width="60%" />
+        <Skeleton height="1rem" width="40%" />
+        <Skeleton height="4.5rem" width="100%" />
+        <Skeleton height="8rem" width="100%" />
+        {error ? (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </main>
     );
   }
 
   const storeInitial = (pay.store_name || "S").slice(0, 1).toUpperCase();
   const needsDetails = pay.fields.length > 0;
+  const onPayStep = step === "pay" || intentStatus === "PAID";
   const journeySteps: Array<{ key: Step; label: string }> = [
     ...(needsDetails ? [{ key: "details" as const, label: t.checkout.customerInfo }] : []),
     { key: "network", label: t.checkout.selectNetwork },
@@ -179,7 +189,7 @@ export default function PublicCheckoutPage() {
         );
 
   return (
-    <main className="shell rise page-stack">
+    <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}`}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
           <div className="merchant-avatar">
@@ -217,7 +227,7 @@ export default function PublicCheckoutPage() {
         <AmountDisplay primary={`${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
       </div>
 
-      {intentStatus !== "PAID" && (
+      {!onPayStep && (
         <ol className="progress-steps" aria-label={t.checkout.continue}>
           {journeySteps.map((s, i) => {
             const done = i < activeJourney;
@@ -276,11 +286,17 @@ export default function PublicCheckoutPage() {
           <h2 className="section-title">{t.checkout.selectNetwork}</h2>
           <div className="network-choice">
             <button type="button" className="recommended" onClick={() => chooseNetwork("tron")}>
-              <strong>USDT · TRON</strong>
+              <span>
+                <strong>USDT · TRON</strong>
+                <span className="network-hint">{t.checkout.networkTronHint}</span>
+              </span>
               <span className="badge">{t.checkout.recommend}</span>
             </button>
             <button type="button" onClick={() => chooseNetwork("bsc")}>
-              <strong>USDT · BNB Chain</strong>
+              <span>
+                <strong>USDT · BNB Chain</strong>
+                <span className="network-hint">{t.checkout.networkBscHint}</span>
+              </span>
             </button>
           </div>
           {error && (
@@ -326,20 +342,13 @@ export default function PublicCheckoutPage() {
             </div>
 
             <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => copy(selected.destination_address, "addr")}
-              >
-                {copied === "addr" ? t.common.copied : t.checkout.copyAddress}
-              </button>
               {selected.payment_uri && (
                 <a className="btn btn-secondary" href={selected.payment_uri}>
                   {t.checkout.openWallet}
                 </a>
               )}
-              <button type="button" className="btn btn-secondary" onClick={() => copy(selected.pay_usdt_amount, "amt")}>
-                {copied === "amt" ? t.common.copied : t.checkout.copyAmount}
+              <button type="button" className="btn btn-secondary" onClick={() => copy(selected.pay_usdt_amount)}>
+                {t.checkout.copyAmount}
               </button>
             </div>
 
@@ -352,11 +361,21 @@ export default function PublicCheckoutPage() {
               explorerUrl={matched?.explorer_url}
             />
           </div>
+
+          <div className="sticky-cta">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => copy(selected.destination_address)}
+            >
+              {t.checkout.copyAddress}
+            </button>
+          </div>
         </section>
       )}
 
       {intentStatus === "PAID" && (
-        <section className="card-panel" style={{ textAlign: "center" }}>
+        <section className="card-panel success-pulse" style={{ textAlign: "center" }}>
           <div className="alert alert-success" role="status" style={{ marginBottom: "var(--space-4)" }}>
             {t.checkout.paymentReceived}
           </div>

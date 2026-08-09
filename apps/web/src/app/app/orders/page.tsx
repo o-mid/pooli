@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
+import { needsAttention } from "@/lib/orderStatus";
 
 type Order = {
   id: string;
@@ -17,8 +20,11 @@ type Order = {
   checkout_url: string;
 };
 
-export default function OrdersPage() {
+function OrdersContent() {
   const t = useT();
+  const router = useRouter();
+  const search = useSearchParams();
+  const filter = search.get("filter") === "attention" ? "attention" : "all";
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,15 +35,41 @@ export default function OrdersPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const visible = useMemo(() => {
+    if (filter === "attention") return orders.filter((o) => needsAttention(o.payment_status));
+    return orders;
+  }, [orders, filter]);
+
+  function setFilter(next: "all" | "attention") {
+    router.replace(next === "attention" ? "/app/orders?filter=attention" : "/app/orders");
+  }
+
   return (
     <div className="rise page-stack">
       <PageHeader title={t.orders.title} />
 
-      {loading && <p className="muted">{t.common.loading}</p>}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className={`filter-chip${filter === "all" ? " active" : ""}`}
+          onClick={() => setFilter("all")}
+        >
+          {t.orders.filterAll}
+        </button>
+        <button
+          type="button"
+          className={`filter-chip${filter === "attention" ? " active" : ""}`}
+          onClick={() => setFilter("attention")}
+        >
+          {t.orders.filterAttention}
+        </button>
+      </div>
 
-      {!loading && orders.length > 0 && (
+      {loading && <SkeletonRows count={5} />}
+
+      {!loading && visible.length > 0 && (
         <div className="list-group">
-          {orders.map((o) => (
+          {visible.map((o) => (
             <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
               <div className="list-row-body">
                 <div className="list-row-title">{o.title || o.slug}</div>
@@ -53,17 +85,38 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {!loading && !orders.length && (
+      {!loading && !visible.length && (
         <EmptyState
+          title={filter === "attention" ? t.orders.filterAttention : t.orders.empty}
           action={
-            <Link className="btn btn-secondary" href="/app/create">
-              {t.home.newOrder}
-            </Link>
+            filter === "attention" ? (
+              <button type="button" className="btn btn-secondary" onClick={() => setFilter("all")}>
+                {t.orders.filterAll}
+              </button>
+            ) : (
+              <Link className="btn btn-secondary" href="/app/create">
+                {t.home.newOrder}
+              </Link>
+            )
           }
         >
-          <p>{t.orders.empty}</p>
+          {filter === "attention" ? t.orders.emptyAttention : t.home.empty}
         </EmptyState>
       )}
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rise page-stack">
+          <SkeletonRows count={5} />
+        </div>
+      }
+    >
+      <OrdersContent />
+    </Suspense>
   );
 }

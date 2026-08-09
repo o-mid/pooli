@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SkeletonRows, SkeletonStats } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
@@ -69,6 +70,7 @@ export default function HomePage() {
   }
 
   const recent = data?.recent_orders || [];
+  const loading = !data;
 
   return (
     <div className="rise page-stack">
@@ -78,32 +80,47 @@ export default function HomePage() {
         {t.home.newOrder}
       </Link>
 
-      <div className="stat-grid">
-        <div className="stat">
-          <div className="label">{t.home.paidToday}</div>
-          <div className="value tabular">{data?.today_paid_orders ?? "—"}</div>
+      {loading ? (
+        <SkeletonStats />
+      ) : (
+        <div className="stat-grid">
+          <div className="stat">
+            <div className="label">{t.home.paidToday}</div>
+            <div className="value tabular">{data.today_paid_orders}</div>
+          </div>
+          <div className="stat">
+            <div className="label">{t.home.tomanVolume}</div>
+            <div className="value tabular">{data.today_toman_volume.toLocaleString()}</div>
+          </div>
+          <div className="stat">
+            <div className="label">{t.home.usdtReceived}</div>
+            <div className="value tabular">{data.today_usdt_received}</div>
+          </div>
+          <div className="stat">
+            <div className="label">{t.home.pending}</div>
+            <div className="value tabular">{data.pending_payments}</div>
+          </div>
+          <Link
+            href="/app/orders?filter=attention"
+            className={`stat wide${attention > 0 ? " attention" : ""}`}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <div className="label">{t.home.attention}</div>
+            <div className="value tabular">{attention}</div>
+            {attention > 0 ? (
+              <div className="muted" style={{ marginTop: "0.35rem", fontSize: "var(--text-caption)" }}>
+                {t.home.viewAttention}
+              </div>
+            ) : null}
+          </Link>
         </div>
-        <div className="stat">
-          <div className="label">{t.home.tomanVolume}</div>
-          <div className="value tabular">{data ? data.today_toman_volume.toLocaleString() : "—"}</div>
-        </div>
-        <div className="stat">
-          <div className="label">{t.home.usdtReceived}</div>
-          <div className="value tabular">{data?.today_usdt_received ?? "—"}</div>
-        </div>
-        <div className="stat">
-          <div className="label">{t.home.pending}</div>
-          <div className="value tabular">{data?.pending_payments ?? "—"}</div>
-        </div>
-        <div className={`stat wide${attention > 0 ? " attention" : ""}`}>
-          <div className="label">{t.home.attention}</div>
-          <div className="value tabular">{data ? attention : "—"}</div>
-        </div>
-      </div>
+      )}
 
       <section className="section">
         <h2 className="section-title">{t.home.recent}</h2>
-        {recent.length > 0 ? (
+        {loading ? (
+          <SkeletonRows count={4} />
+        ) : recent.length > 0 ? (
           <div className="list-group">
             {recent.map((o) => (
               <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
@@ -121,13 +138,14 @@ export default function HomePage() {
           </div>
         ) : (
           <EmptyState
+            title={t.orders.empty}
             action={
               <Link className="btn btn-secondary" href="/app/create">
                 {t.home.newOrder}
               </Link>
             }
           >
-            <p>{t.home.empty}</p>
+            {t.home.empty}
           </EmptyState>
         )}
       </section>

@@ -41,10 +41,14 @@ export const en = {
     attention: "Needs attention",
     recent: "Recent orders",
     empty: "No orders yet. Create your first payment link.",
+    viewAttention: "Review attention items",
   },
   orders: {
     title: "Orders",
     empty: "No orders yet",
+    emptyAttention: "Nothing needs attention right now.",
+    filterAll: "All",
+    filterAttention: "Attention",
     status: {
       CREATED: "Created",
       AWAITING_PAYMENT: "Waiting",
@@ -62,6 +66,7 @@ export const en = {
   create: {
     title: "New order",
     amount: "Amount (Toman)",
+    amountHint: "Enter the toman amount the buyer should pay.",
     orderTitle: "Order title",
     reference: "Reference (optional)",
     networks: "Networks",
@@ -70,6 +75,7 @@ export const en = {
     share: "Share",
     openCheckout: "Open checkout",
     created: "Payment link ready",
+    shareHint: "Share this link in Instagram, Telegram, or WhatsApp.",
   },
   wallets: {
     title: "Wallets",
@@ -105,6 +111,8 @@ export const en = {
     continue: "Continue to payment",
     selectNetwork: "Select network",
     recommend: "Recommended",
+    networkTronHint: "Usually faster and cheaper for most buyers.",
+    networkBscHint: "Use if your wallet is on BNB Smart Chain.",
     exactAmount: "Send exactly",
     exactHint: "The exact amount lets Pooli identify your payment automatically.",
     copyAddress: "Copy address",
@@ -138,6 +146,20 @@ export const en = {
     copied: "Copied",
     offline: "You are offline. Some actions may be unavailable.",
     back: "Back",
+    mainNav: "Main",
+  },
+  admin: {
+    title: "Admin / Reconciliation",
+    resolve: "Manual resolve",
+    intentId: "Payment intent ID",
+    action: "Action",
+    reason: "Reason",
+    eventId: "Event ID (optional)",
+    submit: "Resolve",
+    intents: "Recent payment intents",
+    events: "Recent chain events",
+    unmatched: "Unmatched events",
+    resolved: "Resolved",
   },
 };
 

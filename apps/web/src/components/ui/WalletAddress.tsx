@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useT } from "@/i18n/LocaleProvider";
+import { useToast } from "@/components/ui/Toast";
 
 export function WalletAddress({
   address,
@@ -11,13 +11,12 @@ export function WalletAddress({
   showCopy?: boolean;
 }) {
   const t = useT();
-  const [copied, setCopied] = useState(false);
+  const { showToast } = useToast();
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(address);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      showToast(t.common.copied);
     } catch {
       /* ignore */
     }
@@ -28,7 +27,7 @@ export function WalletAddress({
       <code className="wallet-addr mono-ltr">{address}</code>
       {showCopy ? (
         <button type="button" className="btn btn-secondary" onClick={copy}>
-          {copied ? t.common.copied : t.common.copy}
+          {t.common.copy}
         </button>
       ) : null}
     </div>

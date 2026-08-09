@@ -229,8 +229,8 @@ export default function WalletsPage() {
         </section>
       ) : (
         !draft && (
-          <EmptyState>
-            <p>{t.wallets.empty}</p>
+          <EmptyState title={t.wallets.title} action={<span className="muted">{t.wallets.add}</span>}>
+            {t.wallets.empty}
           </EmptyState>
         )
       )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { MerchantChrome } from "@/components/MerchantChrome";
 import { Nav } from "@/components/Nav";
 import { useT } from "@/i18n/LocaleProvider";
 
@@ -23,13 +24,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <main className="shell app-shell">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginBottom: "0.25rem",
-          }}
-        >
+        <div className="app-topbar">
+          <MerchantChrome />
           <LanguageSwitch />
         </div>
         {offline && (
