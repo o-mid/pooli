@@ -4,7 +4,10 @@ import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { BrandMark } from "@/components/BrandMark";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { PaymentProgress } from "@/components/PaymentProgress";
+import { AmountDisplay } from "@/components/ui/AmountDisplay";
+import { WalletAddress } from "@/components/ui/WalletAddress";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
@@ -161,11 +164,24 @@ export default function PublicCheckoutPage() {
   }
 
   const storeInitial = (pay.store_name || "S").slice(0, 1).toUpperCase();
+  const needsDetails = pay.fields.length > 0;
+  const journeySteps: Array<{ key: Step; label: string }> = [
+    ...(needsDetails ? [{ key: "details" as const, label: t.checkout.customerInfo }] : []),
+    { key: "network", label: t.checkout.selectNetwork },
+    { key: "pay", label: t.checkout.exactAmount },
+  ];
+  const activeJourney =
+    intentStatus === "PAID"
+      ? journeySteps.length - 1
+      : Math.max(
+          0,
+          journeySteps.findIndex((s) => s.key === step),
+        );
 
   return (
-    <main className="shell rise">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+    <main className="shell rise page-stack">
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
           <div className="merchant-avatar">
             {pay.store_logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -174,31 +190,56 @@ export default function PublicCheckoutPage() {
               storeInitial
             )}
           </div>
-          <div>
-            <strong>{pay.store_name}</strong>
-            <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+          <div style={{ minWidth: 0 }}>
+            <strong style={{ fontSize: "var(--text-headline)" }}>{pay.store_name}</strong>
+            <p className="muted" style={{ margin: 0, fontSize: "var(--text-footnote)" }}>
               {t.checkout.poweredBy}
             </p>
           </div>
         </div>
-        <BrandMark variant="mark" size={24} localeHint={locale} />
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0 }}>
+          <LanguageSwitch />
+          <BrandMark variant="mark" size={24} localeHint={locale} />
+        </div>
       </header>
 
-      <h1 style={{ fontSize: "1.35rem", marginTop: 0 }}>{pay.title || t.checkout.orderRef}</h1>
-      {pay.description && <p className="muted">{pay.description}</p>}
-
-      <div className="card-panel" style={{ marginBottom: "1rem" }}>
-        <div className="muted">{t.checkout.amount}</div>
-        <div className="tabular" style={{ fontSize: "1.4rem", fontWeight: 700 }}>
-          {pay.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
-        </div>
+      <div>
+        <h1 className="page-title" style={{ fontSize: "var(--text-title2)" }}>
+          {pay.title || t.checkout.orderRef}
+        </h1>
+        {pay.description ? <p className="page-subtitle">{pay.description}</p> : null}
       </div>
+
+      <div>
+        <p className="section-title" style={{ paddingInline: 0 }}>
+          {t.checkout.amount}
+        </p>
+        <AmountDisplay primary={`${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
+      </div>
+
+      {intentStatus !== "PAID" && (
+        <ol className="progress-steps" aria-label={t.checkout.continue}>
+          {journeySteps.map((s, i) => {
+            const done = i < activeJourney;
+            const current = i === activeJourney;
+            return (
+              <li
+                key={s.key}
+                className={`${done ? "done" : ""} ${current ? "current" : ""} ${!done && !current ? "upcoming" : ""}`}
+              >
+                <span className="dot" aria-hidden />
+                <span className="label">{s.label}</span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
 
       {step === "details" && (
         <form className="card-panel" onSubmit={submitDetails}>
-          <h3 style={{ marginTop: 0 }}>{t.checkout.customerInfo}</h3>
+          <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.checkout.customerInfo}</h2>
           {pay.fields.map((f) => (
-            <div className="field" key={f.key}>
+            <div className="field" key={f.key} style={{ marginTop: "var(--space-3)" }}>
               <label htmlFor={f.key}>
                 {f.label}
                 {f.required ? " *" : ""}
@@ -221,92 +262,104 @@ export default function PublicCheckoutPage() {
               )}
             </div>
           ))}
-          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           <button className="btn btn-primary">{t.checkout.continue}</button>
         </form>
       )}
 
       {step === "network" && intentStatus !== "PAID" && (
-        <div className="card-panel">
-          <h3 style={{ marginTop: 0 }}>{t.checkout.selectNetwork}</h3>
+        <section className="section">
+          <h2 className="section-title">{t.checkout.selectNetwork}</h2>
           <div className="network-choice">
             <button type="button" className="recommended" onClick={() => chooseNetwork("tron")}>
               <strong>USDT · TRON</strong>
-              <span className="badge" style={{ marginInlineStart: "0.5rem" }}>
-                {t.checkout.recommend}
-              </span>
+              <span className="badge">{t.checkout.recommend}</span>
             </button>
             <button type="button" onClick={() => chooseNetwork("bsc")}>
               <strong>USDT · BNB Chain</strong>
             </button>
           </div>
-          {error && <p style={{ color: "var(--danger)", marginTop: "0.75rem" }}>{error}</p>}
-        </div>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+        </section>
       )}
 
       {step === "pay" && selected && intentStatus !== "PAID" && (
-        <div className="card-panel">
-          <p className="warn">{t.checkout.wrongNetwork}</p>
-
-          <div className="muted">{t.checkout.exactAmount}</div>
-          <div className="tabular mono-ltr" style={{ fontSize: "1.3rem", fontWeight: 700 }}>
-            {selected.pay_usdt_amount} USDT
+        <section className="section">
+          <div className="alert alert-warning" role="alert">
+            {t.checkout.wrongNetwork}
           </div>
-          <p className="muted" style={{ fontSize: "0.85rem", lineHeight: 1.45 }}>
-            {t.checkout.exactHint}
-          </p>
-          <p className="muted tabular pulse">
-            {t.checkout.quoteExpires}: {countdown}
-          </p>
 
-          <div className="qr-card" style={{ marginTop: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-              <div className="merchant-avatar" style={{ width: 36, height: 36, fontSize: "0.85rem" }}>
-                {pay.store_logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pay.store_logo_url} alt="" />
-                ) : (
-                  storeInitial
-                )}
-              </div>
-              <BrandMark variant="mark" size={22} localeHint={locale} />
-            </div>
-            <div className="qr-frame">
-              <QRCodeSVG value={qrPayload} size={170} bgColor="#ffffff" fgColor="#0b1f1a" />
-            </div>
-            <p className="mono-ltr wallet-addr muted" style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
-              {selected.destination_address}
+          <div className="card-panel">
+            <p className="section-title" style={{ paddingInline: 0 }}>
+              {t.checkout.exactAmount}
             </p>
+            <AmountDisplay
+              primary={`${selected.pay_usdt_amount} USDT`}
+              secondary={`${selected.network.toUpperCase()} · ${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
+            />
+            <p className="field-hint" style={{ marginTop: "var(--space-2)" }}>
+              {t.checkout.exactHint}
+            </p>
+            <p className="muted tabular pulse" style={{ margin: "var(--space-3) 0 0" }}>
+              {t.checkout.quoteExpires}: {countdown}
+            </p>
+
+            <div className="qr-card" style={{ marginTop: "var(--space-4)" }}>
+              <div className="qr-frame">
+                <QRCodeSVG value={qrPayload} size={170} bgColor="#ffffff" fgColor="#0b1f1a" />
+              </div>
+            </div>
+
+            <div style={{ marginTop: "var(--space-4)" }}>
+              <p className="section-title" style={{ paddingInline: 0, marginBottom: "var(--space-2)" }}>
+                {t.wallets.address}
+              </p>
+              <WalletAddress address={selected.destination_address} showCopy={false} />
+            </div>
+
+            <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => copy(selected.destination_address, "addr")}
+              >
+                {copied === "addr" ? t.common.copied : t.checkout.copyAddress}
+              </button>
+              {selected.payment_uri && (
+                <a className="btn btn-secondary" href={selected.payment_uri}>
+                  {t.checkout.openWallet}
+                </a>
+              )}
+              <button type="button" className="btn btn-secondary" onClick={() => copy(selected.pay_usdt_amount, "amt")}>
+                {copied === "amt" ? t.common.copied : t.checkout.copyAmount}
+              </button>
+            </div>
+
+            <PaymentProgress
+              status={intentStatus || "AWAITING_PAYMENT"}
+              network={selected.network}
+              confirmations={matched?.confirmations}
+              requiredConfirmations={matched?.required_confirmations}
+              txHash={matched?.tx_hash}
+              explorerUrl={matched?.explorer_url}
+            />
           </div>
-
-          <button className="btn btn-primary" style={{ marginTop: "0.75rem" }} onClick={() => copy(selected.destination_address, "addr")}>
-            {copied === "addr" ? t.common.copied : t.checkout.copyAddress}
-          </button>
-          <button className="btn btn-secondary" style={{ marginTop: "0.5rem" }} onClick={() => copy(selected.pay_usdt_amount, "amt")}>
-            {copied === "amt" ? t.common.copied : t.checkout.copyAmount}
-          </button>
-          {selected.payment_uri && (
-            <a className="btn btn-secondary" href={selected.payment_uri} style={{ marginTop: "0.5rem" }}>
-              {t.checkout.openWallet}
-            </a>
-          )}
-
-          <PaymentProgress
-            status={intentStatus || "AWAITING_PAYMENT"}
-            network={selected.network}
-            confirmations={matched?.confirmations}
-            requiredConfirmations={matched?.required_confirmations}
-            txHash={matched?.tx_hash}
-            explorerUrl={matched?.explorer_url}
-          />
-        </div>
+        </section>
       )}
 
       {intentStatus === "PAID" && (
-        <div className="card-panel">
-          <h2 className="ok" style={{ marginTop: 0 }}>
+        <section className="card-panel" style={{ textAlign: "center" }}>
+          <div className="alert alert-success" role="status" style={{ marginBottom: "var(--space-4)" }}>
             {t.checkout.paymentReceived}
-          </h2>
+          </div>
           <PaymentProgress
             status="PAID"
             network={selected?.network}
@@ -315,7 +368,7 @@ export default function PublicCheckoutPage() {
             txHash={matched?.tx_hash}
             explorerUrl={matched?.explorer_url}
           />
-        </div>
+        </section>
       )}
     </main>
   );
