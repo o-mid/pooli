@@ -6,6 +6,7 @@ export const fa: Messages = {
   tagline: "از سفارش دایرکت به لینک پرداخت.",
   taglineSub: "لینک پرداخت بسازید. مستقیم USDT بگیرید. وقتی پرداخت واقعی شد، بلافاصله بفهمید.",
   openSeller: "ورود به پنل فروشنده",
+  openPooli: "باز کردن پولیی",
   createAccount: "ساخت حساب",
   login: "ورود",
   register: "ساخت حساب",
@@ -104,6 +105,7 @@ export const fa: Messages = {
     language: "زبان",
     telegram: "شناسه چت تلگرام",
     save: "ذخیره",
+    addToHome: "افزودن به صفحه اصلی",
   },
   checkout: {
     poweredBy: "پرداخت امن با پولیی",
@@ -148,6 +150,17 @@ export const fa: Messages = {
     offline: "آفلاین هستید. برخی کارها ممکن نیست.",
     back: "بازگشت",
     mainNav: "منو",
+  },
+  install: {
+    title: "پولیی را به صفحه اصلی اضافه کنید",
+    subtitle: "ساخت لینک پرداخت با یک ضربه — مثل یک اپ.",
+    notNow: "الان نه",
+    install: "نصب پولیی",
+    iosStep1: "در سافاری روی دکمه Share بزنید",
+    iosStep2: "به پایین بروید و Add to Home Screen را بزنید",
+    iosStep3: "در بالا Add را بزنید",
+    androidHint: "پولیی را نصب کنید تا سریع‌تر از صفحه اصلی باز شود.",
+    desktopHint: "پولیی را از مرورگر نصب کنید تا مثل یک اپ جدا باز شود.",
   },
   admin: {
     title: "ادمین / تطبیق",

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { InstallPromptCapture } from "@/components/InstallSheet";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LocaleProvider>
           <ToastProvider>
             <ServiceWorkerRegister />
+            <InstallPromptCapture />
             {children}
           </ToastProvider>
         </LocaleProvider>

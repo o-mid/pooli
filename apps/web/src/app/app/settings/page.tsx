@@ -2,10 +2,12 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { requestInstallSheet } from "@/components/InstallSheet";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, apiMultipart } from "@/lib/api";
+import { isStandaloneDisplay } from "@/lib/pwa";
 
 type Merchant = {
   id?: string;
@@ -35,8 +37,10 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [standalone, setStandalone] = useState(false);
 
   useEffect(() => {
+    setStandalone(isStandaloneDisplay());
     api<Me>("/api/v1/me")
       .then((data) => {
         setMe(data);
@@ -208,6 +212,14 @@ export default function SettingsPage() {
                   <LanguageSwitch />
                 </div>
               </div>
+              {!standalone && (
+                <button type="button" className="list-row" onClick={() => requestInstallSheet()}>
+                  <div className="list-row-body">
+                    <div className="list-row-title">{t.settings.addToHome}</div>
+                    <div className="list-row-meta">{t.install.subtitle}</div>
+                  </div>
+                </button>
+              )}
             </div>
           </section>
 

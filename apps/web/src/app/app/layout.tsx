@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { InstallSheet } from "@/components/InstallSheet";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { MerchantChrome } from "@/components/MerchantChrome";
 import { Nav } from "@/components/Nav";
@@ -36,6 +37,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="page-stack">{children}</div>
       </main>
       <Nav />
+      <InstallSheet />
     </>
   );
 }

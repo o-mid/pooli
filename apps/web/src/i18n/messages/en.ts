@@ -5,6 +5,7 @@ export const en = {
   taglineSub:
     "Create a payment link. Get paid directly in USDT. Know automatically when the payment is real.",
   openSeller: "Open seller app",
+  openPooli: "Open Pooli",
   createAccount: "Create account",
   login: "Log in",
   register: "Create account",
@@ -103,6 +104,7 @@ export const en = {
     language: "Language",
     telegram: "Telegram chat ID",
     save: "Save",
+    addToHome: "Add to Home Screen",
   },
   checkout: {
     poweredBy: "Secure checkout by Pooli",
@@ -147,6 +149,17 @@ export const en = {
     offline: "You are offline. Some actions may be unavailable.",
     back: "Back",
     mainNav: "Main",
+  },
+  install: {
+    title: "Add Pooli to your Home Screen",
+    subtitle: "Create payment links in one tap — like an app.",
+    notNow: "Not now",
+    install: "Install Pooli",
+    iosStep1: "Tap the Share button in Safari",
+    iosStep2: "Scroll and tap Add to Home Screen",
+    iosStep3: "Tap Add in the top right",
+    androidHint: "Install Pooli for quicker access from your home screen.",
+    desktopHint: "Install Pooli from your browser for a dedicated app window.",
   },
   admin: {
     title: "Admin / Reconciliation",
