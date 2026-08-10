@@ -16,4 +16,6 @@ MVP payment matching works. Phase 2 upgrades merchant/buyer experience without c
 
 ## Non-goals
 
-Custody, withdrawals, arbitrary tokens, WalletConnect requirement, Redis fan-out of worker SSE (additive follow-up).
+Custody, withdrawals, arbitrary tokens, Redis fan-out of worker SSE (additive follow-up).
+
+**Update (payment handoff sprint):** WalletConnect is an optional EVM mobile handoff path when `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is configured. TRON continues to use documented `tron:` / TronLink open deeplinks with QR/copy fallbacks. Matcher and reservation uniqueness semantics remain unchanged.
