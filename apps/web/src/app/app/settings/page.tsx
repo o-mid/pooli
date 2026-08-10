@@ -18,12 +18,16 @@ type Merchant = {
   logo_url?: string;
   support_contact?: string;
   slug?: string;
+  telegram?: {
+    connected?: boolean;
+    username?: string;
+    bot?: string;
+  };
 };
 
 type Me = {
   user?: { email?: string; is_admin?: boolean; IsAdmin?: boolean };
   merchant?: Merchant;
-  telegram_chat_id?: string;
 };
 
 type FieldMode = "required" | "optional" | "disabled";
@@ -46,24 +50,28 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [support, setSupport] = useState("");
-  const [telegram, setTelegram] = useState("");
+  const [tgConnected, setTgConnected] = useState(false);
+  const [tgUsername, setTgUsername] = useState("");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [standalone, setStandalone] = useState(false);
   const [defaults, setDefaults] = useState<Defaults | null>(null);
 
+  async function refreshMe() {
+    const data = await api<Me>("/api/v1/me");
+    setMe(data);
+    setDisplayName(data.merchant?.display_name || data.merchant?.name || "");
+    setDescription(data.merchant?.description || "");
+    setSupport(data.merchant?.support_contact || "");
+    setTgConnected(Boolean(data.merchant?.telegram?.connected));
+    setTgUsername(data.merchant?.telegram?.username || "");
+    return data;
+  }
+
   useEffect(() => {
     setStandalone(isStandaloneDisplay());
-    api<Me>("/api/v1/me")
-      .then((data) => {
-        setMe(data);
-        setDisplayName(data.merchant?.display_name || data.merchant?.name || "");
-        setDescription(data.merchant?.description || "");
-        setSupport(data.merchant?.support_contact || "");
-        setTelegram(data.telegram_chat_id || "");
-      })
-      .catch(() => undefined);
+    refreshMe().catch(() => undefined);
     api<Defaults>("/api/v1/merchant/checkout-defaults")
       .then(setDefaults)
       .catch(() => undefined);
@@ -115,17 +123,57 @@ export default function SettingsPage() {
     }
   }
 
-  async function connectTelegram(e: FormEvent) {
-    e.preventDefault();
+  async function connectTelegram() {
     setLoading(true);
     setError("");
     setMsg("");
     try {
-      await api("/api/v1/telegram/connect", {
+      const res = await api<{ url: string }>("/api/v1/telegram/connect-link", {
         method: "POST",
-        body: JSON.stringify({ chat_id: telegram.trim() }),
+        body: "{}",
       });
+      if (res.url) {
+        window.open(res.url, "_blank", "noopener,noreferrer");
+      }
+      // Poll briefly for webhook bind completion.
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const me = await refreshMe();
+        if (me.merchant?.telegram?.connected) {
+          setMsg(t.settings.telegramConnected);
+          break;
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function disconnectTelegram() {
+    setLoading(true);
+    setError("");
+    setMsg("");
+    try {
+      await api("/api/v1/telegram/disconnect", { method: "POST", body: "{}" });
+      setTgConnected(false);
+      setTgUsername("");
       setMsg(t.common.saved);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sendTelegramTest() {
+    setLoading(true);
+    setError("");
+    setMsg("");
+    try {
+      await api("/api/v1/telegram/test", { method: "POST", body: "{}" });
+      setMsg(t.settings.telegramTestSent);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
@@ -241,22 +289,49 @@ export default function SettingsPage() {
           </section>
 
           <section className="section" style={{ margin: 0 }}>
-            <h2 className="section-title">{t.settings.telegram}</h2>
-            <form className="card-panel" onSubmit={connectTelegram}>
-              <div className="field">
-                <label htmlFor="chat_id">{t.settings.telegram}</label>
-                <input
-                  id="chat_id"
-                  value={telegram}
-                  onChange={(e) => setTelegram(e.target.value)}
-                  placeholder="123456789"
-                  className="mono-ltr"
-                />
-              </div>
-              <button className="btn btn-primary" disabled={loading}>
-                {t.settings.save}
-              </button>
-            </form>
+            <h2 className="section-title">{t.settings.notifications}</h2>
+            <div className="card-panel">
+              <h3 style={{ margin: 0, fontSize: "var(--text-headline)" }}>{t.settings.telegram}</h3>
+              {tgConnected ? (
+                <>
+                  <p style={{ margin: "var(--space-2) 0 0", fontWeight: 650 }}>{t.settings.telegramConnected}</p>
+                  {tgUsername ? (
+                    <p className="muted mono-ltr" style={{ margin: "var(--space-1) 0 0" }}>
+                      @{tgUsername}
+                    </p>
+                  ) : null}
+                  <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+                    {t.settings.telegramConnectedHint}
+                  </p>
+                  <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
+                    <button type="button" className="btn btn-secondary" disabled={loading} onClick={sendTelegramTest}>
+                      {t.settings.sendTelegramTest}
+                    </button>
+                    <button type="button" className="btn btn-tertiary" disabled={loading} onClick={disconnectTelegram}>
+                      {t.settings.disconnectTelegram}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+                    {t.settings.telegramHint}
+                  </p>
+                  <p className="muted" style={{ margin: "var(--space-1) 0 0" }}>
+                    {t.settings.telegramNotConnected}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ marginTop: "var(--space-4)" }}
+                    disabled={loading}
+                    onClick={connectTelegram}
+                  >
+                    {t.settings.connectTelegram}
+                  </button>
+                </>
+              )}
+            </div>
           </section>
         </div>
       </div>
