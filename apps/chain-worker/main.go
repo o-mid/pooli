@@ -35,7 +35,10 @@ func main() {
 	}
 	defer pool.Close()
 
-	tg := &notify.Telegram{Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled}
+	tg := &notify.Telegram{
+		Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled,
+		BotUsername: cfg.TelegramBotUsername, PublicBase: cfg.PublicBaseURL,
+	}
 	matcher := &payment.Matcher{
 		Pool:                pool,
 		BSCConfirmations:    cfg.BSCConfirmations,
@@ -44,19 +47,7 @@ func main() {
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			log.Printf("transition %s intent=%s", eventType, intentID)
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
-			if eventType != "payment.paid" {
-				return
-			}
-			var toman, usdt int64
-			var orderRef string
-			network, _ := payload["network"].(string)
-			txHash, _ := payload["tx_hash"].(string)
-			_ = pool.QueryRow(context.Background(), `
-				SELECT o.fiat_amount_toman, COALESCE(NULLIF(o.merchant_reference,''), o.slug),
-				       COALESCE((SELECT pay_usdt_amount_base_units FROM payment_options WHERE payment_intent_id=$1::uuid AND status='SETTLED' LIMIT 1),0)
-				FROM payment_intents pi JOIN orders o ON o.id=pi.order_id WHERE pi.id=$1::uuid`, intentID).
-				Scan(&toman, &orderRef, &usdt)
-			_ = tg.NotifyPaid(context.Background(), merchantID, orderRef, toman, usdt, network, txHash)
+			notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
 		},
 	}
 

@@ -55,29 +55,7 @@ func main() {
 			hub.PublishIntent(intentID, sse.Event{Type: eventType, Payload: payload})
 			hub.PublishMerchant(merchantID, sse.Event{Type: eventType, Payload: payload})
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
-			if eventType == "payment.paid" {
-				var toman int64
-				var orderRef string
-				var usdt int64
-				var network, txHash string
-				_ = pool.QueryRow(context.Background(), `
-					SELECT o.fiat_amount_toman, COALESCE(NULLIF(o.merchant_reference,''), o.slug),
-					       COALESCE((SELECT pay_usdt_amount_base_units FROM payment_options WHERE payment_intent_id=$1::uuid AND status='SETTLED' LIMIT 1),0)
-					FROM payment_intents pi JOIN orders o ON o.id=pi.order_id WHERE pi.id=$1::uuid`, intentID).
-					Scan(&toman, &orderRef, &usdt)
-				if payload != nil {
-					if v, ok := payload["network"].(string); ok {
-						network = v
-					}
-					if v, ok := payload["tx_hash"].(string); ok {
-						txHash = v
-					}
-					if v, ok := payload["amount_base_units"].(int64); ok && v > 0 {
-						usdt = v
-					}
-				}
-				_ = tg.NotifyPaid(context.Background(), merchantID, orderRef, toman, usdt, network, txHash)
-			}
+			notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
 		},
 	}
 
