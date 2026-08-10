@@ -31,10 +31,17 @@ export function usePaymentStatusPoll(status: string | undefined, reload: () => v
     const onVis = () => {
       poller.setHidden(document.hidden);
     };
+    const onFocus = () => {
+      if (!document.hidden) poller.setHidden(false);
+    };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onFocus);
 
     return () => {
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onFocus);
       poller.stop();
     };
   }, [active]);

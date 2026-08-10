@@ -194,7 +194,15 @@ export default function OrderDetailPage() {
             <div className="muted" style={{ fontSize: "var(--text-caption)" }}>
               {t.orders.payment}
             </div>
-            <StatusBadge status={displayStatus} t={t} />
+            {displayStatus === "PAID" ? (
+              <strong style={{ fontSize: "var(--text-title3)" }}>
+                {(order.field_values?.find((f) => f.key === "full_name")?.value || "").trim()
+                  ? `${order.field_values?.find((f) => f.key === "full_name")?.value} ${t.orders.paidCheck}`
+                  : t.orders.status.PAID}
+              </strong>
+            ) : (
+              <StatusBadge status={displayStatus} t={t} />
+            )}
           </div>
           <div style={{ textAlign: "end" }}>
             <div className="muted" style={{ fontSize: "var(--text-caption)" }}>
@@ -204,14 +212,29 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        <AmountDisplay primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
+        {order.field_values?.find((f) => f.key === "full_name")?.value ? (
+          <p style={{ margin: "0 0 var(--space-2)", fontWeight: 650 }}>
+            {order.field_values.find((f) => f.key === "full_name")?.value}
+          </p>
+        ) : null}
+
+        <AmountDisplay
+          primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
+          secondary={
+            intent?.options?.[0]
+              ? `${intent.options[0].pay_usdt_amount} USDT · ${(intent.options[0].network || "").toUpperCase()}`
+              : undefined
+          }
+        />
 
         <PaymentProgress
           status={displayStatus}
+          network={matched?.tx_hash ? intent?.options?.[0]?.network : undefined}
           confirmations={matched?.confirmations}
           requiredConfirmations={matched?.required_confirmations}
           txHash={matched?.tx_hash}
           explorerUrl={matched?.explorer_url}
+          compact
         />
 
         <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)", marginTop: "var(--space-4)" }}>

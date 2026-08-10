@@ -1,28 +1,22 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
-import { PaymentProgress } from "@/components/PaymentProgress";
+import { PooliPaySheet } from "@/components/checkout/PooliPaySheet";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useToast } from "@/components/ui/Toast";
-import { WalletAddress } from "@/components/ui/WalletAddress";
 import { useLocale, useT } from "@/i18n/LocaleProvider";
+import { track } from "@/lib/analytics";
 import { api, openSSE } from "@/lib/api";
+import {
+  getPreferredNetwork,
+  moneyDetected,
+  setPreferredNetwork,
+  type PaymentOption,
+} from "@/lib/payment-handoff";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
-
-type PaymentOption = {
-  id: string;
-  network: string;
-  destination_address: string;
-  pay_usdt_amount: string;
-  payment_uri?: string;
-  expires_at?: string;
-  explorer_base?: string;
-};
 
 type PaymentIntent = {
   id: string;
@@ -68,70 +62,150 @@ type Pay = {
 
 type Step = "details" | "network" | "pay";
 
+function activeOptions(intent?: PaymentIntent | null): PaymentOption[] {
+  const opts = intent?.options || [];
+  const active = opts.filter((o) => !o.status || o.status === "ACTIVE");
+  return active.length ? active : opts;
+}
+
 export default function CheckoutClient() {
   const params = useParams<{ slug: string }>();
   const t = useT();
   const { locale } = useLocale();
-  const { showToast } = useToast();
   const [pay, setPay] = useState<Pay | null>(null);
   const [step, setStep] = useState<Step>("details");
   const [selected, setSelected] = useState<PaymentOption | null>(null);
   const [error, setError] = useState("");
+  const [checkingPayment, setCheckingPayment] = useState(false);
+  const [refreshingQuote, setRefreshingQuote] = useState(false);
   const selectedRef = useRef<PaymentOption | null>(null);
+  const sseRef = useRef<EventSource | null>(null);
+  const prevStatus = useRef<string | undefined>();
   selectedRef.current = selected;
 
   function resolveStep(data: Pay): Step {
     const hasFields = data.fields.length > 0 && !data.customer_submitted;
     if (hasFields) return "details";
     if (data.payment_intent?.status === "PAID") return "pay";
+    if (selectedRef.current) return "pay";
     return "network";
   }
 
   async function load() {
     const d = await api<Pay>(`/api/v1/public/pay/${params.slug}`);
     setPay(d);
-    // Use ref so poll/SSE reloads do not clobber an in-progress pay step when
-    // `selected` is still null in a stale closure after chooseNetwork.
     setStep((prev) => (prev === "pay" && selectedRef.current ? "pay" : resolveStep(d)));
     if (d.payment_intent?.status === "PAID") setStep("pay");
-    // Keep selected option in sync when intent options refresh (e.g. after PAID).
     if (selectedRef.current) {
-      const match = d.payment_intent?.options?.find((o) => o.id === selectedRef.current?.id);
+      const opts = activeOptions(d.payment_intent);
+      const match = opts.find((o) => o.id === selectedRef.current?.id);
       if (match) setSelected(match);
+      else {
+        const byNet = opts.find((o) => o.network === selectedRef.current?.network);
+        if (byNet) setSelected(byNet);
+      }
     }
+    return d;
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load()
+      .then((d) => {
+        track("checkout_opened", { status: d.payment_intent?.status || d.status });
+        // Prefill network from local preference when still on network step.
+        const pref = getPreferredNetwork();
+        if (pref && !selectedRef.current) {
+          const opt = activeOptions(d.payment_intent).find((o) => o.network === pref);
+          if (opt && d.payment_intent?.status !== "PAID" && (d.fields.length === 0 || d.customer_submitted)) {
+            // Soft hint only — user still sees network step with "Previously used".
+          }
+        }
+      })
+      .catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.slug]);
 
-  useEffect(() => {
+  function connectSSE() {
     if (!pay?.payment_intent?.id) return;
-    // SSE is best-effort only (worker transitions do not publish into the API hub).
+    sseRef.current?.close();
     const es = openSSE(`/api/v1/public/pay/${params.slug}/events`, () => {
       load().catch(() => undefined);
     });
     es.onerror = () => {
-      // Keep REST polling authoritative; do not tear down the page on SSE errors.
+      // REST polling remains authoritative.
     };
-    return () => es.close();
+    sseRef.current = es;
+  }
+
+  useEffect(() => {
+    connectSSE();
+    return () => {
+      sseRef.current?.close();
+      sseRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pay?.payment_intent?.id, params.slug]);
 
   const countdown = useCountdown(selected?.expires_at || pay?.payment_intent?.expires_at);
-  // Prefer payment_intent.status — top-level status is the order snapshot.
-  // Do not invent AWAITING_PAYMENT before the first load; that would start
-  // polling against a missing/stale payload.
   const intentStatus = pay?.payment_intent?.status || pay?.status;
   const matched = pay?.payment_intent?.matched_tx;
 
-  usePaymentStatusPoll(intentStatus, () => load().catch(() => undefined));
+  usePaymentStatusPoll(intentStatus, async () => {
+    await load().catch(() => undefined);
+  });
 
-  const qrPayload = useMemo(() => {
-    if (!selected) return "";
-    return selected.payment_uri || selected.destination_address;
-  }, [selected]);
+  useEffect(() => {
+    const prev = prevStatus.current;
+    prevStatus.current = intentStatus;
+    if (intentStatus === "SEEN" && prev && prev !== "SEEN") {
+      track("payment_detected", { network: selected?.network });
+    }
+    if (intentStatus === "PAID" && prev && prev !== "PAID") {
+      track("payment_confirmed", { network: selected?.network });
+    }
+    if (
+      intentStatus &&
+      ["EXPIRED", "UNDERPAID", "OVERPAID", "LATE_PAYMENT", "NEEDS_REVIEW", "DUPLICATE_PAYMENT"].includes(intentStatus) &&
+      prev !== intentStatus
+    ) {
+      track("payment_exception", { status: intentStatus });
+    }
+  }, [intentStatus, selected?.network]);
+
+  // Return-from-wallet: visibility + focus → reconnect SSE, single refetch, status feedback.
+  useEffect(() => {
+    let pending = false;
+    async function onReturn() {
+      if (pending) return;
+      if (!pay?.payment_intent?.id) return;
+      if (document.hidden) return;
+      pending = true;
+      setCheckingPayment(true);
+      try {
+        connectSSE();
+        await load();
+      } catch {
+        // ignore
+      } finally {
+        window.setTimeout(() => {
+          setCheckingPayment(false);
+          pending = false;
+        }, 1200);
+      }
+    }
+    const onVis = () => {
+      if (!document.hidden) void onReturn();
+    };
+    window.addEventListener("focus", onReturn);
+    window.addEventListener("pageshow", onReturn);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      window.removeEventListener("pageshow", onReturn);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pay?.payment_intent?.id, params.slug]);
 
   async function submitDetails(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -161,16 +235,32 @@ export default function CheckoutClient() {
         body: JSON.stringify({ network: n }),
       });
       setSelected(res.selected_option);
+      setPreferredNetwork(n);
       setStep("pay");
+      track("network_selected", { network: n });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     }
   }
 
-  async function copy(text: string) {
-    await navigator.clipboard.writeText(text);
-    showToast(t.common.copied);
+  async function refreshQuote() {
+    setRefreshingQuote(true);
+    setError("");
+    try {
+      const d = await api<Pay>(`/api/v1/public/pay/${params.slug}/refresh-quote`, { method: "POST", body: "{}" });
+      setPay(d);
+      const opts = activeOptions(d.payment_intent);
+      const net = selected?.network || getPreferredNetwork() || opts[0]?.network;
+      const next = opts.find((o) => o.network === net) || opts[0] || null;
+      setSelected(next);
+      if (next) setStep("pay");
+      track("quote_refreshed", { network: next?.network });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setRefreshingQuote(false);
+    }
   }
 
   if (!pay) {
@@ -191,7 +281,8 @@ export default function CheckoutClient() {
 
   const storeInitial = (pay.store_name || "S").slice(0, 1).toUpperCase();
   const needsDetails = pay.fields.length > 0;
-  const onPayStep = step === "pay" || intentStatus === "PAID";
+  const onPayStep = step === "pay" || intentStatus === "PAID" || moneyDetected(intentStatus);
+  const preferredNet = getPreferredNetwork();
   const journeySteps: Array<{ key: Step; label: string }> = [
     ...(needsDetails ? [{ key: "details" as const, label: t.checkout.customerInfo }] : []),
     { key: "network", label: t.checkout.selectNetwork },
@@ -313,15 +404,20 @@ export default function CheckoutClient() {
             <button type="button" className="recommended" onClick={() => chooseNetwork("tron")}>
               <span>
                 <strong>USDT · TRON</strong>
-                <span className="network-hint">{t.checkout.networkTronHint}</span>
+                <span className="network-hint">
+                  {preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.networkTronHint}
+                </span>
               </span>
-              <span className="badge">{t.checkout.recommend}</span>
+              <span className="badge">{preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.recommend}</span>
             </button>
             <button type="button" onClick={() => chooseNetwork("bsc")}>
               <span>
                 <strong>USDT · BNB Chain</strong>
-                <span className="network-hint">{t.checkout.networkBscHint}</span>
+                <span className="network-hint">
+                  {preferredNet === "bsc" ? t.checkout.previouslyUsed : t.checkout.networkBscHint}
+                </span>
               </span>
+              {preferredNet === "bsc" ? <span className="badge">{t.checkout.previouslyUsed}</span> : null}
             </button>
           </div>
           {error && (
@@ -332,146 +428,35 @@ export default function CheckoutClient() {
         </section>
       )}
 
-      {step === "pay" && selected && intentStatus !== "PAID" && (
-        <section className="section">
-          <div className="alert alert-warning" role="alert">
-            {t.checkout.wrongNetwork}
-          </div>
-
-          <div className="card-panel">
-            <p className="section-title" style={{ paddingInline: 0 }}>
-              {t.checkout.exactAmount}
-            </p>
-            <AmountDisplay
-              primary={`${selected.pay_usdt_amount} USDT`}
-              secondary={`${selected.network.toUpperCase()} · ${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
-            />
-            <p className="field-hint" style={{ marginTop: "var(--space-2)" }}>
-              {t.checkout.exactHint}
-            </p>
-            <p className="muted tabular pulse" style={{ margin: "var(--space-3) 0 0" }}>
-              {t.checkout.quoteExpires}: {countdown}
-            </p>
-
-            <div className="qr-card" style={{ marginTop: "var(--space-4)" }}>
-              <div className="qr-frame">
-                <QRCodeSVG value={qrPayload} size={170} bgColor="#ffffff" fgColor="#0b1f1a" />
-              </div>
-            </div>
-
-            <div style={{ marginTop: "var(--space-4)" }}>
-              <p className="section-title" style={{ paddingInline: 0, marginBottom: "var(--space-2)" }}>
-                {t.wallets.address}
-              </p>
-              <WalletAddress address={selected.destination_address} showCopy={false} />
-            </div>
-
-            <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
-              {selected.payment_uri && (
-                <a className="btn btn-secondary" href={selected.payment_uri}>
-                  {t.checkout.openWallet}
-                </a>
-              )}
-              <button type="button" className="btn btn-secondary" onClick={() => copy(selected.pay_usdt_amount)}>
-                {t.checkout.copyAmount}
-              </button>
-            </div>
-
-            <PaymentProgress
-              status={intentStatus || "AWAITING_PAYMENT"}
-              network={selected.network}
-              confirmations={matched?.confirmations}
-              requiredConfirmations={matched?.required_confirmations}
-              txHash={matched?.tx_hash}
-              explorerUrl={matched?.explorer_url}
-            />
-          </div>
-
-          <div className="sticky-cta">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => copy(selected.destination_address)}
-            >
-              {t.checkout.copyAddress}
-            </button>
-          </div>
-        </section>
-      )}
-
-      {intentStatus === "PAID" && (
-        <section className="card-panel success-pulse">
-          <div className="alert alert-success" role="status" style={{ marginBottom: "var(--space-4)", textAlign: "center" }}>
-            {t.receipt.title}
-          </div>
-          <p style={{ margin: 0, fontWeight: 600, textAlign: "center" }}>{pay.store_name}</p>
-          <p style={{ margin: "var(--space-2) 0 0", textAlign: "center" }}>{pay.title || t.checkout.orderRef}</p>
-          <AmountDisplay
-            primary={`${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
-            secondary={
-              pay.receipt?.usdt_amount
-                ? `${pay.receipt.usdt_amount} USDT · ${(pay.receipt.network || selected?.network || "").toUpperCase()}`
-                : undefined
-            }
-          />
-          {pay.receipt?.order_reference ? (
-            <p className="muted mono-ltr" style={{ textAlign: "center", fontSize: "var(--text-footnote)" }}>
-              {t.checkout.orderRef} #{pay.receipt.order_reference}
+      {(step === "pay" || intentStatus === "PAID" || moneyDetected(intentStatus)) && (
+        <>
+          {checkingPayment && intentStatus === "SEEN" ? (
+            <p className="alert alert-success" role="status" aria-live="polite">
+              {t.checkout.paymentDetected}
             </p>
           ) : null}
-          <PaymentProgress
-            status="PAID"
-            network={selected?.network || pay.receipt?.network}
-            confirmations={matched?.confirmations}
-            requiredConfirmations={matched?.required_confirmations}
-            txHash={matched?.tx_hash || pay.receipt?.tx_hash}
-            explorerUrl={matched?.explorer_url || pay.receipt?.explorer_url}
+          <PooliPaySheet
+            storeName={pay.store_name}
+            title={pay.title}
+            fiatAmountToman={pay.fiat_amount_toman}
+            option={selected}
+            intentStatus={intentStatus}
+            matched={matched}
+            receipt={pay.receipt}
+            fulfillmentStatus={pay.fulfillment_status}
+            shippingProvider={pay.shipping_provider}
+            trackingNumber={pay.tracking_number}
+            countdown={countdown}
+            onRefreshQuote={refreshQuote}
+            refreshingQuote={refreshingQuote}
+            checkingPayment={checkingPayment}
           />
-
-          <div style={{ marginTop: "var(--space-4)" }}>
-            <h2 className="section-title" style={{ paddingInline: 0 }}>
-              {t.checkout.orderStatus}
-            </h2>
-            <ul className="order-status-list">
-              <li>✓ {t.checkout.paymentReceived}</li>
-              <li>✓ {t.checkout.orderConfirmed}</li>
-              {pay.fulfillment_status === "SHIPPED" || pay.fulfillment_status === "DELIVERED" ? (
-                <li>✓ {t.checkout.orderShipped}</li>
-              ) : (
-                <li className="muted">◷ {t.fulfillment.PROCESSING}</li>
-              )}
-            </ul>
-            {pay.tracking_number ? (
-              <div style={{ marginTop: "var(--space-3)" }}>
-                <div className="muted">{t.checkout.trackingCode}</div>
-                <div className="mono-ltr" style={{ fontWeight: 600 }}>
-                  {pay.shipping_provider ? `${pay.shipping_provider} · ` : ""}
-                  {pay.tracking_number}
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ marginTop: "var(--space-2)" }}
-                  onClick={() => copy(pay.tracking_number || "")}
-                >
-                  {t.common.copy}
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          {(matched?.explorer_url || pay.receipt?.explorer_url) && (
-            <a
-              className="btn btn-secondary"
-              style={{ marginTop: "var(--space-4)" }}
-              href={matched?.explorer_url || pay.receipt?.explorer_url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t.checkout.viewTx}
-            </a>
-          )}
-        </section>
+          {error ? (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </>
       )}
     </main>
   );

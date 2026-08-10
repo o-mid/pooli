@@ -54,17 +54,15 @@ export function PaymentProgress({
   const labels = {
     requested: t.checkout.progress.requested,
     detected: t.checkout.progress.detected,
-    confirming: network
-      ? `${t.checkout.progress.confirming} (${network.toUpperCase()})`
-      : t.checkout.progress.confirming,
+    confirming: t.checkout.progress.confirming,
     complete: t.checkout.progress.complete,
   };
 
   const confText =
     typeof confirmations === "number" && typeof requiredConfirmations === "number"
-      ? t.checkout.progress.confirmations
+      ? `${network ? `${t.checkout.progress.confirming} · ${network.toUpperCase()} · ` : ""}${t.checkout.progress.confirmations
           .replace("{current}", String(confirmations))
-          .replace("{required}", String(requiredConfirmations))
+          .replace("{required}", String(requiredConfirmations))}`
       : null;
 
   return (
