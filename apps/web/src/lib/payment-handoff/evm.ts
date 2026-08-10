@@ -9,7 +9,14 @@ type EthereumProvider = {
   accounts?: string[];
 };
 
-let providerPromise: Promise<EthereumProvider | null> | null = null;
+type CachedWC = {
+  projectId: string;
+  chainId: number;
+  provider: EthereumProvider;
+};
+
+let cachedWC: CachedWC | null = null;
+let providerInit: Promise<EthereumProvider | null> | null = null;
 
 function wcProjectId(explicit?: string): string {
   return (
@@ -19,14 +26,33 @@ function wcProjectId(explicit?: string): string {
   ).trim();
 }
 
+async function dropWalletConnectProvider(): Promise<void> {
+  const prev = cachedWC?.provider;
+  cachedWC = null;
+  providerInit = null;
+  if (prev && typeof prev.disconnect === "function") {
+    try {
+      await prev.disconnect();
+    } catch {
+      // best-effort session cleanup
+    }
+  }
+}
+
 async function getWalletConnectProvider(projectId: string, chainId: number): Promise<EthereumProvider | null> {
   if (!projectId) return null;
-  if (!providerPromise) {
-    providerPromise = (async () => {
+  if (cachedWC && cachedWC.projectId === projectId && cachedWC.chainId === chainId) {
+    return cachedWC.provider;
+  }
+  if (cachedWC) {
+    await dropWalletConnectProvider();
+  }
+  if (!providerInit) {
+    providerInit = (async () => {
       try {
         const mod = await import("@walletconnect/ethereum-provider");
         const EthereumProviderCtor = mod.default;
-        const provider = await EthereumProviderCtor.init({
+        const provider = (await EthereumProviderCtor.init({
           projectId,
           chains: [chainId],
           optionalChains: [chainId],
@@ -39,15 +65,17 @@ async function getWalletConnectProvider(projectId: string, chainId: number): Pro
             url: typeof window !== "undefined" ? window.location.origin : "https://pooli.shop",
             icons: [typeof window !== "undefined" ? `${window.location.origin}/icon.png` : "https://pooli.shop/icon.png"],
           },
-        });
-        return provider as unknown as EthereumProvider;
+        })) as unknown as EthereumProvider;
+        cachedWC = { projectId, chainId, provider };
+        return provider;
       } catch {
-        providerPromise = null;
+        providerInit = null;
+        cachedWC = null;
         return null;
       }
     })();
   }
-  return providerPromise;
+  return providerInit;
 }
 
 const BSC_ADD_CHAIN = {
@@ -143,6 +171,10 @@ export async function payWithWalletConnect(input: HandoffInput): Promise<LaunchR
     return { ok: true, method: "walletconnect" };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Drop a broken/hung session so the next attempt can re-init cleanly.
+    if (!/reject|denied|cancel/i.test(msg)) {
+      void dropWalletConnectProvider();
+    }
     if (/reject|denied|cancel/i.test(msg)) {
       return { ok: false, reason: "user_rejected", message: msg };
     }

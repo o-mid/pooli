@@ -68,6 +68,27 @@ function activeOptions(intent?: PaymentIntent | null): PaymentOption[] {
   return active.length ? active : opts;
 }
 
+/** Prefer an option the buyer can still reason about after reload / money detection. */
+function hydrateOption(intent?: PaymentIntent | null): PaymentOption | null {
+  const opts = intent?.options || [];
+  if (!opts.length) return null;
+  const usable = opts.filter((o) => o.status !== "SUPERSEDED");
+  const pool = usable.length ? usable : opts;
+  const pref = getPreferredNetwork();
+  if (pref) {
+    const byPref =
+      pool.find((o) => o.network === pref && (o.status === "SETTLED" || o.status === "ACTIVE" || !o.status)) ||
+      pool.find((o) => o.network === pref);
+    if (byPref) return byPref;
+  }
+  return (
+    pool.find((o) => o.status === "SETTLED") ||
+    pool.find((o) => o.status === "ACTIVE" || !o.status) ||
+    pool[0] ||
+    null
+  );
+}
+
 export default function CheckoutClient() {
   const params = useParams<{ slug: string }>();
   const t = useT();
@@ -86,7 +107,8 @@ export default function CheckoutClient() {
   function resolveStep(data: Pay): Step {
     const hasFields = data.fields.length > 0 && !data.customer_submitted;
     if (hasFields) return "details";
-    if (data.payment_intent?.status === "PAID") return "pay";
+    const st = data.payment_intent?.status;
+    if (st === "PAID" || moneyDetected(st)) return "pay";
     if (selectedRef.current) return "pay";
     return "network";
   }
@@ -94,17 +116,26 @@ export default function CheckoutClient() {
   async function load() {
     const d = await api<Pay>(`/api/v1/public/pay/${params.slug}`);
     setPay(d);
-    setStep((prev) => (prev === "pay" && selectedRef.current ? "pay" : resolveStep(d)));
-    if (d.payment_intent?.status === "PAID") setStep("pay");
+    const st = d.payment_intent?.status;
     if (selectedRef.current) {
-      const opts = activeOptions(d.payment_intent);
-      const match = opts.find((o) => o.id === selectedRef.current?.id);
-      if (match) setSelected(match);
-      else {
-        const byNet = opts.find((o) => o.network === selectedRef.current?.network);
-        if (byNet) setSelected(byNet);
+      const opts = d.payment_intent?.options || [];
+      const match =
+        opts.find((o) => o.id === selectedRef.current?.id) ||
+        opts.find((o) => o.network === selectedRef.current?.network && o.status !== "SUPERSEDED") ||
+        opts.find((o) => o.network === selectedRef.current?.network);
+      if (match) {
+        selectedRef.current = match;
+        setSelected(match);
+      }
+    } else if (st === "PAID" || moneyDetected(st)) {
+      const hydrated = hydrateOption(d.payment_intent);
+      if (hydrated) {
+        selectedRef.current = hydrated;
+        setSelected(hydrated);
       }
     }
+    setStep((prev) => (prev === "pay" && selectedRef.current ? "pay" : resolveStep(d)));
+    if (st === "PAID" || moneyDetected(st)) setStep("pay");
     return d;
   }
 
@@ -172,15 +203,20 @@ export default function CheckoutClient() {
     }
   }, [intentStatus, selected?.network]);
 
-  // Return-from-wallet: visibility + focus → reconnect SSE, single refetch, status feedback.
+  // Return-from-wallet: pageshow / leaving background → reconnect SSE + refetch.
+  // Focus alone is too noisy (keyboard, tab chrome); cooldown avoids stacked refetches.
   useEffect(() => {
     let pending = false;
-    async function onReturn() {
+    let lastAt = 0;
+    async function onReturn(showChecking: boolean) {
       if (pending) return;
       if (!pay?.payment_intent?.id) return;
       if (document.hidden) return;
+      const now = Date.now();
+      if (now - lastAt < 2000) return;
+      lastAt = now;
       pending = true;
-      setCheckingPayment(true);
+      if (showChecking) setCheckingPayment(true);
       try {
         connectSSE();
         await load();
@@ -188,20 +224,22 @@ export default function CheckoutClient() {
         // ignore
       } finally {
         window.setTimeout(() => {
-          setCheckingPayment(false);
+          if (showChecking) setCheckingPayment(false);
           pending = false;
         }, 1200);
       }
     }
     const onVis = () => {
-      if (!document.hidden) void onReturn();
+      if (!document.hidden) void onReturn(true);
     };
-    window.addEventListener("focus", onReturn);
-    window.addEventListener("pageshow", onReturn);
+    const onPageShow = () => void onReturn(true);
+    const onFocus = () => void onReturn(false);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVis);
     return () => {
-      window.removeEventListener("focus", onReturn);
-      window.removeEventListener("pageshow", onReturn);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
       document.removeEventListener("visibilitychange", onVis);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

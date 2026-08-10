@@ -184,21 +184,10 @@ export default function SettingsPage() {
       } else {
         setTgMsg(t.settings.telegramConnectWaiting);
       }
-      for (let i = 0; i < 12; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        if (await refreshTelegramStatus()) {
-          awaitingTgConnect.current = false;
-          setTgDeepLink("");
-          setTgMsg(t.settings.telegramConnected);
-          setTgError("");
-          break;
-        }
-      }
-      if (awaitingTgConnect.current) {
-        setTgMsg(t.settings.telegramConnectWaiting);
-      }
+      // Status is picked up on focus/visibility via refreshTelegramStatus — no busy-wait.
     } catch (err) {
       setTgError(err instanceof Error ? err.message : t.common.error);
+      awaitingTgConnect.current = false;
     } finally {
       setTgBusy(false);
     }
