@@ -8,41 +8,50 @@ import { SkeletonRows, SkeletonStats } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
-import { needsAttention } from "@/lib/orderStatus";
+import { fulfillmentLabel } from "@/lib/fulfillment";
 
 type Home = {
   today_paid_orders: number;
   today_toman_volume: number;
   today_usdt_received: string;
   pending_payments: number;
+  needs_attention: number;
+  attention_items?: Array<{
+    id: string;
+    title: string;
+    fiat_amount_toman: number;
+    payment_status: string;
+    fulfillment_status: string;
+    reason: string;
+  }>;
   recent_orders: Array<{
     id: string;
     slug: string;
     title: string;
     fiat_amount_toman: number;
     status: string;
+    payment_status?: string;
+    fulfillment_status?: string;
+    customer_name?: string;
   }>;
 };
 
-type OrderRow = {
-  id: string;
-  payment_status: string;
-};
+function greeting(t: ReturnType<typeof useT>): string {
+  const h = new Date().getHours();
+  if (h < 12) return t.home.greetingMorning;
+  if (h < 18) return t.home.greetingAfternoon;
+  return t.home.greetingEvening;
+}
 
 export default function HomePage() {
   const t = useT();
   const [data, setData] = useState<Home | null>(null);
-  const [attention, setAttention] = useState(0);
   const [error, setError] = useState("");
 
   async function load() {
     try {
-      const [home, ordersRes] = await Promise.all([
-        api<Home>("/api/v1/home"),
-        api<{ orders: OrderRow[] }>("/api/v1/orders").catch(() => ({ orders: [] as OrderRow[] })),
-      ]);
+      const home = await api<Home>("/api/v1/home");
       setData(home);
-      setAttention(ordersRes.orders.filter((o) => needsAttention(o.payment_status)).length);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
@@ -70,14 +79,16 @@ export default function HomePage() {
   }
 
   const recent = data?.recent_orders || [];
+  const attention = data?.needs_attention || 0;
+  const attentionItems = data?.attention_items || [];
   const loading = !data;
 
   return (
     <div className="rise page-stack">
-      <PageHeader title={t.home.title} />
+      <PageHeader title={greeting(t)} subtitle={t.home.title} />
 
       <Link className="btn btn-primary" href="/app/create">
-        {t.home.newOrder}
+        + {t.home.newOrder}
       </Link>
 
       {loading ? (
@@ -116,6 +127,30 @@ export default function HomePage() {
         </div>
       )}
 
+      {!loading && attentionItems.length > 0 ? (
+        <section className="section">
+          <h2 className="section-title">{t.home.attention}</h2>
+          <div className="list-group">
+            {attentionItems.slice(0, 5).map((o) => (
+              <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
+                <div className="list-row-body">
+                  <div className="list-row-title">{o.title || "—"}</div>
+                  <div className="list-row-meta tabular">
+                    {o.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
+                  </div>
+                  <div className="list-row-meta">
+                    {o.reason === "PAID_UNFULFILLED" ? t.home.awaitingFulfillment : o.reason}
+                  </div>
+                </div>
+                <div className="list-row-trailing">
+                  <StatusBadge status={o.payment_status} t={t} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="section">
         <h2 className="section-title">{t.home.recent}</h2>
         {loading ? (
@@ -125,13 +160,16 @@ export default function HomePage() {
             {recent.map((o) => (
               <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
                 <div className="list-row-body">
-                  <div className="list-row-title">{o.title || o.slug}</div>
+                  <div className="list-row-title">{o.customer_name || o.title || o.slug}</div>
                   <div className="list-row-meta tabular">
                     {o.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
                   </div>
+                  {o.fulfillment_status && o.fulfillment_status !== "UNFULFILLED" ? (
+                    <div className="list-row-meta">{fulfillmentLabel(o.fulfillment_status, t)}</div>
+                  ) : null}
                 </div>
                 <div className="list-row-trailing">
-                  <StatusBadge status={o.status} t={t} />
+                  <StatusBadge status={o.payment_status || o.status} t={t} />
                 </div>
               </Link>
             ))}

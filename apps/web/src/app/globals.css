@@ -1262,3 +1262,65 @@ html[dir="rtl"] .back-chevron {
     animation: none;
   }
 }
+
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.timeline-list li {
+  position: relative;
+  padding-inline-start: var(--space-4);
+  border-inline-start: 2px solid var(--separator);
+  padding-bottom: var(--space-2);
+}
+
+.timeline-title {
+  font-weight: 600;
+  font-size: var(--text-subhead);
+}
+
+.timeline-detail {
+  font-size: var(--text-footnote);
+  color: var(--ink-secondary);
+  margin-top: 0.15rem;
+}
+
+.timeline-when {
+  font-size: var(--text-caption);
+  margin-top: 0.2rem;
+}
+
+.trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--ink-secondary);
+}
+
+.order-status-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-subhead);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

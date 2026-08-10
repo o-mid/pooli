@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WalletAddress } from "@/components/ui/WalletAddress";
+import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 
@@ -14,6 +15,8 @@ type Wallet = {
   label: string;
   is_default: boolean;
   is_active: boolean;
+  explorer_url?: string;
+  active_payment_intents?: number;
 };
 
 type Draft = {
@@ -32,6 +35,7 @@ function validateAddress(network: string, address: string): boolean {
 
 export default function WalletsPage() {
   const t = useT();
+  const { showToast } = useToast();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -63,7 +67,7 @@ export default function WalletsPage() {
       network,
       address,
       label,
-      is_default: wallets.length === 0 || fd.get("is_default") === "on",
+      is_default: wallets.filter((w) => w.network === network && w.is_active).length === 0 || fd.get("is_default") === "on",
     });
   }
 
@@ -83,6 +87,7 @@ export default function WalletsPage() {
       });
       setDraft(null);
       await load();
+      showToast(t.common.saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
@@ -103,6 +108,24 @@ export default function WalletsPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function archive(id: string) {
+    if (!window.confirm(t.wallets.archive)) return;
+    setLoading(true);
+    try {
+      await api(`/api/v1/wallets/${id}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyAddr(addr: string) {
+    await navigator.clipboard.writeText(addr);
+    showToast(t.common.copied);
   }
 
   return (
@@ -130,17 +153,10 @@ export default function WalletsPage() {
           </div>
           <div className="field">
             <label htmlFor="label">{t.wallets.label}</label>
-            <input id="label" name="label" />
+            <input id="label" name="label" placeholder="Instagram Store" />
           </div>
           {wallets.length > 0 && (
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
               <input type="checkbox" name="is_default" defaultChecked />
               <span>{t.wallets.default}</span>
             </label>
@@ -171,14 +187,6 @@ export default function WalletsPage() {
                 <WalletAddress address={draft.address} showCopy={false} />
               </div>
             </div>
-            {draft.label ? (
-              <div className="list-row" style={{ cursor: "default" }}>
-                <div className="list-row-body">
-                  <div className="list-row-meta">{t.wallets.label}</div>
-                  <div className="list-row-title">{draft.label}</div>
-                </div>
-              </div>
-            ) : null}
           </div>
           {error && (
             <p className="field-error" role="alert">
@@ -206,22 +214,39 @@ export default function WalletsPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-2)" }}>
                     <div className="list-row-title">{w.label || w.network.toUpperCase()}</div>
                     <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
-                      {w.is_default && <span className="status-badge paid">{t.wallets.default}</span>}
+                      {w.is_default && w.is_active && <span className="status-badge paid">{t.wallets.default}</span>}
                       {!w.is_active && <span className="status-badge expired">{t.wallets.inactive}</span>}
                     </div>
                   </div>
+                  <div className="list-row-meta">
+                    {w.network.toUpperCase()} · USDT
+                  </div>
                   <WalletAddress address={w.address} />
-                  {!w.is_default && w.is_active && (
-                    <button
-                      type="button"
-                      className="btn btn-tertiary"
-                      style={{ width: "auto", alignSelf: "flex-start", minHeight: "var(--control-height-sm)" }}
-                      disabled={loading}
-                      onClick={() => setDefault(w.id)}
-                    >
-                      {t.wallets.default}
+                  {(w.active_payment_intents || 0) > 0 ? (
+                    <div className="list-row-meta">
+                      {t.wallets.activeIntents}: {w.active_payment_intents}
+                    </div>
+                  ) : null}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                    <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} onClick={() => copyAddr(w.address)}>
+                      {t.wallets.copy}
                     </button>
-                  )}
+                    {w.explorer_url ? (
+                      <a className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} href={w.explorer_url} target="_blank" rel="noreferrer">
+                        {t.wallets.explorer}
+                      </a>
+                    ) : null}
+                    {!w.is_default && w.is_active && (
+                      <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => setDefault(w.id)}>
+                        {t.wallets.setDefault}
+                      </button>
+                    )}
+                    {w.is_active && (
+                      <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => archive(w.id)}>
+                        {t.wallets.archive}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -28,12 +28,13 @@ function IconNew() {
     </svg>
   );
 }
-function IconWallets() {
+function IconCustomers() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
-      <rect x="3" y="6" width="18" height="13" rx="2.5" />
-      <path d="M3 10h18" />
-      <circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19c.8-3.2 2.9-4.8 5.5-4.8S13.7 15.8 14.5 19" />
+      <circle cx="17" cy="9" r="2.4" />
+      <path d="M15.2 19c.4-1.8 1.6-3.1 3.3-3.1 1.2 0 2.2.6 2.8 1.6" />
     </svg>
   );
 }
@@ -60,16 +61,16 @@ export function Nav() {
     },
     { href: "/app/create", label: t.nav.new, Icon: IconNew, match: (p: string) => p === "/app/create" },
     {
-      href: "/app/wallets",
-      label: t.nav.wallets,
-      Icon: IconWallets,
-      match: (p: string) => p === "/app/wallets",
+      href: "/app/customers",
+      label: t.nav.customers,
+      Icon: IconCustomers,
+      match: (p: string) => p.startsWith("/app/customers"),
     },
     {
       href: "/app/settings",
       label: t.nav.settings,
       Icon: IconSettings,
-      match: (p: string) => p === "/app/settings",
+      match: (p: string) => p.startsWith("/app/settings") || p === "/app/wallets",
     },
   ];
 

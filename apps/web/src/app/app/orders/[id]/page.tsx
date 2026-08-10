@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
@@ -12,26 +12,29 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
+import { canFulfill, fulfillmentLabel } from "@/lib/fulfillment";
+import { buildShareText, sharePaymentLink } from "@/lib/share";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
-type PaymentOption = {
-  network: string;
-  destination_address: string;
-  pay_usdt_amount: string;
-  payment_uri?: string;
-  explorer_base?: string;
+type TimelineEvent = {
+  id?: string;
+  event_type: string;
+  title: string;
+  detail?: string;
+  created_at: string;
 };
 
-type PaymentIntent = {
-  id: string;
-  status: string;
-  options?: PaymentOption[];
-  matched_tx?: {
-    tx_hash?: string;
-    explorer_url?: string;
-    confirmations?: number;
-    required_confirmations?: number;
-  };
+type Receipt = {
+  merchant?: string;
+  order_title?: string;
+  order_reference?: string;
+  fiat_amount_toman?: number;
+  usdt_amount?: string;
+  received_usdt_amount?: string;
+  network?: string;
+  tx_hash?: string;
+  explorer_url?: string;
+  paid_at?: string;
 };
 
 type Order = {
@@ -40,9 +43,24 @@ type Order = {
   title: string;
   fiat_amount_toman: number;
   status: string;
+  fulfillment_status: string;
+  shipping_provider?: string;
+  tracking_number?: string;
   checkout_url: string;
-  payment_intent?: PaymentIntent;
+  payment_intent?: {
+    id: string;
+    status: string;
+    options?: Array<{ network: string; pay_usdt_amount: string; destination_address: string }>;
+    matched_tx?: {
+      tx_hash?: string;
+      explorer_url?: string;
+      confirmations?: number;
+      required_confirmations?: number;
+    };
+  };
   field_values?: Array<{ key: string; label: string; value: string }>;
+  timeline?: TimelineEvent[];
+  receipt?: Receipt | null;
 };
 
 export default function OrderDetailPage() {
@@ -50,6 +68,10 @@ export default function OrderDetailPage() {
   const t = useT();
   const { showToast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
+  const [shipOpen, setShipOpen] = useState(false);
+  const [carrier, setCarrier] = useState("Iran Post");
+  const [tracking, setTracking] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function load() {
     setOrder(await api<Order>(`/api/v1/orders/${params.id}`));
@@ -86,26 +108,103 @@ export default function OrderDetailPage() {
 
   const matched = intent?.matched_tx;
   const displayStatus = status || order.status;
+  const paid = canFulfill(displayStatus);
 
   async function copyLink() {
-    const url = order?.checkout_url;
-    if (!url) return;
-    await navigator.clipboard.writeText(url);
+    if (!order) return;
+    await navigator.clipboard.writeText(order.checkout_url);
     showToast(t.common.copied);
+  }
+
+  async function share() {
+    if (!order) return;
+    const text = buildShareText({
+      title: order.title,
+      amountToman: order.fiat_amount_toman,
+      tomanLabel: t.checkout.toman,
+      completeLabel: t.create.completeOrder,
+      url: order.checkout_url,
+    });
+    const outcome = await sharePaymentLink({ title: order.title || t.brand, text, url: order.checkout_url });
+    if (outcome === "copied") showToast(t.common.copied);
+  }
+
+  async function setFulfillment(next: string, extra?: { shipping_provider?: string; tracking_number?: string }) {
+    if (!order) return;
+    setBusy(true);
+    try {
+      const res = await api<Order>(`/api/v1/orders/${order.id}/fulfillment`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          fulfillment_status: next,
+          ...extra,
+        }),
+      });
+      setOrder(res);
+      setShipOpen(false);
+      showToast(t.common.saved);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmShip(e: FormEvent) {
+    e.preventDefault();
+    await setFulfillment("SHIPPED", {
+      shipping_provider: carrier.trim(),
+      tracking_number: tracking.trim(),
+    });
+  }
+
+  async function copyReceipt() {
+    const r = order?.receipt;
+    if (!r) return;
+    const lines = [
+      r.merchant,
+      r.order_title,
+      `${r.fiat_amount_toman?.toLocaleString()} ${t.checkout.toman}`,
+      `${r.usdt_amount} USDT`,
+      r.network,
+      `Order ${r.order_reference}`,
+      r.tx_hash,
+      r.explorer_url,
+    ].filter(Boolean);
+    await navigator.clipboard.writeText(lines.join("\n"));
+    showToast(t.common.copied);
+  }
+
+  function fmtWhen(iso: string) {
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return iso;
+    }
   }
 
   return (
     <div className="rise page-stack">
       <BackLink href="/app/orders" />
-      <PageHeader
-        title={order.title || t.checkout.orderRef}
-        trailing={<StatusBadge status={displayStatus} t={t} />}
-      />
+      <PageHeader title={order.title || t.checkout.orderRef} />
 
       <div className="card-panel">
-        <AmountDisplay
-          primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
-        />
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
+          <div>
+            <div className="muted" style={{ fontSize: "var(--text-caption)" }}>
+              {t.orders.payment}
+            </div>
+            <StatusBadge status={displayStatus} t={t} />
+          </div>
+          <div style={{ textAlign: "end" }}>
+            <div className="muted" style={{ fontSize: "var(--text-caption)" }}>
+              {t.orders.order}
+            </div>
+            <strong>{fulfillmentLabel(order.fulfillment_status, t)}</strong>
+          </div>
+        </div>
+
+        <AmountDisplay primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
 
         <PaymentProgress
           status={displayStatus}
@@ -118,15 +217,98 @@ export default function OrderDetailPage() {
         <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)", marginTop: "var(--space-4)" }}>
           {order.checkout_url}
         </p>
+        <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
+          <button className="btn btn-primary" onClick={share}>
+            {t.create.share}
+          </button>
+          <button className="btn btn-secondary" onClick={copyLink}>
+            {t.create.copyLink}
+          </button>
+        </div>
         <div className="qr-card" style={{ marginTop: "var(--space-3)", border: 0, padding: 0 }}>
           <div className="qr-frame">
-            <QRCodeSVG value={order.checkout_url} size={160} bgColor="#ffffff" fgColor="#0b1f1a" />
+            <QRCodeSVG value={order.checkout_url} size={140} bgColor="#ffffff" fgColor="#0b1f1a" />
           </div>
         </div>
-        <button className="btn btn-primary" style={{ marginTop: "var(--space-3)" }} onClick={copyLink}>
-          {t.create.copyLink}
-        </button>
       </div>
+
+      {order.receipt ? (
+        <section className="card-panel">
+          <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.receipt.title}</h2>
+          <p className="tabular" style={{ margin: "var(--space-3) 0 0", fontWeight: 600 }}>
+            {order.receipt.usdt_amount} USDT · {(order.receipt.network || "").toUpperCase()}
+          </p>
+          {order.receipt.tx_hash ? (
+            <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)" }}>
+              {order.receipt.tx_hash}
+            </p>
+          ) : null}
+          <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
+            {order.receipt.explorer_url ? (
+              <a className="btn btn-secondary" href={order.receipt.explorer_url} target="_blank" rel="noreferrer">
+                {t.checkout.viewTx}
+              </a>
+            ) : null}
+            <button className="btn btn-tertiary" type="button" onClick={copyReceipt}>
+              {t.receipt.copyDetails}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {paid && order.fulfillment_status !== "DELIVERED" && order.fulfillment_status !== "CANCELLED" ? (
+        <section className="section">
+          <h2 className="section-title">{t.orders.order}</h2>
+          {!shipOpen ? (
+            <div className="cta-stack">
+              {order.fulfillment_status === "UNFULFILLED" ? (
+                <button className="btn btn-secondary" disabled={busy} onClick={() => setFulfillment("PROCESSING")}>
+                  {t.fulfillment.markProcessing}
+                </button>
+              ) : null}
+              <button className="btn btn-primary" disabled={busy} onClick={() => setShipOpen(true)}>
+                {t.fulfillment.markShipped}
+              </button>
+              {order.fulfillment_status === "SHIPPED" ? (
+                <button className="btn btn-secondary" disabled={busy} onClick={() => setFulfillment("DELIVERED")}>
+                  {t.fulfillment.markDelivered}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <form className="card-panel" onSubmit={confirmShip}>
+              <h3 style={{ margin: 0, fontSize: "var(--text-headline)" }}>{t.fulfillment.shipTitle}</h3>
+              <div className="field" style={{ marginTop: "var(--space-3)" }}>
+                <label htmlFor="carrier">{t.fulfillment.carrier}</label>
+                <input id="carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="tracking">{t.fulfillment.tracking}</label>
+                <input
+                  id="tracking"
+                  className="mono-ltr"
+                  value={tracking}
+                  onChange={(e) => setTracking(e.target.value)}
+                  placeholder="12345678901234567890"
+                />
+              </div>
+              <div className="cta-stack">
+                <button className="btn btn-primary" disabled={busy}>
+                  {t.fulfillment.confirmShip}
+                </button>
+                <button className="btn btn-tertiary" type="button" onClick={() => setShipOpen(false)}>
+                  {t.common.back}
+                </button>
+              </div>
+            </form>
+          )}
+          {order.tracking_number ? (
+            <p className="mono-ltr muted" style={{ marginTop: "var(--space-3)" }}>
+              {order.shipping_provider} · {order.tracking_number}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {order.field_values && order.field_values.length > 0 && (
         <section className="section">
@@ -143,6 +325,21 @@ export default function OrderDetailPage() {
           </div>
         </section>
       )}
+
+      {order.timeline && order.timeline.length > 0 ? (
+        <section className="section">
+          <h2 className="section-title">{t.timeline.title}</h2>
+          <ol className="timeline-list">
+            {order.timeline.map((e, i) => (
+              <li key={e.id || `${e.event_type}-${i}`}>
+                <div className="timeline-title">{e.title || e.event_type}</div>
+                {e.detail ? <div className="timeline-detail">{e.detail}</div> : null}
+                <div className="timeline-when muted">{fmtWhen(e.created_at)}</div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
     </div>
   );
 }

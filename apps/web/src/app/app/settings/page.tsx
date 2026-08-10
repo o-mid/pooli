@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestInstallSheet } from "@/components/InstallSheet";
@@ -25,6 +26,18 @@ type Me = {
   telegram_chat_id?: string;
 };
 
+type FieldMode = "required" | "optional" | "disabled";
+
+type Defaults = {
+  customer_fields: Record<string, FieldMode>;
+  enabled_networks: string[];
+  default_network: string;
+  default_expiry_minutes: number;
+  fulfillment_required: boolean;
+};
+
+const FIELD_KEYS = ["full_name", "phone", "shipping_address", "postal_code", "email", "customer_note"] as const;
+
 export default function SettingsPage() {
   const router = useRouter();
   const t = useT();
@@ -38,6 +51,7 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [standalone, setStandalone] = useState(false);
+  const [defaults, setDefaults] = useState<Defaults | null>(null);
 
   useEffect(() => {
     setStandalone(isStandaloneDisplay());
@@ -49,6 +63,9 @@ export default function SettingsPage() {
         setSupport(data.merchant?.support_contact || "");
         setTelegram(data.telegram_chat_id || "");
       })
+      .catch(() => undefined);
+    api<Defaults>("/api/v1/merchant/checkout-defaults")
+      .then(setDefaults)
       .catch(() => undefined);
   }, []);
 
@@ -243,6 +260,127 @@ export default function SettingsPage() {
           </section>
         </div>
       </div>
+
+      <section className="section">
+        <h2 className="section-title">{t.nav.wallets}</h2>
+        <Link className="btn btn-secondary" href="/app/wallets">
+          {t.wallets.title}
+        </Link>
+      </section>
+
+      {defaults ? (
+        <section className="section">
+          <h2 className="section-title">{t.settings.checkoutDefaults}</h2>
+          <p className="field-hint" style={{ marginTop: 0 }}>
+            {t.settings.defaultsHint}
+          </p>
+          <form
+            className="card-panel"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              setError("");
+              setMsg("");
+              try {
+                const saved = await api<Defaults>("/api/v1/merchant/checkout-defaults", {
+                  method: "PATCH",
+                  body: JSON.stringify(defaults),
+                });
+                setDefaults(saved);
+                setMsg(t.common.saved);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : t.common.error);
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            <h3 style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-headline)" }}>
+              {t.settings.customerFields}
+            </h3>
+            {FIELD_KEYS.map((key) => (
+              <div className="field" key={key}>
+                <label htmlFor={`field-${key}`}>{key}</label>
+                <select
+                  id={`field-${key}`}
+                  value={defaults.customer_fields[key] || "optional"}
+                  onChange={(e) =>
+                    setDefaults({
+                      ...defaults,
+                      customer_fields: {
+                        ...defaults.customer_fields,
+                        [key]: e.target.value as FieldMode,
+                      },
+                    })
+                  }
+                >
+                  <option value="required">{t.settings.fieldRequired}</option>
+                  <option value="optional">{t.settings.fieldOptional}</option>
+                  <option value="disabled">{t.settings.fieldDisabled}</option>
+                </select>
+              </div>
+            ))}
+
+            <h3 style={{ margin: "var(--space-4) 0 var(--space-3)", fontSize: "var(--text-headline)" }}>
+              {t.settings.paymentDefaults}
+            </h3>
+            <div className="field">
+              <label htmlFor="default_network">{t.settings.defaultNetwork}</label>
+              <select
+                id="default_network"
+                value={defaults.default_network}
+                onChange={(e) => setDefaults({ ...defaults, default_network: e.target.value })}
+              >
+                <option value="tron">TRON</option>
+                <option value="bsc">BNB Chain</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="expiry">{t.settings.defaultExpiry}</label>
+              <input
+                id="expiry"
+                type="number"
+                min={5}
+                max={10080}
+                className="tabular"
+                value={defaults.default_expiry_minutes}
+                onChange={(e) =>
+                  setDefaults({ ...defaults, default_expiry_minutes: Number(e.target.value) || 60 })
+                }
+              />
+            </div>
+            <label style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", marginBottom: "var(--space-3)" }}>
+              <input
+                type="checkbox"
+                checked={defaults.enabled_networks.includes("tron")}
+                onChange={(e) => {
+                  const set = new Set(defaults.enabled_networks);
+                  if (e.target.checked) set.add("tron");
+                  else set.delete("tron");
+                  setDefaults({ ...defaults, enabled_networks: Array.from(set) });
+                }}
+              />
+              <span>TRON</span>
+            </label>
+            <label style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", marginBottom: "var(--space-3)" }}>
+              <input
+                type="checkbox"
+                checked={defaults.enabled_networks.includes("bsc")}
+                onChange={(e) => {
+                  const set = new Set(defaults.enabled_networks);
+                  if (e.target.checked) set.add("bsc");
+                  else set.delete("bsc");
+                  setDefaults({ ...defaults, enabled_networks: Array.from(set) });
+                }}
+              />
+              <span>BNB Chain</span>
+            </label>
+            <button className="btn btn-primary" disabled={loading}>
+              {loading ? t.common.loading : t.settings.save}
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       {isAdmin && (
         <a className="btn btn-secondary" href="/admin">
