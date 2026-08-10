@@ -1,0 +1,41 @@
+---
+description: Gradual commit history, author identity, and push rules for Pooli
+alwaysApply: true
+---
+
+# Gradual history / push-over-time
+
+History must look like real work across days, not a single-day dump.
+
+## Timeline
+
+- Build and maintain commit history as a dated timeline with natural gaps.
+- Example pattern for a greenfield baseline: spread initial work across roughly 3–4 weeks (e.g. 2026-07-01 → 2026-07-24) with gaps (weekends / rest days). Do not force a commit on every calendar day.
+- Do not squash an entire project (or a large feature dump) into one calendar day.
+- Dates must never be in the future relative to “today” when creating new commits.
+- After a gradual baseline is published to GitHub: **forward commits only** (dated now/later). Do not backdate new work into an already-published timeline.
+- Do not rewrite / rebase / amend / squash a published gradual timeline afterward.
+
+## Identity (every commit)
+
+```
+GIT_AUTHOR_NAME=Omid Mirzaei
+GIT_AUTHOR_EMAIL=omidomirzaei@gmail.com
+GIT_COMMITTER_NAME=Omid Mirzaei
+GIT_COMMITTER_EMAIL=omidomirzaei@gmail.com
+```
+
+Set both author and committer timestamps when crafting historical timelines (`GIT_AUTHOR_DATE` + `GIT_COMMITTER_DATE`).
+
+## Forbidden trailer / branding
+
+- No `Co-authored-by`
+- No `Generated-by` / Cursor identities
+- No “Made with Cursor” on PRs
+
+## Push hygiene
+
+1. Create and validate locally first (tests, `ENABLE_CHAIN_SIMULATOR=true make verify` → `VERIFY_MVP_OK`, web verify when UI changed).
+2. Do **not** push until smoke/tests/hygiene pass **and** the user explicitly says to push.
+3. Push as **o-mid** via SSH / `gh` (`git@github.com:o-mid/pooli.git`), not Cursor GitHub App / cloud-agent identity.
+4. Goal: GitHub shows gradual ownership over time with a single contributor — Omid Mirzaei / @o-mid.
