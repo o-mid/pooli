@@ -6,6 +6,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// IRRPerToman is the fixed Iranian Rial → Toman scale (10 IRR = 1 Toman).
+const IRRPerToman int64 = 10
+
+// IRRToToman converts an IRR (Rial) amount to Toman. Single normalization entrypoint.
+func IRRToToman(irr decimal.Decimal) decimal.Decimal {
+	return irr.Div(decimal.NewFromInt(IRRPerToman))
+}
+
 // TomanToUSDT converts integer toman to USDT using usdtTmnRate (toman per 1 USDT).
 func TomanToUSDT(toman int64, usdtTmnRate decimal.Decimal) (decimal.Decimal, error) {
 	if toman <= 0 {

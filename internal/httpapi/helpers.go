@@ -12,7 +12,7 @@ import (
 	"github.com/pooli-shop/pooli/internal/domain"
 )
 
-var errStaleRate = errors.New("exchange rate stale or unavailable")
+var errStaleRate = errors.New("We can't get the current USDT rate right now. Please try again shortly.")
 var errNoWallets = errors.New("add at least one active wallet before creating a payment link")
 
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
@@ -390,6 +390,20 @@ func fmtErr(err error) string {
 		return ""
 	}
 	return fmt.Sprint(err)
+}
+
+func rateQuoteMetadataJSON(q domain.RateQuote) string {
+	b, err := json.Marshal(map[string]any{
+		"policy":           q.Policy,
+		"source_pair":      q.SourcePair,
+		"source_currency":  q.SourceCurrency,
+		"display_currency": q.DisplayCurrency,
+		"provider":         q.Source,
+	})
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // optionAssetMeta returns configured asset identity for checkout handoff.

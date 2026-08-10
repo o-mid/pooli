@@ -46,9 +46,13 @@ type ChainEvent struct {
 }
 
 type RateQuote struct {
-	Rate      decimal.Decimal
-	Source    string
-	FetchedAt time.Time
+	Rate            decimal.Decimal
+	Source          string
+	FetchedAt       time.Time
+	Policy          string // e.g. best_buy, best_sell, latest, mock
+	SourcePair      string // e.g. USDT/RLS, USDTTMN
+	SourceCurrency  string // IRR or TMN as returned by provider before display normalization
+	DisplayCurrency string // TMN for Pooli merchant UX
 }
 
 type FieldDef struct {

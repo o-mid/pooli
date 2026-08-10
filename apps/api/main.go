@@ -30,7 +30,16 @@ func main() {
 	}
 	defer pool.Close()
 
-	rates, err := rate.BuildProvider(cfg.RateProvider, cfg.MockUSDTTmnRate, cfg.RateStale)
+	rates, err := rate.BuildProviderOpts(rate.Options{
+		Name:       cfg.RateProvider,
+		MockRate:   cfg.MockUSDTTmnRate,
+		AppEnv:     cfg.AppEnv,
+		Policy:     cfg.RatePolicy,
+		CacheTTL:   cfg.RateCache,
+		MaxAge:     cfg.RateMaxAge,
+		StaleAfter: cfg.RateStale,
+		Timeout:    cfg.RateProviderTimeout,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

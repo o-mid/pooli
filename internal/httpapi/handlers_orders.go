@@ -404,8 +404,9 @@ func (s *Server) createPaymentIntentForOrder(ctx context.Context, merchantID, or
 	err = payment.WithTx(ctx, s.Pool, func(tx pgx.Tx) error {
 		var quoteID string
 		err := tx.QueryRow(ctx, `
-			INSERT INTO exchange_rate_quotes (usdt_tmn_rate, source, fetched_at)
-			VALUES ($1,$2,$3) RETURNING id::text`, quote.Rate.String(), quote.Source, quote.FetchedAt).Scan(&quoteID)
+			INSERT INTO exchange_rate_quotes (usdt_tmn_rate, source, fetched_at, metadata_json)
+			VALUES ($1,$2,$3,$4::jsonb) RETURNING id::text`,
+			quote.Rate.String(), quote.Source, quote.FetchedAt, rateQuoteMetadataJSON(quote)).Scan(&quoteID)
 		if err != nil {
 			return err
 		}

@@ -77,6 +77,8 @@ func Reset(t *testing.T, pool *pgxpool.Pool) {
 			merchant_checkout_defaults,
 			merchant_wallet_addresses,
 			telegram_connections,
+			telegram_connect_tokens,
+			telegram_updates,
 			notification_deliveries,
 			webhook_deliveries,
 			webhook_endpoints,

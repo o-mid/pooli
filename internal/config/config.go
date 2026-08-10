@@ -18,10 +18,15 @@ type Config struct {
 	SessionSecret        string
 	AdminEmails          map[string]bool
 	RateProvider         string
+	RateFallbackProvider string
+	RatePolicy           string
 	MockUSDTTmnRate      string
 	QuoteTTL                    time.Duration
 	LatePaymentReconcileWindow  time.Duration
 	RateStale                   time.Duration
+	RateCache                   time.Duration
+	RateMaxAge                  time.Duration
+	RateProviderTimeout         time.Duration
 	EnableChainSimulator        bool
 	TronNetwork          string
 	TronGridBaseURL      string
@@ -35,9 +40,13 @@ type Config struct {
 	BSCConfirmations     int
 	TronConfirmations    int
 	ChainPollInterval    time.Duration
-	TelegramBotToken     string
-	TelegramEnabled      bool
-	UploadDir            string
+	TelegramBotToken           string
+	TelegramEnabled            bool
+	TelegramBotUsername        string
+	TelegramWebhookSecret      string
+	TelegramWebhookBaseURL     string
+	TelegramConnectTokenTTL    time.Duration
+	UploadDir                  string
 	TronExplorerTxURL    string
 	BSCExplorerTxURL     string
 	EnableBSCWatcher     bool
@@ -78,11 +87,16 @@ func Load() Config {
 		RedisURL:             getenv("REDIS_URL", "redis://localhost:6379/0"),
 		SessionSecret:        getenv("SESSION_SECRET", "dev-session-secret-change-me-32chars"),
 		AdminEmails:          admin,
-		RateProvider:         getenv("RATE_PROVIDER", "mock"),
-		MockUSDTTmnRate:      getenv("MOCK_USDT_TMN_RATE", "126000"),
+		RateProvider:               getenv("RATE_PROVIDER", "mock"),
+		RateFallbackProvider:       getenv("RATE_FALLBACK_PROVIDER", "wallex"),
+		RatePolicy:                 getenv("RATE_POLICY", "best_buy"),
+		MockUSDTTmnRate:            getenv("MOCK_USDT_TMN_RATE", "126000"),
 		QuoteTTL:                   durationSeconds("QUOTE_TTL_SECONDS", 600),
 		LatePaymentReconcileWindow: durationSeconds("LATE_PAYMENT_RECONCILE_WINDOW_SECONDS", 7200),
 		RateStale:                  durationSeconds("RATE_STALE_SECONDS", 180),
+		RateCache:                  durationSeconds("RATE_CACHE_SECONDS", 20),
+		RateMaxAge:                 durationSeconds("RATE_MAX_AGE_SECONDS", 60),
+		RateProviderTimeout:        durationSeconds("RATE_PROVIDER_TIMEOUT_SECONDS", 5),
 		EnableChainSimulator:       getenv("ENABLE_CHAIN_SIMULATOR", "true") == "true",
 		TronNetwork:          tronNet,
 		TronGridBaseURL:      getenv("TRONGRID_BASE_URL", "https://nile.trongrid.io"),
@@ -96,9 +110,13 @@ func Load() Config {
 		BSCConfirmations:     getenvInt("BSC_CONFIRMATIONS", 15),
 		TronConfirmations:    getenvInt("TRON_CONFIRMATIONS", tronConfDefault),
 		ChainPollInterval:    durationSeconds("CHAIN_POLL_INTERVAL_SECONDS", 8),
-		TelegramBotToken:     getenv("TELEGRAM_BOT_TOKEN", ""),
-		TelegramEnabled:      getenv("TELEGRAM_ENABLED", "false") == "true",
-		UploadDir:            getenv("UPLOAD_DIR", "uploads"),
+		TelegramBotToken:        getenv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramEnabled:         getenv("TELEGRAM_ENABLED", "false") == "true",
+		TelegramBotUsername:     getenv("TELEGRAM_BOT_USERNAME", "PooliShopbot"),
+		TelegramWebhookSecret:   getenv("TELEGRAM_WEBHOOK_SECRET", ""),
+		TelegramWebhookBaseURL:  getenv("TELEGRAM_WEBHOOK_BASE_URL", ""),
+		TelegramConnectTokenTTL: durationSeconds("TELEGRAM_CONNECT_TOKEN_TTL_SECONDS", 600),
+		UploadDir:               getenv("UPLOAD_DIR", "uploads"),
 		TronExplorerTxURL:    getenv("TRON_EXPLORER_TX_URL", tronExplorer),
 		BSCExplorerTxURL:     getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
 		EnableBSCWatcher:     getenv("ENABLE_BSC_WATCHER", "true") == "true",
