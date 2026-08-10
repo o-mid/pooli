@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/pooli-shop/pooli/internal/auth"
 )
@@ -65,11 +66,24 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		SELECT name, COALESCE(NULLIF(display_name,''), name), description, logo_path, support_contact, slug
 		FROM merchants WHERE id=$1::uuid`, merchantID).
 		Scan(&merchantName, &displayName, &description, &logoPath, &support, &merchantSlug)
-	var telegramChatID string
-	_ = s.Pool.QueryRow(r.Context(), `SELECT chat_id FROM telegram_connections WHERE merchant_id=$1::uuid`, merchantID).Scan(&telegramChatID)
+	var telegramChatID, telegramUsername string
+	var telegramEnabled bool
+	var telegramConnectedAt *time.Time
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT chat_id, COALESCE(username,''), enabled, connected_at
+		FROM telegram_connections WHERE merchant_id=$1::uuid`, merchantID).
+		Scan(&telegramChatID, &telegramUsername, &telegramEnabled, &telegramConnectedAt)
 	logoURL := ""
 	if logoPath != "" {
 		logoURL = "/api/v1/public/uploads/" + logoPath
+	}
+	telegram := map[string]any{
+		"connected": telegramEnabled && telegramChatID != "",
+		"username":  telegramUsername,
+		"bot":       s.Cfg.TelegramBotUsername,
+	}
+	if telegramConnectedAt != nil {
+		telegram["connected_at"] = telegramConnectedAt
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user": u,
@@ -77,6 +91,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 			"id": merchantID, "name": merchantName, "display_name": displayName,
 			"description": description, "logo_url": logoURL, "support_contact": support,
 			"slug": merchantSlug, "telegram_chat_id": telegramChatID,
+			"telegram": telegram,
 		},
 	})
 }

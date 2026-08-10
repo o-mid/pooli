@@ -44,7 +44,10 @@ func main() {
 		log.Fatal(err)
 	}
 	hub := sse.NewHub()
-	tg := &notify.Telegram{Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled}
+	tg := &notify.Telegram{
+		Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled,
+		BotUsername: cfg.TelegramBotUsername, PublicBase: cfg.PublicBaseURL,
+	}
 	matcher := &payment.Matcher{
 		Pool: pool, BSCConfirmations: cfg.BSCConfirmations, TronConfirmations: cfg.TronConfirmations,
 		LateReconcileWindow: cfg.LatePaymentReconcileWindow,

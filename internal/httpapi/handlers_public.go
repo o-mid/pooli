@@ -210,8 +210,9 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 
 		var quoteID string
 		err = tx.QueryRow(r.Context(), `
-			INSERT INTO exchange_rate_quotes (usdt_tmn_rate, source, fetched_at)
-			VALUES ($1,$2,$3) RETURNING id::text`, quote.Rate.String(), quote.Source, quote.FetchedAt).Scan(&quoteID)
+			INSERT INTO exchange_rate_quotes (usdt_tmn_rate, source, fetched_at, metadata_json)
+			VALUES ($1,$2,$3,$4::jsonb) RETURNING id::text`,
+			quote.Rate.String(), quote.Source, quote.FetchedAt, rateQuoteMetadataJSON(quote)).Scan(&quoteID)
 		if err != nil {
 			return err
 		}
@@ -276,30 +277,6 @@ func (s *Server) handleMerchantSSE(w http.ResponseWriter, r *http.Request) {
 	ch := s.Hub.Subscribe("merchant:" + mid)
 	defer s.Hub.Unsubscribe("merchant:"+mid, ch)
 	sse.WriteStream(w, r, ch)
-}
-
-func (s *Server) handleTelegramConnect(w http.ResponseWriter, r *http.Request) {
-	mid, err := s.merchantID(r.Context())
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	var req struct {
-		ChatID string `json:"chat_id"`
-	}
-	if err := decodeJSON(r, &req); err != nil || req.ChatID == "" {
-		writeErr(w, http.StatusBadRequest, "chat_id required")
-		return
-	}
-	_, err = s.Pool.Exec(r.Context(), `
-		INSERT INTO telegram_connections (merchant_id, chat_id, enabled)
-		VALUES ($1::uuid,$2,true)
-		ON CONFLICT (merchant_id) DO UPDATE SET chat_id=EXCLUDED.chat_id, enabled=true`, mid, req.ChatID)
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) handleSimulateChainEvent(w http.ResponseWriter, r *http.Request) {

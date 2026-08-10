@@ -99,6 +99,9 @@ func (s *Server) Router() http.Handler {
 			r.Get("/merchant/events", s.handleMerchantSSE)
 
 			r.Post("/telegram/connect", s.handleTelegramConnect)
+			r.Post("/telegram/connect-link", s.handleTelegramConnectLink)
+			r.Post("/telegram/disconnect", s.handleTelegramDisconnect)
+			r.Post("/telegram/test", s.handleTelegramTest)
 
 			r.Group(func(r chi.Router) {
 				r.Use(s.requireAdmin)
@@ -117,6 +120,8 @@ func (s *Server) Router() http.Handler {
 			r.Post("/refresh-quote", s.handlePublicRefreshQuote)
 			r.Get("/events", s.handlePublicSSE)
 		})
+
+		r.Post("/integrations/telegram/webhook", s.handleTelegramWebhook)
 
 		if s.Cfg.EnableChainSimulator {
 			r.Post("/internal/simulate/chain-event", s.handleSimulateChainEvent)
