@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -123,24 +124,7 @@ func (s *Server) handlePublicSelectNetwork(w http.ResponseWriter, r *http.Reques
 		writeErr(w, http.StatusBadRequest, "payment intent missing")
 		return
 	}
-	var selected map[string]any
-	switch options := intent["options"].(type) {
-	case []map[string]any:
-		for _, opt := range options {
-			if opt["network"] == req.Network {
-				selected = opt
-				break
-			}
-		}
-	case []any:
-		for _, raw := range options {
-			opt, _ := raw.(map[string]any)
-			if opt != nil && opt["network"] == req.Network {
-				selected = opt
-				break
-			}
-		}
-	}
+	selected := pickOptionByNetwork(intent["options"], req.Network)
 	if selected == nil {
 		writeErr(w, http.StatusBadRequest, "network unavailable")
 		return
@@ -150,6 +134,122 @@ func (s *Server) handlePublicSelectNetwork(w http.ResponseWriter, r *http.Reques
 		"payment_intent": intent,
 		"warning": "Send only USDT on the selected network. Wrong network funds cannot be recovered by Pooli.",
 	})
+}
+
+// handlePublicRefreshQuote creates new ACTIVE options + reservations for an expired unpaid quote.
+// Never mutates options that already have observed money; never reuses reservations unsafely.
+func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	var orderID, merchantID, intentID, status string
+	var expiresAt time.Time
+	var toman int64
+	err := s.Pool.QueryRow(r.Context(), `
+		SELECT o.id::text, o.merchant_id::text, pi.id::text, pi.status, pi.expires_at, pi.fiat_amount_toman
+		FROM orders o
+		JOIN payment_intents pi ON pi.order_id = o.id
+		WHERE o.slug=$1`, slug).Scan(&orderID, &merchantID, &intentID, &status, &expiresAt, &toman)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	blocked := map[string]bool{
+		domain.StatusSeen: true, domain.StatusConfirming: true, domain.StatusPaid: true,
+		domain.StatusUnderpaid: true, domain.StatusOverpaid: true, domain.StatusLatePayment: true,
+		domain.StatusNeedsReview: true, domain.StatusDuplicatePayment: true,
+	}
+	if blocked[status] {
+		writeErr(w, http.StatusConflict, "cannot refresh quote after payment activity")
+		return
+	}
+	expired := status == domain.StatusExpired || expiresAt.Before(time.Now().UTC())
+	if !expired {
+		writeErr(w, http.StatusConflict, "quote still active")
+		return
+	}
+
+	var matched int
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM matched_transactions WHERE payment_intent_id=$1::uuid`, intentID).Scan(&matched)
+	if matched > 0 {
+		writeErr(w, http.StatusConflict, "cannot refresh quote after payment activity")
+		return
+	}
+
+	quote, err := s.Rates.FetchUSDTTmn(r.Context())
+	if err != nil || time.Since(quote.FetchedAt) > s.Cfg.RateStale {
+		writeErr(w, http.StatusBadRequest, errStaleRate.Error())
+		return
+	}
+	baseUSDT, err := payment.ComputeBaseUSDT(toman, quote.Rate)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	newExpires := time.Now().UTC().Add(s.Cfg.QuoteTTL)
+
+	err = payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
+		// Release active reservations for non-settled options; supersede those options (immutable history).
+		_, err := tx.Exec(r.Context(), `
+			UPDATE amount_reservations ar
+			SET status='released'
+			FROM payment_options po
+			WHERE po.id = ar.payment_option_id
+			  AND po.payment_intent_id=$1::uuid
+			  AND po.status <> 'SETTLED'
+			  AND ar.status='active'`, intentID)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(r.Context(), `
+			UPDATE payment_options SET status='SUPERSEDED'
+			WHERE payment_intent_id=$1::uuid AND status='ACTIVE'`, intentID)
+		if err != nil {
+			return err
+		}
+
+		var quoteID string
+		err = tx.QueryRow(r.Context(), `
+			INSERT INTO exchange_rate_quotes (usdt_tmn_rate, source, fetched_at)
+			VALUES ($1,$2,$3) RETURNING id::text`, quote.Rate.String(), quote.Source, quote.FetchedAt).Scan(&quoteID)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(r.Context(), `
+			UPDATE payment_intents
+			SET status=$2, quote_id=$3::uuid, expires_at=$4, updated_at=now()
+			WHERE id=$1::uuid`, intentID, domain.StatusAwaitingPayment, quoteID, newExpires)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(r.Context(), `
+			UPDATE orders SET status=$2, updated_at=now() WHERE id=$1::uuid`, orderID, domain.StatusAwaitingPayment)
+		if err != nil {
+			return err
+		}
+		_, _ = tx.Exec(r.Context(), `
+			INSERT INTO payment_state_events (payment_intent_id, from_status, to_status, reason, actor)
+			VALUES ($1::uuid,$2,$3,'quote refreshed','buyer')`, intentID, status, domain.StatusAwaitingPayment)
+
+		created, err := s.insertPaymentOptions(r.Context(), tx, merchantID, intentID, baseUSDT, quote.Rate.String(), newExpires, nil)
+		if err != nil {
+			return err
+		}
+		if created == 0 {
+			return errNoWallets
+		}
+		return nil
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	pay, err := s.loadPublicBySlug(r.Context(), slug)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "reload failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, pay)
 }
 
 func (s *Server) handlePublicSSE(w http.ResponseWriter, r *http.Request) {

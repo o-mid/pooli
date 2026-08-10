@@ -425,37 +425,9 @@ func (s *Server) createPaymentIntentForOrder(ctx context.Context, merchantID, or
 			INSERT INTO payment_state_events (payment_intent_id, from_status, to_status, reason, actor)
 			VALUES ($1::uuid,'CREATED',$2,'intent created','system')`, intentID, domain.StatusAwaitingPayment)
 
-		createdOptions := 0
-		for _, network := range networks {
-			adapter := s.adapterFor(network)
-			var walletAddr, walletNorm, contract string
-			var chainID *int64
-			err := tx.QueryRow(ctx, `
-				SELECT address, address_normalized, contract_address, chain_id
-				FROM merchant_wallet_addresses
-				WHERE merchant_id=$1::uuid AND network=$2 AND is_active=true
-				ORDER BY is_default DESC, created_at ASC LIMIT 1`, merchantID, network).
-				Scan(&walletAddr, &walletNorm, &contract, &chainID)
-			if err != nil {
-				continue // skip network without wallet
-			}
-			var optionID string
-			err = tx.QueryRow(ctx, `
-				INSERT INTO payment_options (
-					payment_intent_id, network, chain_id, token_contract, destination_address,
-					destination_address_normalized, base_usdt_amount_base_units, pay_usdt_amount_base_units,
-					quote_rate, expires_at, status
-				) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$7,$8,$9,'ACTIVE') RETURNING id::text`,
-				intentID, network, chainID, contract, walletAddr, walletNorm, baseUSDT, quote.Rate.String(), expires,
-			).Scan(&optionID)
-			if err != nil {
-				return err
-			}
-			if _, err := payment.ClaimUniqueReservation(ctx, tx, optionID, walletNorm, network, contract, baseUSDT, expires, 48); err != nil {
-				return err
-			}
-			createdOptions++
-			_ = adapter
+		createdOptions, err := s.insertPaymentOptions(ctx, tx, merchantID, intentID, baseUSDT, quote.Rate.String(), expires, networks)
+		if err != nil {
+			return err
 		}
 		if createdOptions == 0 {
 			return errNoWallets
@@ -466,4 +438,51 @@ func (s *Server) createPaymentIntentForOrder(ctx context.Context, merchantID, or
 		return nil, err
 	}
 	return s.loadPaymentIntent(ctx, intentID)
+}
+
+// insertPaymentOptions creates ACTIVE options + unique reservations for merchant wallets.
+// networks nil/empty means all configured networks (tron, bsc).
+func (s *Server) insertPaymentOptions(
+	ctx context.Context,
+	tx pgx.Tx,
+	merchantID, intentID string,
+	baseUSDT int64,
+	quoteRate string,
+	expires time.Time,
+	networks []string,
+) (int, error) {
+	if len(networks) == 0 {
+		networks = []string{domain.NetworkTRON, domain.NetworkBSC}
+	}
+	created := 0
+	for _, network := range networks {
+		var walletAddr, walletNorm, contract string
+		var chainID *int64
+		err := tx.QueryRow(ctx, `
+			SELECT address, address_normalized, contract_address, chain_id
+			FROM merchant_wallet_addresses
+			WHERE merchant_id=$1::uuid AND network=$2 AND is_active=true
+			ORDER BY is_default DESC, created_at ASC LIMIT 1`, merchantID, network).
+			Scan(&walletAddr, &walletNorm, &contract, &chainID)
+		if err != nil {
+			continue // skip network without wallet
+		}
+		var optionID string
+		err = tx.QueryRow(ctx, `
+			INSERT INTO payment_options (
+				payment_intent_id, network, chain_id, token_contract, destination_address,
+				destination_address_normalized, base_usdt_amount_base_units, pay_usdt_amount_base_units,
+				quote_rate, expires_at, status
+			) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$7,$8,$9,'ACTIVE') RETURNING id::text`,
+			intentID, network, chainID, contract, walletAddr, walletNorm, baseUSDT, quoteRate, expires,
+		).Scan(&optionID)
+		if err != nil {
+			return created, err
+		}
+		if _, err := payment.ClaimUniqueReservation(ctx, tx, optionID, walletNorm, network, contract, baseUSDT, expires, 48); err != nil {
+			return created, err
+		}
+		created++
+	}
+	return created, nil
 }

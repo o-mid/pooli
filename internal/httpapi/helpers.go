@@ -153,12 +153,14 @@ func (s *Server) loadPaymentIntent(ctx context.Context, intentID string) (map[st
 		if adapter := s.adapterFor(network); adapter != nil {
 			handoff = adapter.BuildPaymentHandoff(dest, payAmt, token)
 		}
+		asset, decimals := s.optionAssetMeta(network)
 		options = append(options, map[string]any{
 			"id": oid, "network": network, "chain_id": chainID, "token_contract": token,
 			"destination_address": dest,
 			"base_usdt_amount": domain.FormatUSDTBaseUnits(baseAmt),
 			"pay_usdt_amount": domain.FormatUSDTBaseUnits(payAmt),
 			"pay_usdt_amount_base_units": payAmt,
+			"asset": asset, "token_decimals": decimals,
 			"quote_rate": quoteRate, "expires_at": optExpires, "status": optStatus,
 			"payment_uri": handoff,
 		})
@@ -388,4 +390,46 @@ func fmtErr(err error) string {
 		return ""
 	}
 	return fmt.Sprint(err)
+}
+
+// optionAssetMeta returns configured asset identity for checkout handoff.
+// Does not enable unknown assets — currently USDT only.
+func (s *Server) optionAssetMeta(network string) (asset string, decimals int) {
+	asset = domain.AssetUSDT
+	decimals = domain.USDTDecimals
+	if network == domain.NetworkBSC {
+		decimals = s.Cfg.BSCUSDTDecimals
+		if decimals <= 0 {
+			decimals = 18
+		}
+	}
+	return asset, decimals
+}
+
+// pickOptionByNetwork prefers ACTIVE options for the given network.
+func pickOptionByNetwork(options any, network string) map[string]any {
+	var list []map[string]any
+	switch options := options.(type) {
+	case []map[string]any:
+		list = options
+	case []any:
+		for _, raw := range options {
+			if opt, ok := raw.(map[string]any); ok {
+				list = append(list, opt)
+			}
+		}
+	}
+	var fallback map[string]any
+	for _, opt := range list {
+		if opt["network"] != network {
+			continue
+		}
+		if opt["status"] == "ACTIVE" || opt["status"] == "" || opt["status"] == nil {
+			return opt
+		}
+		if fallback == nil {
+			fallback = opt
+		}
+	}
+	return fallback
 }

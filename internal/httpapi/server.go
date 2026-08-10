@@ -114,6 +114,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/preview", s.handlePublicPayPreview)
 			r.Post("/customer-details", s.handlePublicCustomerDetails)
 			r.Post("/select-network", s.handlePublicSelectNetwork)
+			r.Post("/refresh-quote", s.handlePublicRefreshQuote)
 			r.Get("/events", s.handlePublicSSE)
 		})
 
