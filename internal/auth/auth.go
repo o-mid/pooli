@@ -59,6 +59,9 @@ func (s *Service) createMerchantForUser(ctx context.Context, userID, merchantNam
 	_, _ = s.Pool.Exec(ctx, `
 		INSERT INTO subscriptions (merchant_id, plan_id)
 		SELECT $1::uuid, id FROM subscription_plans WHERE code='free' LIMIT 1`, merchantID)
+	_, _ = s.Pool.Exec(ctx, `
+		INSERT INTO merchant_checkout_defaults (merchant_id)
+		VALUES ($1::uuid) ON CONFLICT (merchant_id) DO NOTHING`, merchantID)
 	return merchantID, nil
 }
 

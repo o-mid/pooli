@@ -35,13 +35,18 @@ func defaultCheckoutFields() []domain.FieldDef {
 }
 
 func (s *Server) loadOrderForMerchant(ctx context.Context, merchantID, orderID string) (map[string]any, error) {
-	var id, slug, title, desc, ref, status string
+	var id, slug, title, desc, ref, status, fulfill, shipProvider, tracking, fulfillNote string
 	var amount int64
 	var created time.Time
+	var customerID *string
+	var shippedAt, deliveredAt *time.Time
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id::text, slug, title, description, merchant_reference, fiat_amount_toman, status, created_at
+		SELECT id::text, slug, title, description, merchant_reference, fiat_amount_toman, status, created_at,
+		       customer_id::text, fulfillment_status, shipping_provider, tracking_number,
+		       shipped_at, delivered_at, fulfillment_note
 		FROM orders WHERE id=$1::uuid AND merchant_id=$2::uuid`, orderID, merchantID).
-		Scan(&id, &slug, &title, &desc, &ref, &amount, &status, &created)
+		Scan(&id, &slug, &title, &desc, &ref, &amount, &status, &created,
+			&customerID, &fulfill, &shipProvider, &tracking, &shippedAt, &deliveredAt, &fulfillNote)
 	if err != nil {
 		return nil, err
 	}
@@ -52,13 +57,23 @@ func (s *Server) loadOrderForMerchant(ctx context.Context, merchantID, orderID s
 	_ = s.Pool.QueryRow(ctx, `SELECT id::text FROM payment_intents WHERE order_id=$1::uuid`, id).Scan(&intentID)
 	if intentID != "" {
 		intent, _ = s.loadPaymentIntent(ctx, intentID)
+		if intent != nil {
+			s.attachMatchedTx(ctx, intent)
+		}
 	}
-	return map[string]any{
+	timeline := s.loadTimeline(ctx, merchantID, id)
+	receipt := s.buildReceipt(ctx, id, intent)
+	out := map[string]any{
 		"id": id, "slug": slug, "title": title, "description": desc, "merchant_reference": ref,
 		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status, "created_at": created,
 		"checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
 		"fields": fields, "field_values": values, "payment_intent": intent,
-	}, nil
+		"customer_id": customerID, "fulfillment_status": fulfill,
+		"shipping_provider": shipProvider, "tracking_number": tracking,
+		"shipped_at": shippedAt, "delivered_at": deliveredAt, "fulfillment_note": fulfillNote,
+		"timeline": timeline, "receipt": receipt,
+	}
+	return out, nil
 }
 
 func (s *Server) loadFieldDefs(ctx context.Context, orderID string) []map[string]any {
@@ -162,18 +177,43 @@ func (s *Server) loadPaymentIntent(ctx context.Context, intentID string) (map[st
 }
 
 func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]any, error) {
-	var orderID, merchantID, title, desc, storeName, logoPath, status string
+	var orderID, merchantID, title, desc, storeName, logoPath, status, fulfill, shipProvider, tracking string
 	var amount int64
+	var support string
+	var emailVerified, phoneVerified bool
+	var walletConfigured bool
+	var shippedAt *time.Time
 	err := s.Pool.QueryRow(ctx, `
 		SELECT o.id::text, o.merchant_id::text, o.title, o.description, o.fiat_amount_toman, o.status,
-		       COALESCE(NULLIF(m.display_name,''), m.name), COALESCE(m.logo_path,'')
+		       COALESCE(NULLIF(m.display_name,''), m.name), COALESCE(m.logo_path,''), COALESCE(m.support_contact,''),
+		       o.fulfillment_status, o.shipping_provider, o.tracking_number, o.shipped_at,
+		       EXISTS (
+		         SELECT 1 FROM merchant_users mu
+		         JOIN users u ON u.id = mu.user_id
+		         WHERE mu.merchant_id = m.id AND u.email_verified_at IS NOT NULL
+		       ),
+		       EXISTS (
+		         SELECT 1 FROM merchant_users mu
+		         JOIN users u ON u.id = mu.user_id
+		         WHERE mu.merchant_id = m.id AND u.phone_verified_at IS NOT NULL
+		       ),
+		       EXISTS (
+		         SELECT 1 FROM merchant_wallet_addresses w
+		         WHERE w.merchant_id = m.id AND w.is_active = true
+		       )
 		FROM orders o JOIN merchants m ON m.id = o.merchant_id
-		WHERE o.slug=$1`, slug).Scan(&orderID, &merchantID, &title, &desc, &amount, &status, &storeName, &logoPath)
+		WHERE o.slug=$1`, slug).Scan(
+		&orderID, &merchantID, &title, &desc, &amount, &status, &storeName, &logoPath, &support,
+		&fulfill, &shipProvider, &tracking, &shippedAt,
+		&emailVerified, &phoneVerified, &walletConfigured,
+	)
 	if err != nil {
 		return nil, err
 	}
 	fields := s.loadFieldDefs(ctx, orderID)
 	values := s.loadFieldValues(ctx, orderID)
+	// Public responses must not echo full submitted customer PII after submit.
+	publicValues := []map[string]any{}
 	var intentID string
 	_ = s.Pool.QueryRow(ctx, `SELECT id::text FROM payment_intents WHERE order_id=$1::uuid`, orderID).Scan(&intentID)
 	var intent map[string]any
@@ -187,12 +227,129 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 	if logoPath != "" {
 		logoURL = "/api/v1/public/uploads/" + logoPath
 	}
+	receipt := s.buildReceipt(ctx, orderID, intent)
+	timeline := s.loadTimelinePublic(ctx, orderID)
 	return map[string]any{
 		"slug": slug, "store_name": storeName, "store_logo_url": logoURL, "title": title, "description": desc,
 		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status,
-		"fields": fields, "field_values": values, "payment_intent": intent,
+		"fields": fields, "field_values": publicValues, "payment_intent": intent,
 		"customer_submitted": len(values) > 0,
+		"fulfillment_status": fulfill, "shipping_provider": shipProvider,
+		"tracking_number": tracking, "shipped_at": shippedAt,
+		"timeline": timeline, "receipt": receipt,
+		"trust": map[string]any{
+			"email_verified":    emailVerified,
+			"phone_verified":    phoneVerified,
+			"wallet_configured": walletConfigured,
+			"support_contact":   support,
+		},
+		// OG-safe preview fields (no customer PII, no amount by default).
+		"preview": map[string]any{
+			"store_name": storeName, "title": title, "store_logo_url": logoURL,
+		},
 	}, nil
+}
+
+func (s *Server) buildReceipt(ctx context.Context, orderID string, intent map[string]any) map[string]any {
+	if intent == nil {
+		return nil
+	}
+	status, _ := intent["status"].(string)
+	if status != domain.StatusPaid && status != domain.StatusLatePayment {
+		return nil
+	}
+	var storeName, title, slug string
+	var toman int64
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT COALESCE(NULLIF(m.display_name,''), m.name), o.title, o.slug, o.fiat_amount_toman
+		FROM orders o JOIN merchants m ON m.id = o.merchant_id
+		WHERE o.id=$1::uuid`, orderID).Scan(&storeName, &title, &slug, &toman)
+
+	var payUSDT string
+	var receivedUSDT string
+	var network, dest string
+	var paidAt any
+	paidAt = intent["paid_at"]
+	if opts, ok := intent["options"].([]map[string]any); ok {
+		for _, opt := range opts {
+			st, _ := opt["status"].(string)
+			if st == "SETTLED" || st == "MATCHED" {
+				payUSDT, _ = opt["pay_usdt_amount"].(string)
+				network, _ = opt["network"].(string)
+				dest, _ = opt["destination_address"].(string)
+				break
+			}
+		}
+		if payUSDT == "" && len(opts) > 0 {
+			payUSDT, _ = opts[0]["pay_usdt_amount"].(string)
+			network, _ = opts[0]["network"].(string)
+			dest, _ = opts[0]["destination_address"].(string)
+		}
+	} else if optsAny, ok := intent["options"].([]any); ok {
+		for _, raw := range optsAny {
+			opt, _ := raw.(map[string]any)
+			if opt == nil {
+				continue
+			}
+			st, _ := opt["status"].(string)
+			if st == "SETTLED" || st == "MATCHED" || payUSDT == "" {
+				payUSDT, _ = opt["pay_usdt_amount"].(string)
+				network, _ = opt["network"].(string)
+				dest, _ = opt["destination_address"].(string)
+				if st == "SETTLED" || st == "MATCHED" {
+					break
+				}
+			}
+		}
+	}
+
+	var txHash, explorer string
+	var confirmations, required int
+	if matched, ok := intent["matched_tx"].(map[string]any); ok && matched != nil {
+		txHash, _ = matched["tx_hash"].(string)
+		explorer, _ = matched["explorer_url"].(string)
+		if v, ok := matched["confirmations"].(int); ok {
+			confirmations = v
+		}
+		if v, ok := matched["required_confirmations"].(int); ok {
+			required = v
+		}
+		if n, ok := matched["network"].(string); ok && n != "" {
+			network = n
+		}
+		// Actual received amount from chain event when available.
+		var amt int64
+		_ = s.Pool.QueryRow(ctx, `
+			SELECT ce.amount_base_units FROM matched_transactions mt
+			JOIN chain_events ce ON ce.id = mt.chain_event_id
+			WHERE mt.payment_intent_id=$1::uuid
+			ORDER BY mt.created_at DESC LIMIT 1`, intent["id"]).Scan(&amt)
+		if amt > 0 {
+			receivedUSDT = domain.FormatUSDTBaseUnits(amt)
+		}
+	}
+	if receivedUSDT == "" {
+		receivedUSDT = payUSDT
+	}
+
+	return map[string]any{
+		"merchant":              storeName,
+		"order_title":           title,
+		"order_reference":       slug,
+		"order_id":              orderID,
+		"fiat_amount_toman":     toman,
+		"fiat_currency":         "TMN",
+		"usdt_amount":           payUSDT,
+		"received_usdt_amount":  receivedUSDT,
+		"network":               network,
+		"destination_address":   dest,
+		"tx_hash":               txHash,
+		"explorer_url":          explorer,
+		"confirmations":         confirmations,
+		"required_confirmations": required,
+		"paid_at":               paidAt,
+		"payment_status":        status,
+	}
 }
 
 func (s *Server) attachMatchedTx(ctx context.Context, intent map[string]any) {

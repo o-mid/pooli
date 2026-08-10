@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/pooli-shop/pooli/internal/domain"
+	"github.com/pooli-shop/pooli/internal/payment"
 	"github.com/pooli-shop/pooli/internal/sse"
 )
 
@@ -18,6 +20,30 @@ func (s *Server) handlePublicPay(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pay)
 }
 
+// handlePublicPayPreview returns OG-safe metadata only (no customer PII, no amount).
+func (s *Server) handlePublicPayPreview(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	var storeName, title, logoPath string
+	err := s.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(NULLIF(m.display_name,''), m.name), o.title, COALESCE(m.logo_path,'')
+		FROM orders o JOIN merchants m ON m.id = o.merchant_id
+		WHERE o.slug=$1`, slug).Scan(&storeName, &title, &logoPath)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	logoURL := ""
+	if logoPath != "" {
+		logoURL = "/api/v1/public/uploads/" + logoPath
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"store_name": storeName,
+		"title":      title,
+		"store_logo_url": logoURL,
+		"brand": "Pooli",
+	})
+}
+
 func (s *Server) handlePublicCustomerDetails(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	var req struct {
@@ -27,8 +53,8 @@ func (s *Server) handlePublicCustomerDetails(w http.ResponseWriter, r *http.Requ
 		writeErr(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	var orderID string
-	err := s.Pool.QueryRow(r.Context(), `SELECT id::text FROM orders WHERE slug=$1`, slug).Scan(&orderID)
+	var orderID, merchantID string
+	err := s.Pool.QueryRow(r.Context(), `SELECT id::text, merchant_id::text FROM orders WHERE slug=$1`, slug).Scan(&orderID, &merchantID)
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
@@ -50,18 +76,29 @@ func (s *Server) handlePublicCustomerDetails(w http.ResponseWriter, r *http.Requ
 		writeErr(w, http.StatusConflict, "already submitted")
 		return
 	}
-	for _, d := range defs {
-		key := d["key"].(string)
-		label := d["label"].(string)
-		ftype := d["type"].(string)
-		val := req.Values[key]
-		_, err = s.Pool.Exec(r.Context(), `
-			INSERT INTO order_field_values (order_id, field_key, label, field_type, value)
-			VALUES ($1::uuid,$2,$3,$4,$5)`, orderID, key, label, ftype, val)
-		if err != nil {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
+
+	err = payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
+		for _, d := range defs {
+			key := d["key"].(string)
+			label := d["label"].(string)
+			ftype := d["type"].(string)
+			val := req.Values[key]
+			_, err := tx.Exec(r.Context(), `
+				INSERT INTO order_field_values (order_id, field_key, label, field_type, value)
+				VALUES ($1::uuid,$2,$3,$4,$5)`, orderID, key, label, ftype, val)
+			if err != nil {
+				return err
+			}
 		}
+		if _, err := s.upsertCustomerFromCheckout(r.Context(), tx, merchantID, orderID, req.Values); err != nil {
+			return err
+		}
+		return s.appendTimeline(r.Context(), tx, orderID, merchantID, "customer.details_submitted", "buyer",
+			"Customer details submitted", "", "buyer", map[string]any{})
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	pay, _ := s.loadPublicBySlug(r.Context(), slug)
 	writeJSON(w, http.StatusOK, pay)

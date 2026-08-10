@@ -42,6 +42,7 @@ func main() {
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			hub.PublishIntent(intentID, sse.Event{Type: eventType, Payload: payload})
 			hub.PublishMerchant(merchantID, sse.Event{Type: eventType, Payload: payload})
+			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
 			if eventType == "payment.paid" {
 				var toman int64
 				var orderRef string

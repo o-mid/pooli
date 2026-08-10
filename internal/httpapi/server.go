@@ -77,15 +77,22 @@ func (s *Server) Router() http.Handler {
 			r.Get("/home", s.handleHome)
 			r.Patch("/merchant", s.handlePatchMerchant)
 			r.Post("/merchant/logo", s.handleMerchantLogo)
+			r.Get("/merchant/checkout-defaults", s.handleGetCheckoutDefaults)
+			r.Patch("/merchant/checkout-defaults", s.handlePatchCheckoutDefaults)
 
 			r.Get("/wallets", s.handleListWallets)
 			r.Post("/wallets", s.handleCreateWallet)
 			r.Patch("/wallets/{id}", s.handlePatchWallet)
 			r.Delete("/wallets/{id}", s.handleDeleteWallet)
 
+			r.Get("/customers", s.handleListCustomers)
+			r.Get("/customers/{id}", s.handleGetCustomer)
+
 			r.Post("/orders", s.handleCreateOrder)
 			r.Get("/orders", s.handleListOrders)
 			r.Get("/orders/{id}", s.handleGetOrder)
+			r.Get("/orders/{id}/timeline", s.handleGetOrderTimeline)
+			r.Patch("/orders/{id}/fulfillment", s.handlePatchFulfillment)
 			r.Post("/orders/{id}/payment-intent", s.handleCreatePaymentIntent)
 
 			r.Get("/payment-intents/{id}", s.handleGetPaymentIntent)
@@ -104,6 +111,7 @@ func (s *Server) Router() http.Handler {
 
 		r.Route("/public/pay/{slug}", func(r chi.Router) {
 			r.Get("/", s.handlePublicPay)
+			r.Get("/preview", s.handlePublicPayPreview)
 			r.Post("/customer-details", s.handlePublicCustomerDetails)
 			r.Post("/select-network", s.handlePublicSelectNetwork)
 			r.Get("/events", s.handlePublicSSE)

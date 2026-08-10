@@ -43,6 +43,7 @@ func main() {
 		LateReconcileWindow: cfg.LatePaymentReconcileWindow,
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			log.Printf("transition %s intent=%s", eventType, intentID)
+			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
 			if eventType != "payment.paid" {
 				return
 			}

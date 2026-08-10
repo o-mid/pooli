@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	var tomanVol int64
 	var usdtBase int64
 	var pending int
+	var attention int
 	_ = s.Pool.QueryRow(r.Context(), `
 		SELECT COUNT(*), COALESCE(SUM(o.fiat_amount_toman),0)
 		FROM orders o
@@ -34,30 +36,90 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	_ = s.Pool.QueryRow(r.Context(), `
 		SELECT COUNT(*) FROM payment_intents
 		WHERE merchant_id=$1::uuid AND status IN ('AWAITING_PAYMENT','SEEN','CONFIRMING')`, mid).Scan(&pending)
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM orders o
+		LEFT JOIN payment_intents pi ON pi.order_id = o.id
+		WHERE o.merchant_id=$1::uuid AND (
+			COALESCE(pi.status, o.status) IN ('NEEDS_REVIEW','UNDERPAID','OVERPAID','LATE_PAYMENT','DUPLICATE_PAYMENT')
+			OR (
+				COALESCE(pi.status, o.status) = 'PAID'
+				AND o.fulfillment_status IN ('UNFULFILLED','PROCESSING')
+				AND COALESCE(pi.paid_at, o.updated_at) < now() - interval '24 hours'
+			)
+		)`, mid).Scan(&attention)
 
 	rows, _ := s.Pool.Query(r.Context(), `
-		SELECT id::text, slug, title, fiat_amount_toman, status, created_at
-		FROM orders WHERE merchant_id=$1::uuid ORDER BY created_at DESC LIMIT 10`, mid)
+		SELECT o.id::text, o.slug, o.title, o.fiat_amount_toman, o.status, o.fulfillment_status,
+		       COALESCE(pi.status, o.status) AS payment_status, o.created_at,
+		       COALESCE((
+		         SELECT ofv.value FROM order_field_values ofv
+		         WHERE ofv.order_id = o.id AND ofv.field_key = 'full_name' LIMIT 1
+		       ), '')
+		FROM orders o
+		LEFT JOIN payment_intents pi ON pi.order_id = o.id
+		WHERE o.merchant_id=$1::uuid
+		ORDER BY o.created_at DESC LIMIT 10`, mid)
 	defer rows.Close()
 	var recent []map[string]any
 	for rows.Next() {
-		var id, slug, title, status string
+		var id, slug, title, status, fulfill, payStatus, customerName string
 		var amount int64
 		var created time.Time
-		_ = rows.Scan(&id, &slug, &title, &amount, &status, &created)
+		_ = rows.Scan(&id, &slug, &title, &amount, &status, &fulfill, &payStatus, &created, &customerName)
 		recent = append(recent, map[string]any{
-			"id": id, "slug": slug, "title": title, "fiat_amount_toman": amount, "status": status, "created_at": created,
+			"id": id, "slug": slug, "title": title, "fiat_amount_toman": amount,
+			"status": status, "fulfillment_status": fulfill, "payment_status": payStatus,
+			"customer_name": customerName, "created_at": created,
 		})
 	}
 	if recent == nil {
 		recent = []map[string]any{}
 	}
+
+	attnRows, _ := s.Pool.Query(r.Context(), `
+		SELECT o.id::text, o.slug, o.title, o.fiat_amount_toman,
+		       COALESCE(pi.status, o.status) AS payment_status, o.fulfillment_status, o.created_at,
+		       CASE
+		         WHEN COALESCE(pi.status, o.status) IN ('NEEDS_REVIEW','UNDERPAID','OVERPAID','LATE_PAYMENT','DUPLICATE_PAYMENT')
+		           THEN COALESCE(pi.status, o.status)
+		         ELSE 'PAID_UNFULFILLED'
+		       END AS attention_reason
+		FROM orders o
+		LEFT JOIN payment_intents pi ON pi.order_id = o.id
+		WHERE o.merchant_id=$1::uuid AND (
+			COALESCE(pi.status, o.status) IN ('NEEDS_REVIEW','UNDERPAID','OVERPAID','LATE_PAYMENT','DUPLICATE_PAYMENT')
+			OR (
+				COALESCE(pi.status, o.status) = 'PAID'
+				AND o.fulfillment_status IN ('UNFULFILLED','PROCESSING')
+				AND COALESCE(pi.paid_at, o.updated_at) < now() - interval '24 hours'
+			)
+		)
+		ORDER BY o.updated_at DESC LIMIT 20`, mid)
+	defer attnRows.Close()
+	var attentionItems []map[string]any
+	for attnRows.Next() {
+		var id, slug, title, payStatus, fulfill, reason string
+		var amount int64
+		var created time.Time
+		_ = attnRows.Scan(&id, &slug, &title, &amount, &payStatus, &fulfill, &created, &reason)
+		attentionItems = append(attentionItems, map[string]any{
+			"id": id, "slug": slug, "title": title, "fiat_amount_toman": amount,
+			"payment_status": payStatus, "fulfillment_status": fulfill,
+			"reason": reason, "created_at": created,
+		})
+	}
+	if attentionItems == nil {
+		attentionItems = []map[string]any{}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"today_paid_orders": paidCount,
-		"today_toman_volume": tomanVol,
+		"today_paid_orders":   paidCount,
+		"today_toman_volume":  tomanVol,
 		"today_usdt_received": domain.FormatUSDTBaseUnits(usdtBase),
-		"pending_payments": pending,
-		"recent_orders": recent,
+		"pending_payments":    pending,
+		"needs_attention":     attention,
+		"attention_items":     attentionItems,
+		"recent_orders":       recent,
 	})
 }
 
@@ -75,6 +137,7 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		ExpiresInMinutes  int               `json:"expires_in_minutes"`
 		Fields            []domain.FieldDef `json:"fields"`
 		Networks          []string          `json:"networks"`
+		CustomerID        string            `json:"customer_id"`
 		CreateIntent      *bool             `json:"create_intent"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
@@ -85,25 +148,56 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "amount required")
 		return
 	}
-	if len(req.Fields) == 0 {
-		req.Fields = defaultCheckoutFields()
+
+	defaults, err := s.loadCheckoutDefaults(r.Context(), mid)
+	if err != nil {
+		defaults = defaultCheckoutDefaults()
 	}
+	if len(req.Fields) == 0 {
+		req.Fields = fieldDefsFromDefaults(defaults)
+	}
+	if len(req.Networks) == 0 {
+		req.Networks = defaults.EnabledNetworks
+	} else {
+		req.Networks = normalizeEnabledNetworks(req.Networks, defaults.EnabledNetworks)
+	}
+	expiresMinutes := req.ExpiresInMinutes
+	if expiresMinutes <= 0 {
+		expiresMinutes = defaults.DefaultExpiryMinutes
+	}
+
 	slug, err := randomSlug(8)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	var expiresAt *time.Time
-	if req.ExpiresInMinutes > 0 {
-		t := time.Now().UTC().Add(time.Duration(req.ExpiresInMinutes) * time.Minute)
+	if expiresMinutes > 0 {
+		t := time.Now().UTC().Add(time.Duration(expiresMinutes) * time.Minute)
 		expiresAt = &t
 	}
+
+	var customerID *string
+	if req.CustomerID != "" {
+		var exists string
+		err = s.Pool.QueryRow(r.Context(), `
+			SELECT id::text FROM customers WHERE id=$1::uuid AND merchant_id=$2::uuid`,
+			req.CustomerID, mid).Scan(&exists)
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, "customer not found")
+			return
+		}
+		customerID = &exists
+	}
+
 	var orderID string
 	err = payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
 		err := tx.QueryRow(r.Context(), `
-			INSERT INTO orders (merchant_id, slug, title, description, merchant_reference, fiat_amount_toman, fiat_currency, status, expires_at)
-			VALUES ($1::uuid,$2,$3,$4,$5,$6,'TMN','CREATED',$7) RETURNING id::text`,
-			mid, slug, req.Title, req.Description, req.MerchantReference, req.FiatAmountToman, expiresAt).Scan(&orderID)
+			INSERT INTO orders (
+				merchant_id, slug, title, description, merchant_reference,
+				fiat_amount_toman, fiat_currency, status, expires_at, customer_id, fulfillment_status
+			) VALUES ($1::uuid,$2,$3,$4,$5,$6,'TMN','CREATED',$7,$8::uuid,'UNFULFILLED') RETURNING id::text`,
+			mid, slug, req.Title, req.Description, req.MerchantReference, req.FiatAmountToman, expiresAt, customerID).Scan(&orderID)
 		if err != nil {
 			return err
 		}
@@ -120,7 +214,9 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		return nil
+		return s.appendTimeline(r.Context(), tx, orderID, mid, "order.created", "system", "Order created", req.Title, "merchant", map[string]any{
+			"fiat_amount_toman": req.FiatAmountToman,
+		})
 	})
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
@@ -132,8 +228,10 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		createIntent = *req.CreateIntent
 	}
 	resp := map[string]any{
-		"id": orderID,
-		"slug": slug,
+		"id":           orderID,
+		"slug":         slug,
+		"title":        req.Title,
+		"fiat_amount_toman": req.FiatAmountToman,
 		"checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
 	}
 	if createIntent {
@@ -153,13 +251,50 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	rows, err := s.Pool.Query(r.Context(), `
-		SELECT o.id::text, o.slug, o.title, o.fiat_amount_toman, o.status, o.created_at,
-		       COALESCE(pi.status, o.status) AS payment_status
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	filter := strings.TrimSpace(r.URL.Query().Get("filter"))
+	args := []any{mid}
+	sql := `
+		SELECT o.id::text, o.slug, o.title, o.fiat_amount_toman, o.status, o.fulfillment_status, o.created_at,
+		       COALESCE(pi.status, o.status) AS payment_status,
+		       COALESCE((
+		         SELECT ofv.value FROM order_field_values ofv
+		         WHERE ofv.order_id = o.id AND ofv.field_key = 'full_name' LIMIT 1
+		       ), ''),
+		       COALESCE((
+		         SELECT ofv.value FROM order_field_values ofv
+		         WHERE ofv.order_id = o.id AND ofv.field_key = 'phone' LIMIT 1
+		       ), '')
 		FROM orders o
 		LEFT JOIN payment_intents pi ON pi.order_id = o.id
-		WHERE o.merchant_id=$1::uuid
-		ORDER BY o.created_at DESC LIMIT 100`, mid)
+		WHERE o.merchant_id=$1::uuid`
+	argN := 2
+	if q != "" {
+		sql += ` AND (
+			o.slug ILIKE $` + itoa(argN) + ` OR o.title ILIKE $` + itoa(argN) + ` OR o.merchant_reference ILIKE $` + itoa(argN) + `
+			OR EXISTS (
+			  SELECT 1 FROM order_field_values ofv
+			  WHERE ofv.order_id = o.id
+			    AND ofv.field_key IN ('full_name','phone','email')
+			    AND ofv.value ILIKE $` + itoa(argN) + `
+			)
+		)`
+		args = append(args, "%"+q+"%")
+		argN++
+	}
+	if filter == "attention" {
+		sql += ` AND (
+			COALESCE(pi.status, o.status) IN ('NEEDS_REVIEW','UNDERPAID','OVERPAID','LATE_PAYMENT','DUPLICATE_PAYMENT')
+			OR (
+				COALESCE(pi.status, o.status) = 'PAID'
+				AND o.fulfillment_status IN ('UNFULFILLED','PROCESSING')
+				AND COALESCE(pi.paid_at, o.updated_at) < now() - interval '24 hours'
+			)
+		)`
+	}
+	sql += ` ORDER BY o.created_at DESC LIMIT 100`
+	_ = argN
+	rows, err := s.Pool.Query(r.Context(), sql, args...)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -167,14 +302,15 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	var out []map[string]any
 	for rows.Next() {
-		var id, slug, title, status, payStatus string
+		var id, slug, title, status, fulfill, payStatus, customerName, phone string
 		var amount int64
 		var created time.Time
-		_ = rows.Scan(&id, &slug, &title, &amount, &status, &created, &payStatus)
+		_ = rows.Scan(&id, &slug, &title, &amount, &status, &fulfill, &created, &payStatus, &customerName, &phone)
 		out = append(out, map[string]any{
 			"id": id, "slug": slug, "title": title, "fiat_amount_toman": amount,
-			"status": status, "payment_status": payStatus, "created_at": created,
-			"checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
+			"status": status, "fulfillment_status": fulfill, "payment_status": payStatus,
+			"customer_name": customerName, "customer_phone": phone,
+			"created_at": created, "checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
 		})
 	}
 	if out == nil {
