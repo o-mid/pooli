@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -9,6 +10,11 @@ import (
 	"github.com/pooli-shop/pooli/internal/domain"
 	"github.com/pooli-shop/pooli/internal/payment"
 	"github.com/pooli-shop/pooli/internal/sse"
+)
+
+var (
+	errQuoteNotRefreshable = errors.New("cannot refresh quote after payment activity")
+	errQuoteStillActive    = errors.New("quote still active")
 )
 
 func (s *Server) handlePublicPay(w http.ResponseWriter, r *http.Request) {
@@ -159,12 +165,12 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 		domain.StatusNeedsReview: true, domain.StatusDuplicatePayment: true,
 	}
 	if blocked[status] {
-		writeErr(w, http.StatusConflict, "cannot refresh quote after payment activity")
+		writeErr(w, http.StatusConflict, errQuoteNotRefreshable.Error())
 		return
 	}
 	expired := status == domain.StatusExpired || expiresAt.Before(time.Now().UTC())
 	if !expired {
-		writeErr(w, http.StatusConflict, "quote still active")
+		writeErr(w, http.StatusConflict, errQuoteStillActive.Error())
 		return
 	}
 
@@ -172,7 +178,7 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 	_ = s.Pool.QueryRow(r.Context(), `
 		SELECT COUNT(*) FROM matched_transactions WHERE payment_intent_id=$1::uuid`, intentID).Scan(&matched)
 	if matched > 0 {
-		writeErr(w, http.StatusConflict, "cannot refresh quote after payment activity")
+		writeErr(w, http.StatusConflict, errQuoteNotRefreshable.Error())
 		return
 	}
 
@@ -189,8 +195,43 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 	newExpires := time.Now().UTC().Add(s.Cfg.QuoteTTL)
 
 	err = payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
+		// Serialize concurrent refresh-quote: lock intent, then re-validate.
+		var lockedStatus string
+		var lockedExpires time.Time
+		var lockedToman int64
+		err := tx.QueryRow(r.Context(), `
+			SELECT o.id::text, o.merchant_id::text, pi.id::text, pi.status, pi.expires_at, pi.fiat_amount_toman
+			FROM orders o
+			JOIN payment_intents pi ON pi.order_id = o.id
+			WHERE o.slug=$1
+			FOR UPDATE OF pi`, slug).Scan(&orderID, &merchantID, &intentID, &lockedStatus, &lockedExpires, &lockedToman)
+		if err != nil {
+			return err
+		}
+		if blocked[lockedStatus] {
+			return errQuoteNotRefreshable
+		}
+		lockedExpired := lockedStatus == domain.StatusExpired || lockedExpires.Before(time.Now().UTC())
+		if !lockedExpired {
+			return errQuoteStillActive
+		}
+		var lockedMatched int
+		if err := tx.QueryRow(r.Context(), `
+			SELECT COUNT(*) FROM matched_transactions WHERE payment_intent_id=$1::uuid`, intentID).Scan(&lockedMatched); err != nil {
+			return err
+		}
+		if lockedMatched > 0 {
+			return errQuoteNotRefreshable
+		}
+		status = lockedStatus
+		toman = lockedToman
+		baseUSDT, err = payment.ComputeBaseUSDT(toman, quote.Rate)
+		if err != nil {
+			return err
+		}
+
 		// Release active reservations for non-settled options; supersede those options (immutable history).
-		_, err := tx.Exec(r.Context(), `
+		_, err = tx.Exec(r.Context(), `
 			UPDATE amount_reservations ar
 			SET status='released'
 			FROM payment_options po
@@ -242,6 +283,10 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, errQuoteNotRefreshable) || errors.Is(err, errQuoteStillActive) {
+			writeErr(w, http.StatusConflict, err.Error())
+			return
+		}
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}

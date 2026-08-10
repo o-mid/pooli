@@ -722,3 +722,54 @@ func TestResetClearsLeftoverState(t *testing.T) {
 		t.Fatal("subscription_plans seed should survive reset")
 	}
 }
+
+// OnTransition must observe committed payment state (side effects after TX), not mid-TX.
+func TestOnTransitionRunsAfterCommit(t *testing.T) {
+	pool := setup(t)
+	ctx := context.Background()
+	contract := "0x55d398326f99059ff775485246999027b3197955"
+	dest := uniqDest(16)
+	mid := seedMerchantWallet(t, pool, "bsc", dest, contract)
+	pay := uniqAmount(881)
+	intentID, _ := createIntentWithAmount(t, pool, mid, "bsc", dest, contract, pay-1, pay)
+
+	var (
+		mu           sync.Mutex
+		calls        int
+		statusInHook string
+	)
+	m := &payment.Matcher{
+		Pool: pool, BSCConfirmations: 1, TronConfirmations: 1,
+		OnTransition: func(merchantID, gotIntentID, eventType string, payload map[string]any) {
+			var st string
+			_ = pool.QueryRow(ctx, `SELECT status FROM payment_intents WHERE id=$1::uuid`, gotIntentID).Scan(&st)
+			mu.Lock()
+			calls++
+			statusInHook = st
+			mu.Unlock()
+			if gotIntentID != intentID {
+				t.Errorf("hook intent %s want %s", gotIntentID, intentID)
+			}
+			if merchantID != mid {
+				t.Errorf("hook merchant %s want %s", merchantID, mid)
+			}
+			_ = eventType
+			_ = payload
+		},
+	}
+	res, err := m.Ingest(ctx, bscEvent(dest, contract, pay, 20))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NewStatus != domain.StatusPaid {
+		t.Fatalf("want PAID got %#v", res)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if calls < 1 {
+		t.Fatal("expected OnTransition after successful match")
+	}
+	if statusInHook != domain.StatusPaid {
+		t.Fatalf("OnTransition saw status %q; want committed PAID (side effects must run after TX)", statusInHook)
+	}
+}
