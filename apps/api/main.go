@@ -31,14 +31,15 @@ func main() {
 	defer pool.Close()
 
 	rates, err := rate.BuildProviderOpts(rate.Options{
-		Name:       cfg.RateProvider,
-		MockRate:   cfg.MockUSDTTmnRate,
-		AppEnv:     cfg.AppEnv,
-		Policy:     cfg.RatePolicy,
-		CacheTTL:   cfg.RateCache,
-		MaxAge:     cfg.RateMaxAge,
-		StaleAfter: cfg.RateStale,
-		Timeout:    cfg.RateProviderTimeout,
+		Name:         cfg.RateProvider,
+		FallbackName: cfg.RateFallbackProvider,
+		MockRate:     cfg.MockUSDTTmnRate,
+		AppEnv:       cfg.AppEnv,
+		Policy:       cfg.RatePolicy,
+		CacheTTL:     cfg.RateCache,
+		MaxAge:       cfg.RateMaxAge,
+		StaleAfter:   cfg.RateStale,
+		Timeout:      cfg.RateProviderTimeout,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -55,7 +56,8 @@ func main() {
 			hub.PublishIntent(intentID, sse.Event{Type: eventType, Payload: payload})
 			hub.PublishMerchant(merchantID, sse.Event{Type: eventType, Payload: payload})
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
-			notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
+			// Async after matcher commit — never hold matching on Telegram HTTP.
+			go notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
 		},
 	}
 

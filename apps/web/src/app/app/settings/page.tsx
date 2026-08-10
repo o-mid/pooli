@@ -52,11 +52,21 @@ export default function SettingsPage() {
   const [support, setSupport] = useState("");
   const [tgConnected, setTgConnected] = useState(false);
   const [tgUsername, setTgUsername] = useState("");
+  const [tgMsg, setTgMsg] = useState("");
+  const [tgError, setTgError] = useState("");
+  const [tgBusy, setTgBusy] = useState(false);
+  const [tgDeepLink, setTgDeepLink] = useState("");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [standalone, setStandalone] = useState(false);
   const [defaults, setDefaults] = useState<Defaults | null>(null);
+  const awaitingTgConnect = useRef(false);
+
+  function applyTelegram(data: Me) {
+    setTgConnected(Boolean(data.merchant?.telegram?.connected));
+    setTgUsername(data.merchant?.telegram?.username || "");
+  }
 
   async function refreshMe() {
     const data = await api<Me>("/api/v1/me");
@@ -64,9 +74,14 @@ export default function SettingsPage() {
     setDisplayName(data.merchant?.display_name || data.merchant?.name || "");
     setDescription(data.merchant?.description || "");
     setSupport(data.merchant?.support_contact || "");
-    setTgConnected(Boolean(data.merchant?.telegram?.connected));
-    setTgUsername(data.merchant?.telegram?.username || "");
+    applyTelegram(data);
     return data;
+  }
+
+  async function refreshTelegramStatus() {
+    const data = await api<Me>("/api/v1/me");
+    applyTelegram(data);
+    return Boolean(data.merchant?.telegram?.connected);
   }
 
   useEffect(() => {
@@ -75,7 +90,32 @@ export default function SettingsPage() {
     api<Defaults>("/api/v1/merchant/checkout-defaults")
       .then(setDefaults)
       .catch(() => undefined);
+    // Initial load only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    function onFocus() {
+      if (!awaitingTgConnect.current) return;
+      api<Me>("/api/v1/me")
+        .then((data) => {
+          applyTelegram(data);
+          if (data.merchant?.telegram?.connected) {
+            awaitingTgConnect.current = false;
+            setTgDeepLink("");
+            setTgMsg(t.settings.telegramConnected);
+            setTgError("");
+          }
+        })
+        .catch(() => undefined);
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [t.settings.telegramConnected]);
 
   async function saveStore(e: FormEvent) {
     e.preventDefault();
@@ -124,60 +164,75 @@ export default function SettingsPage() {
   }
 
   async function connectTelegram() {
-    setLoading(true);
-    setError("");
-    setMsg("");
+    setTgBusy(true);
+    setTgError("");
+    setTgMsg("");
+    setTgDeepLink("");
     try {
       const res = await api<{ url: string }>("/api/v1/telegram/connect-link", {
         method: "POST",
         body: "{}",
       });
-      if (res.url) {
-        window.open(res.url, "_blank", "noopener,noreferrer");
+      if (!res.url) {
+        throw new Error(t.common.error);
       }
-      // Poll briefly for webhook bind completion.
-      for (let i = 0; i < 8; i++) {
+      setTgDeepLink(res.url);
+      awaitingTgConnect.current = true;
+      const popup = window.open(res.url, "_blank", "noopener,noreferrer");
+      if (!popup) {
+        setTgError(t.settings.telegramOpenFailed);
+      } else {
+        setTgMsg(t.settings.telegramConnectWaiting);
+      }
+      for (let i = 0; i < 12; i++) {
         await new Promise((r) => setTimeout(r, 1500));
-        const me = await refreshMe();
-        if (me.merchant?.telegram?.connected) {
-          setMsg(t.settings.telegramConnected);
+        if (await refreshTelegramStatus()) {
+          awaitingTgConnect.current = false;
+          setTgDeepLink("");
+          setTgMsg(t.settings.telegramConnected);
+          setTgError("");
           break;
         }
       }
+      if (awaitingTgConnect.current) {
+        setTgMsg(t.settings.telegramConnectWaiting);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.common.error);
+      setTgError(err instanceof Error ? err.message : t.common.error);
     } finally {
-      setLoading(false);
+      setTgBusy(false);
     }
   }
 
   async function disconnectTelegram() {
-    setLoading(true);
-    setError("");
-    setMsg("");
+    setTgBusy(true);
+    setTgError("");
+    setTgMsg("");
     try {
       await api("/api/v1/telegram/disconnect", { method: "POST", body: "{}" });
       setTgConnected(false);
       setTgUsername("");
-      setMsg(t.common.saved);
+      awaitingTgConnect.current = false;
+      setTgDeepLink("");
+      setTgMsg(t.settings.telegramDisconnected);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.common.error);
+      setTgError(err instanceof Error ? err.message : t.common.error);
     } finally {
-      setLoading(false);
+      setTgBusy(false);
     }
   }
 
   async function sendTelegramTest() {
-    setLoading(true);
-    setError("");
-    setMsg("");
+    setTgBusy(true);
+    setTgError("");
+    setTgMsg("");
     try {
       await api("/api/v1/telegram/test", { method: "POST", body: "{}" });
-      setMsg(t.settings.telegramTestSent);
+      setTgMsg(t.settings.telegramTestSent);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.common.error);
+      setTgError(err instanceof Error ? err.message : t.common.error);
     } finally {
-      setLoading(false);
+      setTgBusy(false);
     }
   }
 
@@ -304,10 +359,10 @@ export default function SettingsPage() {
                     {t.settings.telegramConnectedHint}
                   </p>
                   <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
-                    <button type="button" className="btn btn-secondary" disabled={loading} onClick={sendTelegramTest}>
-                      {t.settings.sendTelegramTest}
+                    <button type="button" className="btn btn-secondary" disabled={tgBusy} onClick={sendTelegramTest}>
+                      {tgBusy ? t.common.loading : t.settings.sendTelegramTest}
                     </button>
-                    <button type="button" className="btn btn-tertiary" disabled={loading} onClick={disconnectTelegram}>
+                    <button type="button" className="btn btn-tertiary" disabled={tgBusy} onClick={disconnectTelegram}>
                       {t.settings.disconnectTelegram}
                     </button>
                   </div>
@@ -317,20 +372,30 @@ export default function SettingsPage() {
                   <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
                     {t.settings.telegramHint}
                   </p>
-                  <p className="muted" style={{ margin: "var(--space-1) 0 0" }}>
-                    {t.settings.telegramNotConnected}
-                  </p>
                   <button
                     type="button"
                     className="btn btn-primary"
                     style={{ marginTop: "var(--space-4)" }}
-                    disabled={loading}
+                    disabled={tgBusy}
                     onClick={connectTelegram}
                   >
-                    {t.settings.connectTelegram}
+                    {tgBusy ? t.common.loading : t.settings.connectTelegram}
                   </button>
+                  {tgDeepLink ? (
+                    <p className="muted" style={{ margin: "var(--space-3) 0 0" }}>
+                      <a className="mono-ltr" href={tgDeepLink} target="_blank" rel="noopener noreferrer">
+                        {tgDeepLink}
+                      </a>
+                    </p>
+                  ) : null}
                 </>
               )}
+              {tgError ? (
+                <p className="field-error" role="alert" style={{ marginTop: "var(--space-3)" }}>
+                  {tgError}
+                </p>
+              ) : null}
+              {tgMsg ? <p className="ok" style={{ marginTop: "var(--space-3)" }}>{tgMsg}</p> : null}
             </div>
           </section>
         </div>

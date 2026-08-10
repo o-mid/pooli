@@ -47,7 +47,7 @@ func main() {
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			log.Printf("transition %s intent=%s", eventType, intentID)
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
-			notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
+			go notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
 		},
 	}
 

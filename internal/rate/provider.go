@@ -79,16 +79,17 @@ func (f FallbackProvider) FetchUSDTTmn(ctx context.Context) (domain.RateQuote, e
 
 // Options configures live/mock rate provider construction.
 type Options struct {
-	Name            string
-	MockRate        string
-	AppEnv          string
-	Policy          string // best_buy | best_sell | latest
-	CacheTTL        time.Duration
-	MaxAge          time.Duration
-	StaleAfter      time.Duration // kept for FallbackProvider compatibility
-	Timeout         time.Duration
-	MinTMNPerUSDT   decimal.Decimal
-	MaxTMNPerUSDT   decimal.Decimal
+	Name          string
+	FallbackName  string // wallex (default); never mock
+	MockRate      string
+	AppEnv        string
+	Policy        string // best_buy | best_sell | latest
+	CacheTTL      time.Duration
+	MaxAge        time.Duration
+	StaleAfter    time.Duration // kept for FallbackProvider compatibility
+	Timeout       time.Duration
+	MinTMNPerUSDT decimal.Decimal
+	MaxTMNPerUSDT decimal.Decimal
 }
 
 func BuildProvider(name, mockRate string, stale time.Duration) (Provider, error) {
@@ -121,7 +122,8 @@ func BuildProviderOpts(opts Options) (Provider, error) {
 		opts.StaleAfter = opts.MaxAge
 	}
 	if opts.MinTMNPerUSDT.IsZero() {
-		opts.MinTMNPerUSDT = decimal.NewFromInt(10000) // sanity floor
+		// Floor high enough that an accidental extra IRR→TMN /10 still fails closed.
+		opts.MinTMNPerUSDT = decimal.NewFromInt(50000)
 	}
 	if opts.MaxTMNPerUSDT.IsZero() {
 		opts.MaxTMNPerUSDT = decimal.NewFromInt(5000000) // sanity ceiling
@@ -142,10 +144,20 @@ func BuildProviderOpts(opts Options) (Provider, error) {
 			MinRate: opts.MinTMNPerUSDT,
 			MaxRate: opts.MaxTMNPerUSDT,
 		}
-		fallback := &WallexProvider{
-			Timeout: opts.Timeout,
-			MinRate: opts.MinTMNPerUSDT,
-			MaxRate: opts.MaxTMNPerUSDT,
+		fallbackName := opts.FallbackName
+		if fallbackName == "" {
+			fallbackName = "wallex"
+		}
+		var fallback Provider
+		switch fallbackName {
+		case "wallex":
+			fallback = &WallexProvider{
+				Timeout: opts.Timeout,
+				MinRate: opts.MinTMNPerUSDT,
+				MaxRate: opts.MaxTMNPerUSDT,
+			}
+		default:
+			return nil, fmt.Errorf("unknown RATE_FALLBACK_PROVIDER %q (use wallex)", fallbackName)
 		}
 		chain := FallbackProvider{
 			Primary:    primary,

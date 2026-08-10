@@ -12,6 +12,29 @@ import (
 	"github.com/pooli-shop/pooli/internal/domain"
 )
 
+type transitionEvent struct {
+	merchantID string
+	intentID   string
+	eventType  string
+	payload    map[string]any
+}
+
+type emitBufferKey struct{}
+
+// withDeferredEmits buffers OnTransition calls until fn returns nil, then flushes
+// them so side effects (SSE, timeline, Telegram) never run inside an open DB TX.
+func (m *Matcher) withDeferredEmits(ctx context.Context, fn func(context.Context) error) error {
+	var pending []transitionEvent
+	ctx = context.WithValue(ctx, emitBufferKey{}, &pending)
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	for _, e := range pending {
+		m.fireTransition(e.merchantID, e.intentID, e.eventType, e.payload)
+	}
+	return nil
+}
+
 type MatchResult struct {
 	PaymentIntentID string `json:"payment_intent_id"`
 	PaymentOptionID string `json:"payment_option_id"`
@@ -82,13 +105,14 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 	tokenNorm := normalizeAddress(ev.Network, ev.TokenContract)
 
 	var result MatchResult
-	err := WithTx(ctx, m.Pool, func(tx pgx.Tx) error {
-		raw, _ := json.Marshal(ev.Raw)
-		if raw == nil {
-			raw = []byte("{}")
-		}
-		var chainEventID string
-		err := tx.QueryRow(ctx, `
+	err := m.withDeferredEmits(ctx, func(ctx context.Context) error {
+		return WithTx(ctx, m.Pool, func(tx pgx.Tx) error {
+			raw, _ := json.Marshal(ev.Raw)
+			if raw == nil {
+				raw = []byte("{}")
+			}
+			var chainEventID string
+			err := tx.QueryRow(ctx, `
 			INSERT INTO chain_events (
 				event_id, network, chain_id, tx_hash, log_index, token_contract,
 				from_address, to_address, to_address_normalized, amount_base_units,
@@ -98,22 +122,22 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 			)
 			ON CONFLICT (event_id) DO NOTHING
 			RETURNING id::text`,
-			ev.EventID, ev.Network, ev.ChainID, ev.TxHash, ev.LogIndex, tokenNorm,
-			ev.From, ev.To, toNorm, ev.AmountBaseUnits, ev.BlockNumber, ev.Confirmations, ev.ObservedAt, string(raw),
-		).Scan(&chainEventID)
-		if err == pgx.ErrNoRows {
-			result.Ignored = true
-			result.Duplicate = true
-			return nil
-		}
-		if err != nil {
-			return err
-		}
+				ev.EventID, ev.Network, ev.ChainID, ev.TxHash, ev.LogIndex, tokenNorm,
+				ev.From, ev.To, toNorm, ev.AmountBaseUnits, ev.BlockNumber, ev.Confirmations, ev.ObservedAt, string(raw),
+			).Scan(&chainEventID)
+			if err == pgx.ErrNoRows {
+				result.Ignored = true
+				result.Duplicate = true
+				return nil
+			}
+			if err != nil {
+				return err
+			}
 
-		var optionID, intentID, intentStatus, reservationStatus string
-		var expiresAt time.Time
-		var merchantID string
-		err = tx.QueryRow(ctx, `
+			var optionID, intentID, intentStatus, reservationStatus string
+			var expiresAt time.Time
+			var merchantID string
+			err = tx.QueryRow(ctx, `
 			SELECT po.id::text, pi.id::text, pi.status, pi.expires_at, pi.merchant_id::text, ar.status
 			FROM amount_reservations ar
 			JOIN payment_options po ON po.id = ar.payment_option_id
@@ -125,101 +149,106 @@ func (m *Matcher) Ingest(ctx context.Context, ev domain.ChainEvent) (MatchResult
 			  AND ar.pay_amount_base_units = $4
 			ORDER BY CASE ar.status WHEN 'active' THEN 0 ELSE 1 END
 			LIMIT 1`,
-			toNorm, ev.Network, tokenNorm, ev.AmountBaseUnits,
-		).Scan(&optionID, &intentID, &intentStatus, &expiresAt, &merchantID, &reservationStatus)
-		if err == pgx.ErrNoRows {
-			handled, herr := m.reconcileReleasedExact(ctx, tx, chainEventID, toNorm, tokenNorm, ev, &result)
-			if herr != nil {
-				return herr
-			}
-			if handled {
-				return nil
-			}
-			// Try near-miss detection for review
-			return m.handleUnmatched(ctx, tx, chainEventID, toNorm, ev, &result)
-		}
-		if err != nil {
-			return err
-		}
-
-		result.PaymentIntentID = intentID
-		result.PaymentOptionID = optionID
-
-		// Already locked or paid: second exact transfer cannot rematch the same option.
-		if reservationStatus == "matched" || intentStatus == domain.StatusPaid ||
-			intentStatus == domain.StatusSeen || intentStatus == domain.StatusConfirming {
-			result.MatchType = "DUPLICATE_PAYMENT"
-			next := domain.StatusDuplicatePayment
-			if intentStatus == domain.StatusSeen || intentStatus == domain.StatusConfirming {
-				// Keep first match in flight; escalate for operator review.
-				next = domain.StatusNeedsReview
-			}
-			result.NewStatus = next
-			if intentStatus != next {
-				if err := m.appendState(ctx, tx, intentID, intentStatus, next, "second exact transfer while matched/paid", "system", ev); err != nil {
-					return err
+				toNorm, ev.Network, tokenNorm, ev.AmountBaseUnits,
+			).Scan(&optionID, &intentID, &intentStatus, &expiresAt, &merchantID, &reservationStatus)
+			if err == pgx.ErrNoRows {
+				handled, herr := m.reconcileReleasedExact(ctx, tx, chainEventID, toNorm, tokenNorm, ev, &result)
+				if herr != nil {
+					return herr
 				}
-				_, _ = tx.Exec(ctx, `UPDATE payment_intents SET status=$2, updated_at=now() WHERE id=$1::uuid`,
-					intentID, next)
+				if handled {
+					return nil
+				}
+				// Try near-miss detection for review
+				return m.handleUnmatched(ctx, tx, chainEventID, toNorm, ev, &result)
 			}
-			_, err = tx.Exec(ctx, `
+			if err != nil {
+				return err
+			}
+
+			result.PaymentIntentID = intentID
+			result.PaymentOptionID = optionID
+
+			// Already locked or paid: second exact transfer cannot rematch the same option.
+			if reservationStatus == "matched" || intentStatus == domain.StatusPaid ||
+				intentStatus == domain.StatusSeen || intentStatus == domain.StatusConfirming {
+				result.MatchType = "DUPLICATE_PAYMENT"
+				next := domain.StatusDuplicatePayment
+				if intentStatus == domain.StatusSeen || intentStatus == domain.StatusConfirming {
+					// Keep first match in flight; escalate for operator review.
+					next = domain.StatusNeedsReview
+				}
+				result.NewStatus = next
+				if intentStatus != next {
+					if err := m.appendState(ctx, tx, intentID, intentStatus, next, "second exact transfer while matched/paid", "system", ev); err != nil {
+						return err
+					}
+					_, _ = tx.Exec(ctx, `UPDATE payment_intents SET status=$2, updated_at=now() WHERE id=$1::uuid`,
+						intentID, next)
+				}
+				_, err = tx.Exec(ctx, `
 				INSERT INTO matched_transactions (chain_event_id, payment_intent_id, payment_option_id, match_type)
 				VALUES ($1::uuid, $2::uuid, $3::uuid, $4)
 				ON CONFLICT (chain_event_id) DO NOTHING`, chainEventID, intentID, optionID, result.MatchType)
-			m.emit(merchantID, intentID, "payment.needs_review", map[string]any{"status": result.NewStatus, "tx_hash": ev.TxHash})
-			return err
-		}
-
-		if eventTime(ev).After(expiresAt) && intentStatus != domain.StatusPaid {
-			result.MatchType = "LATE_PAYMENT"
-			result.NewStatus = domain.StatusLatePayment
-			if err := m.transition(ctx, tx, intentID, intentStatus, domain.StatusLatePayment, "payment after expiry", optionID, chainEventID, result.MatchType); err != nil {
+				m.emit(ctx, merchantID, intentID, "payment.needs_review", map[string]any{
+					"status": result.NewStatus, "tx_hash": ev.TxHash, "amount_base_units": ev.AmountBaseUnits, "network": ev.Network,
+				})
 				return err
 			}
-			_, _ = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
-			m.emit(merchantID, intentID, "payment.needs_review", map[string]any{"status": result.NewStatus, "tx_hash": ev.TxHash})
-			return nil
-		}
 
-		needed := m.requiredConfirmations(ev.Network)
-		next := domain.StatusSeen
-		eventType := "payment.seen"
-		if ev.Confirmations >= needed {
-			next = domain.StatusPaid
-			eventType = "payment.paid"
-		} else if ev.Confirmations > 0 {
-			next = domain.StatusConfirming
-			eventType = "payment.confirming"
-		}
+			if eventTime(ev).After(expiresAt) && intentStatus != domain.StatusPaid {
+				result.MatchType = "LATE_PAYMENT"
+				result.NewStatus = domain.StatusLatePayment
+				if err := m.transition(ctx, tx, intentID, intentStatus, domain.StatusLatePayment, "payment after expiry", optionID, chainEventID, result.MatchType); err != nil {
+					return err
+				}
+				_, _ = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
+				m.emit(ctx, merchantID, intentID, "payment.needs_review", map[string]any{
+					"status": result.NewStatus, "tx_hash": ev.TxHash, "amount_base_units": ev.AmountBaseUnits, "network": ev.Network,
+				})
+				return nil
+			}
 
-		result.MatchType = "EXACT"
-		result.NewStatus = next
-		if err := m.transition(ctx, tx, intentID, intentStatus, next, "exact amount match", optionID, chainEventID, result.MatchType); err != nil {
-			return err
-		}
-		// Lock payable amount immediately (matched != settled).
-		_, err = tx.Exec(ctx, `
+			needed := m.requiredConfirmations(ev.Network)
+			next := domain.StatusSeen
+			eventType := "payment.seen"
+			if ev.Confirmations >= needed {
+				next = domain.StatusPaid
+				eventType = "payment.paid"
+			} else if ev.Confirmations > 0 {
+				next = domain.StatusConfirming
+				eventType = "payment.confirming"
+			}
+
+			result.MatchType = "EXACT"
+			result.NewStatus = next
+			if err := m.transition(ctx, tx, intentID, intentStatus, next, "exact amount match", optionID, chainEventID, result.MatchType); err != nil {
+				return err
+			}
+			// Lock payable amount immediately (matched != settled).
+			_, err = tx.Exec(ctx, `
 			UPDATE amount_reservations SET status='matched'
 			WHERE payment_option_id=$1::uuid AND status='active'`, optionID)
-		if err != nil {
-			return err
-		}
-		if next == domain.StatusPaid {
-			if err := m.settlePaid(ctx, tx, merchantID, intentID, optionID); err != nil {
+			if err != nil {
 				return err
 			}
-		}
-		_, err = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
-		if err != nil {
-			return err
-		}
-		m.emit(merchantID, intentID, eventType, map[string]any{
-			"status": next, "tx_hash": ev.TxHash, "network": ev.Network,
-			"amount_base_units": ev.AmountBaseUnits,
-			"confirmations":     ev.Confirmations,
-			"required_confirmations": needed,
+			if next == domain.StatusPaid {
+				if err := m.settlePaid(ctx, tx, merchantID, intentID, optionID); err != nil {
+					return err
+				}
+			}
+			_, err = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
+			if err != nil {
+				return err
+			}
+			m.emit(ctx, merchantID, intentID, eventType, map[string]any{
+				"status": next, "tx_hash": ev.TxHash, "network": ev.Network,
+				"amount_base_units":      ev.AmountBaseUnits,
+				"confirmations":          ev.Confirmations,
+				"required_confirmations": needed,
+			})
+			return nil
 		})
-		return nil
 	})
 	return result, err
 }
@@ -286,12 +315,12 @@ func (m *Matcher) reconcileReleasedExact(
 			      'candidate_count', $2::int
 			    )
 			WHERE id = $1::uuid`, chainEventID, len(cands))
-		m.emit(cands[0].merchantID, "", "payment.unmatched_ambiguous", map[string]any{
-			"reason":           "ambiguous_released_exact",
-			"tx_hash":          ev.TxHash,
-			"candidate_count":  len(cands),
+		m.emit(ctx, cands[0].merchantID, "", "payment.unmatched_ambiguous", map[string]any{
+			"reason":            "ambiguous_released_exact",
+			"tx_hash":           ev.TxHash,
+			"candidate_count":   len(cands),
 			"amount_base_units": ev.AmountBaseUnits,
-			"network":          ev.Network,
+			"network":           ev.Network,
 		})
 		return true, nil
 	}
@@ -305,8 +334,9 @@ func (m *Matcher) reconcileReleasedExact(
 		return true, err
 	}
 	_, _ = tx.Exec(ctx, `UPDATE chain_events SET processed_at=now() WHERE id=$1::uuid`, chainEventID)
-	m.emit(c.merchantID, c.intentID, "payment.needs_review", map[string]any{
+	m.emit(ctx, c.merchantID, c.intentID, "payment.needs_review", map[string]any{
 		"status": result.NewStatus, "tx_hash": ev.TxHash, "match_type": result.MatchType,
+		"amount_base_units": ev.AmountBaseUnits, "network": ev.Network,
 	})
 	return true, nil
 }
@@ -360,7 +390,9 @@ func (m *Matcher) handleUnmatched(ctx context.Context, tx pgx.Tx, chainEventID, 
 		if err := m.transition(ctx, tx, c.intentID, c.status, domain.StatusNeedsReview, "ambiguous nearby amounts", c.optionID, chainEventID, result.MatchType); err != nil {
 			return err
 		}
-		m.emit(c.merchantID, c.intentID, "payment.needs_review", map[string]any{"reason": "ambiguous"})
+		m.emit(ctx, c.merchantID, c.intentID, "payment.needs_review", map[string]any{
+			"reason": "ambiguous", "amount_base_units": ev.AmountBaseUnits, "network": ev.Network,
+		})
 		return nil
 	}
 	c := cands[0]
@@ -381,7 +413,9 @@ func (m *Matcher) handleUnmatched(ctx context.Context, tx pgx.Tx, chainEventID, 
 	if err := m.transition(ctx, tx, c.intentID, c.status, result.NewStatus, result.MatchType, c.optionID, chainEventID, result.MatchType); err != nil {
 		return err
 	}
-	m.emit(c.merchantID, c.intentID, "payment.needs_review", map[string]any{"match_type": result.MatchType})
+	m.emit(ctx, c.merchantID, c.intentID, "payment.needs_review", map[string]any{
+		"match_type": result.MatchType, "amount_base_units": ev.AmountBaseUnits, "network": ev.Network,
+	})
 	return nil
 }
 
@@ -430,12 +464,21 @@ func (m *Matcher) requiredConfirmations(network string) int {
 	return m.TronConfirmations
 }
 
-func (m *Matcher) emit(merchantID, intentID, eventType string, payload map[string]any) {
+func (m *Matcher) emit(ctx context.Context, merchantID, intentID, eventType string, payload map[string]any) {
+	if buf, ok := ctx.Value(emitBufferKey{}).(*[]transitionEvent); ok && buf != nil {
+		*buf = append(*buf, transitionEvent{
+			merchantID: merchantID, intentID: intentID, eventType: eventType, payload: payload,
+		})
+		return
+	}
+	m.fireTransition(merchantID, intentID, eventType, payload)
+}
+
+func (m *Matcher) fireTransition(merchantID, intentID, eventType string, payload map[string]any) {
 	if m.OnTransition != nil {
 		m.OnTransition(merchantID, intentID, eventType, payload)
 	}
 }
-
 
 func (m *Matcher) settlePaid(ctx context.Context, tx pgx.Tx, merchantID, intentID, optionID string) error {
 	if optionID != "" {
@@ -473,57 +516,62 @@ func normalizeAddress(network, addr string) string {
 
 // AdvanceConfirmations upgrades SEEN/CONFIRMING intents when confirmations suffice.
 func (m *Matcher) ApplyConfirmations(ctx context.Context, eventID string, confirmations int) error {
-	return WithTx(ctx, m.Pool, func(tx pgx.Tx) error {
-		var intentID, status, merchantID, txHash, network string
-		var amount int64
-		err := tx.QueryRow(ctx, `
+	return m.withDeferredEmits(ctx, func(ctx context.Context) error {
+		return WithTx(ctx, m.Pool, func(tx pgx.Tx) error {
+			var intentID, status, merchantID, txHash, network string
+			var amount int64
+			err := tx.QueryRow(ctx, `
 			SELECT pi.id::text, pi.status, pi.merchant_id::text, ce.tx_hash, ce.network, ce.amount_base_units
 			FROM chain_events ce
 			JOIN matched_transactions mt ON mt.chain_event_id = ce.id
 			JOIN payment_intents pi ON pi.id = mt.payment_intent_id
 			WHERE ce.event_id = $1 AND mt.match_type = 'EXACT'`, eventID).Scan(&intentID, &status, &merchantID, &txHash, &network, &amount)
-		if err == pgx.ErrNoRows {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		_, _ = tx.Exec(ctx, `UPDATE chain_events SET confirmations=$2 WHERE event_id=$1`, eventID, confirmations)
-		needed := m.requiredConfirmations(network)
-		if status == domain.StatusPaid {
-			return nil
-		}
-		next := domain.StatusConfirming
-		evt := "payment.confirming"
-		if confirmations >= needed {
-			next = domain.StatusPaid
-			evt = "payment.paid"
-		}
-		if next == status {
-			return nil
-		}
-		if err := m.appendState(ctx, tx, intentID, status, next, "confirmation update", "system", map[string]any{"confirmations": confirmations}); err != nil {
-			return err
-		}
-		paidAt := interface{}(nil)
-		var optionID string
-		_ = tx.QueryRow(ctx, `
+			if err == pgx.ErrNoRows {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			_, _ = tx.Exec(ctx, `UPDATE chain_events SET confirmations=$2 WHERE event_id=$1`, eventID, confirmations)
+			needed := m.requiredConfirmations(network)
+			if status == domain.StatusPaid {
+				return nil
+			}
+			next := domain.StatusConfirming
+			evt := "payment.confirming"
+			if confirmations >= needed {
+				next = domain.StatusPaid
+				evt = "payment.paid"
+			}
+			if next == status {
+				return nil
+			}
+			if err := m.appendState(ctx, tx, intentID, status, next, "confirmation update", "system", map[string]any{"confirmations": confirmations}); err != nil {
+				return err
+			}
+			paidAt := interface{}(nil)
+			var optionID string
+			_ = tx.QueryRow(ctx, `
 			SELECT mt.payment_option_id::text FROM matched_transactions mt
 			JOIN chain_events ce ON ce.id = mt.chain_event_id
 			WHERE ce.event_id=$1 AND mt.match_type='EXACT' LIMIT 1`, eventID).Scan(&optionID)
-		if next == domain.StatusPaid {
-			paidAt = time.Now().UTC()
-			if err := m.settlePaid(ctx, tx, merchantID, intentID, optionID); err != nil {
-				return err
+			if next == domain.StatusPaid {
+				paidAt = time.Now().UTC()
+				if err := m.settlePaid(ctx, tx, merchantID, intentID, optionID); err != nil {
+					return err
+				}
 			}
-		}
-		_, err = tx.Exec(ctx, `
+			_, err = tx.Exec(ctx, `
 			UPDATE payment_intents SET status=$2, paid_at=COALESCE($3::timestamptz, paid_at), updated_at=now()
 			WHERE id=$1::uuid`, intentID, next, paidAt)
-		if err != nil {
-			return err
-		}
-		m.emit(merchantID, intentID, evt, map[string]any{"status": next, "tx_hash": txHash, "network": network, "confirmations": confirmations, "required_confirmations": needed})
-		return nil
+			if err != nil {
+				return err
+			}
+			m.emit(ctx, merchantID, intentID, evt, map[string]any{
+				"status": next, "tx_hash": txHash, "network": network,
+				"amount_base_units": amount, "confirmations": confirmations, "required_confirmations": needed,
+			})
+			return nil
+		})
 	})
 }

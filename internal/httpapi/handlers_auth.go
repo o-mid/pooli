@@ -90,7 +90,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"merchant": map[string]any{
 			"id": merchantID, "name": merchantName, "display_name": displayName,
 			"description": description, "logo_url": logoURL, "support_contact": support,
-			"slug": merchantSlug, "telegram_chat_id": telegramChatID,
+			"slug": merchantSlug,
 			"telegram": telegram,
 		},
 	})

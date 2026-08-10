@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pooli-shop/pooli/internal/domain"
@@ -77,24 +76,23 @@ func (t *Telegram) DeliverPaid(ctx context.Context, n PaidNotify) error {
 	if !t.Enabled || t.Token == "" {
 		return nil
 	}
+	chatID, err := t.chatID(ctx, n.MerchantID)
+	if err != nil || chatID == "" {
+		return nil
+	}
+	var notifyPaid bool
+	if err := t.Pool.QueryRow(ctx, `SELECT notify_payment_received FROM merchants WHERE id=$1::uuid`, n.MerchantID).Scan(&notifyPaid); err != nil {
+		return err
+	}
+	if !notifyPaid {
+		return nil
+	}
 	eventKey := "payment.paid:" + n.IntentID
 	ok, err := t.beginDelivery(ctx, n.MerchantID, n.IntentID, "payment.paid", eventKey, map[string]any{
 		"order_ref": n.OrderRef, "toman": n.Toman,
 	})
 	if err != nil || !ok {
 		return err
-	}
-
-	chatID, err := t.chatID(ctx, n.MerchantID)
-	if err != nil || chatID == "" {
-		_ = t.failDelivery(ctx, n.MerchantID, eventKey, "no telegram connection")
-		return nil
-	}
-	var notifyPaid bool
-	_ = t.Pool.QueryRow(ctx, `SELECT notify_payment_received FROM merchants WHERE id=$1::uuid`, n.MerchantID).Scan(&notifyPaid)
-	if !notifyPaid {
-		_ = t.failDelivery(ctx, n.MerchantID, eventKey, "pref disabled")
-		return nil
 	}
 
 	name := strings.TrimSpace(n.CustomerName)
@@ -111,23 +109,23 @@ func (t *Telegram) DeliverNeedsAttention(ctx context.Context, n AttentionNotify)
 	if !t.Enabled || t.Token == "" {
 		return nil
 	}
+	chatID, err := t.chatID(ctx, n.MerchantID)
+	if err != nil || chatID == "" {
+		return nil
+	}
+	var notifyAttn bool
+	if err := t.Pool.QueryRow(ctx, `SELECT notify_payment_attention FROM merchants WHERE id=$1::uuid`, n.MerchantID).Scan(&notifyAttn); err != nil {
+		return err
+	}
+	if !notifyAttn {
+		return nil
+	}
 	eventKey := "payment.needs_review:" + n.IntentID
 	ok, err := t.beginDelivery(ctx, n.MerchantID, n.IntentID, "payment.needs_review", eventKey, map[string]any{
 		"status": n.Status, "order_ref": n.OrderRef,
 	})
 	if err != nil || !ok {
 		return err
-	}
-	chatID, err := t.chatID(ctx, n.MerchantID)
-	if err != nil || chatID == "" {
-		_ = t.failDelivery(ctx, n.MerchantID, eventKey, "no telegram connection")
-		return nil
-	}
-	var notifyAttn bool
-	_ = t.Pool.QueryRow(ctx, `SELECT notify_payment_attention FROM merchants WHERE id=$1::uuid`, n.MerchantID).Scan(&notifyAttn)
-	if !notifyAttn {
-		_ = t.failDelivery(ctx, n.MerchantID, eventKey, "pref disabled")
-		return nil
 	}
 	text := t.attentionText(n.Locale, n.OrderRef, n.Expected, n.Received)
 	if n.OrderID != "" {
@@ -271,8 +269,7 @@ func (t *Telegram) postMessage(ctx context.Context, chatID, text string) error {
 	var parsed struct {
 		OK bool `json:"ok"`
 	}
-	_ = json.Unmarshal(body, &parsed)
-	if !parsed.OK && len(body) > 0 && bytes.Contains(body, []byte(`"ok"`)) {
+	if err := json.Unmarshal(body, &parsed); err != nil || !parsed.OK {
 		return fmt.Errorf("telegram api not ok")
 	}
 	return nil
@@ -349,6 +346,3 @@ func isInvalidUUID(err error) bool {
 	}
 	return strings.Contains(err.Error(), "invalid input syntax for type uuid")
 }
-
-// Ensure unused import guard for pgx in some builds.
-var _ = pgx.ErrNoRows

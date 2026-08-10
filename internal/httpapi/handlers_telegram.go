@@ -3,6 +3,7 @@ package httpapi
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -104,7 +105,8 @@ func (s *Server) handleTelegramWebhook(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusForbidden, "webhook not configured")
 		return
 	}
-	if r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != secret {
+	got := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
+	if subtle.ConstantTimeCompare([]byte(got), []byte(secret)) != 1 {
 		writeErr(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
