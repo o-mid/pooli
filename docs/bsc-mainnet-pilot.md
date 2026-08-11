@@ -63,11 +63,24 @@ BSC_EXPLORER_TX_URL=https://bscscan.com/tx/%s
 
 Keep secrets out of git. Prefer a paid/authenticated RPC for production; public dataseeds often rate-limit or truncate `eth_getLogs`.
 
+### Recommended RPC providers (Omid creates account — do not purchase via agent)
+
+| Provider | Notes |
+|----------|--------|
+| **Chainstack** | Simple RU pricing; confirm `eth_getLogs` on BSC mainnet |
+| **Ankr** | Free/paid tiers; verify log query limits for indexing |
+| Alternatives | QuickNode, NodeReal — also fine if `eth_getLogs` is reliable |
+
+Avoid anonymous public dataseeds for money movement. Paginate log ranges (Pooli already caps span ≤2000 blocks with 32-block overlap).
+
 Local development may keep:
 
 ```bash
 ENABLE_BSC_WATCHER=false
+ENABLE_BSC_CHECKOUT=false
 ```
+
+Production rule: **never** set `ENABLE_BSC_CHECKOUT=true` until watcher + WalletConnect device E2E pass. See [`e2e-checklists.md`](./e2e-checklists.md).
 
 ### RPC requirements
 
