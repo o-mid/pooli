@@ -159,19 +159,21 @@ else
     console.log('wc_bundle_check:', hits > 0 ? 'ok' : 'MISSING_IN_BUNDLE', 'hits', hits);
   "
 fi
-
-# Sync nginx reliability snippets (upgrade map + pooli.shop vhost).
-if [[ -f /opt/pooli/deploy/hostinger/nginx-pooli-upgrade-map.conf ]]; then
-  cp /opt/pooli/deploy/hostinger/nginx-pooli-upgrade-map.conf /etc/nginx/conf.d/pooli-upgrade-map.conf
-fi
-if [[ -f /opt/pooli/deploy/hostinger/nginx-pooli.shop.conf.proposed ]]; then
-  cp /opt/pooli/deploy/hostinger/nginx-pooli.shop.conf.proposed /etc/nginx/sites-available/pooli.shop
-  ln -sf /etc/nginx/sites-available/pooli.shop /etc/nginx/sites-enabled/pooli.shop
-  nginx -t
-  systemctl reload nginx
-  echo "nginx pooli.shop reloaded"
-fi
 EOS
+
+echo
+echo "=== Nginx reliability sync ==="
+ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<'NGINX'
+set -euo pipefail
+cp /opt/pooli/deploy/hostinger/nginx-pooli-upgrade-map.conf /etc/nginx/conf.d/pooli-upgrade-map.conf
+cp /opt/pooli/deploy/hostinger/nginx-pooli.shop.conf.proposed /etc/nginx/sites-available/pooli.shop
+ln -sf /etc/nginx/sites-available/pooli.shop /etc/nginx/sites-enabled/pooli.shop
+nginx -t
+systemctl reload nginx
+grep -q 'pooli-unavailable' /etc/nginx/sites-available/pooli.shop
+grep -q 'merchant/events' /etc/nginx/sites-available/pooli.shop
+echo "nginx pooli.shop reloaded"
+NGINX
 
 echo
 echo "=== Public confirmation ==="
