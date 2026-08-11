@@ -319,6 +319,21 @@ export const en = {
     unmatched: "Unmatched events",
     resolved: "Resolved",
   },
+  store: {
+    payThisBusiness: "Pay this business",
+    optionalReference: "Optional reference",
+    referencePlaceholder: "Order note",
+    continuePay: "Continue",
+  },
+  links: {
+    title: "Payment links",
+    empty: "No reusable links yet.",
+    create: "Create link",
+    fixed: "Fixed amount",
+    custom: "Custom amount",
+    active: "Active",
+    inactive: "Off",
+  },
   onboarding: {
     title: "Set up your store",
     stepOf: "Step {n} of {total}",

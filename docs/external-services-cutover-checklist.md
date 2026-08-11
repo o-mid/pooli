@@ -26,8 +26,14 @@ Use after SSH works. Check boxes only when verified on the live host.
 
 ## WalletConnect / BSC
 
-- [ ] `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` set and web rebuilt
-- [ ] Real-device WC handoff tested
+- [ ] WalletConnect Cloud project created; domain allowlist = `https://pooli.shop` only
+- [ ] `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` set in `/opt/pooli/deploy/hostinger/.env` (not git)
+- [ ] `NEXT_PUBLIC_SITE_URL=https://pooli.shop` set for web build
+- [ ] **Web image rebuilt** after setting the project id (`docker compose build pooli-web`)
+- [ ] Deploy log shows `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: set (len=…)` and `wc_bundle_check: ok`
+- [ ] Missing-id path still OK locally (QR/copy fallbacks; no WC init)
+- [ ] Real-device WC handoff tested when BSC checkout is intentionally enabled
+- [ ] Keep `ENABLE_BSC_CHECKOUT=false` + `ENABLE_BSC_WATCHER=false` until BSC payment verification is production-ready
 - [ ] Only then `ENABLE_BSC_CHECKOUT=true` + `ENABLE_BSC_WATCHER=true`
 
 ## Auth

@@ -515,6 +515,9 @@ export default function SettingsPage() {
         <Link className="btn btn-secondary" href="/app/wallets">
           {t.wallets.title}
         </Link>
+        <Link className="btn btn-secondary" href="/app/links" style={{ marginInlineStart: "0.5rem" }}>
+          {t.links.title}
+        </Link>
       </section>
 
       {defaults ? (

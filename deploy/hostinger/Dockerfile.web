@@ -13,9 +13,13 @@ FROM node:20-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# NEXT_PUBLIC_* values are inlined into the browser bundle at build time.
+# Changing WalletConnect / site URL requires a web image rebuild (runtime env alone is not enough).
 ARG NEXT_PUBLIC_API_BASE_URL=http://pooli-api:8080
+ARG NEXT_PUBLIC_SITE_URL=https://pooli.shop
 ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules

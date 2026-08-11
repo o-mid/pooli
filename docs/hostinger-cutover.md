@@ -72,11 +72,75 @@ Expect `rate_provider` = `nobitex` and `worker.ok` = true.
 
 See [`external-services-setup.md`](./external-services-setup.md). Rotate token if ever leaked. Set webhook yourself. Do not paste tokens into chat.
 
-## 5. WalletConnect (required before BSC checkout)
+## 5. WalletConnect (build-time web config)
 
-1. Create a project at https://cloud.walletconnect.com
-2. Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` on the **web** build args
-3. Only then set `ENABLE_BSC_CHECKOUT=true` and `ENABLE_BSC_WATCHER=true` with a solid RPC
+WalletConnect is used for EVM “Pay with wallet” handoff (`@walletconnect/ethereum-provider`).
+TRON checkout does not require it.
+
+### Why build-time
+
+`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is a Next.js public env var. It is **inlined into the
+client bundle during `next build`**. Setting it only on a running container has no effect.
+
+Production web image build (`deploy/hostinger/Dockerfile.web` + `docker-compose.yml`) passes:
+
+```
+NEXT_PUBLIC_SITE_URL=https://pooli.shop
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=<from deploy/hostinger/.env>
+```
+
+### Host setup (do not commit the value)
+
+On the VPS, in `/opt/pooli/deploy/hostinger/.env` (gitignored):
+
+```
+NEXT_PUBLIC_SITE_URL=https://pooli.shop
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=<Cloud project id>
+```
+
+Then rebuild **web** (API rebuild alone is not enough):
+
+```bash
+cd /opt/pooli/deploy/hostinger
+docker compose build pooli-web
+docker compose up -d pooli-web
+```
+
+Or run `./scripts/deploy-hostinger.sh` from a clean local tree (rsync excludes `.env`, so the
+host file is preserved).
+
+### Domain allowlist
+
+In WalletConnect Cloud, allow only:
+
+- `https://pooli.shop`
+
+Do not add wildcards or unrelated origins.
+
+### Graceful missing ID
+
+If the project id is absent at build time:
+
+- EVM WalletConnect / Trust wallet rows are omitted from the handoff plan
+- Checkout falls back to QR / copy / EIP-681
+- No WalletConnect SDK init runs
+
+### BSC checkout gate (still separate)
+
+WalletConnect config alone does **not** enable BNB Chain checkout.
+
+Keep until the BSC watcher/RPC/payment path is production-ready:
+
+```
+ENABLE_BSC_CHECKOUT=false
+ENABLE_BSC_WATCHER=false
+```
+
+Only after WC handoff is verified on a real device **and** BSC verification is ready:
+
+1. Confirm `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` was baked into the web bundle
+2. Set `ENABLE_BSC_WATCHER=true` with a solid RPC
+3. Then set `ENABLE_BSC_CHECKOUT=true`
 
 ## 6. TRON PAID proof on current revision
 

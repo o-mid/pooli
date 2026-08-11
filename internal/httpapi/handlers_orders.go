@@ -139,6 +139,10 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		Networks          []string          `json:"networks"`
 		CustomerID        string            `json:"customer_id"`
 		CreateIntent      *bool             `json:"create_intent"`
+		ItemQuantity      int               `json:"item_quantity"`
+		InternalNote      string            `json:"internal_note"`
+		SuccessMessage    string            `json:"success_message"`
+		ImagePath         string            `json:"image_path"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid json")
@@ -191,14 +195,29 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		customerID = &exists
 	}
 
+	qty := req.ItemQuantity
+	if qty <= 0 {
+		qty = 1
+	}
+	if qty > 10000 {
+		qty = 10000
+	}
+	successMsg := strings.TrimSpace(req.SuccessMessage)
+	if successMsg == "" {
+		successMsg = defaults.SuccessMessage
+	}
+
 	var orderID string
 	err = payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
 		err := tx.QueryRow(r.Context(), `
 			INSERT INTO orders (
 				merchant_id, slug, title, description, merchant_reference,
-				fiat_amount_toman, fiat_currency, status, expires_at, customer_id, fulfillment_status
-			) VALUES ($1::uuid,$2,$3,$4,$5,$6,'TMN','CREATED',$7,$8::uuid,'UNFULFILLED') RETURNING id::text`,
-			mid, slug, req.Title, req.Description, req.MerchantReference, req.FiatAmountToman, expiresAt, customerID).Scan(&orderID)
+				fiat_amount_toman, fiat_currency, status, expires_at, customer_id, fulfillment_status,
+				item_quantity, internal_note, success_message, image_path
+			) VALUES ($1::uuid,$2,$3,$4,$5,$6,'TMN','CREATED',$7,$8::uuid,'UNFULFILLED',$9,$10,$11,$12)
+			RETURNING id::text`,
+			mid, slug, req.Title, req.Description, req.MerchantReference, req.FiatAmountToman, expiresAt, customerID,
+			qty, strings.TrimSpace(req.InternalNote), successMsg, strings.TrimSpace(req.ImagePath)).Scan(&orderID)
 		if err != nil {
 			return err
 		}

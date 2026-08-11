@@ -320,6 +320,21 @@ export const fa: Messages = {
     unmatched: "رویدادهای بدون تطبیق",
     resolved: "اعمال شد",
   },
+  store: {
+    payThisBusiness: "پرداخت به این فروشگاه",
+    optionalReference: "مرجع اختیاری",
+    referencePlaceholder: "یادداشت سفارش",
+    continuePay: "ادامه",
+  },
+  links: {
+    title: "لینک‌های پرداخت",
+    empty: "هنوز لینک قابل‌استفاده مجدد ندارید.",
+    create: "ساخت لینک",
+    fixed: "مبلغ ثابت",
+    custom: "مبلغ دلخواه",
+    active: "فعال",
+    inactive: "خاموش",
+  },
   onboarding: {
     title: "راه‌اندازی فروشگاه",
     stepOf: "مرحله {n} از {total}",

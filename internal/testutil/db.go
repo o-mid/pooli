@@ -74,6 +74,7 @@ func Reset(t *testing.T, pool *pgxpool.Pool) {
 			customer_addresses,
 			customers,
 			orders,
+			payment_links,
 			merchant_checkout_defaults,
 			merchant_wallet_addresses,
 			telegram_connections,

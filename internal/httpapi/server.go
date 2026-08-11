@@ -106,6 +106,10 @@ func (s *Server) Router() http.Handler {
 			r.Patch("/orders/{id}/fulfillment", s.handlePatchFulfillment)
 			r.Post("/orders/{id}/payment-intent", s.handleCreatePaymentIntent)
 
+			r.Get("/payment-links", s.handleListPaymentLinks)
+			r.Post("/payment-links", s.handleCreatePaymentLink)
+			r.Patch("/payment-links/{id}", s.handlePatchPaymentLink)
+
 			r.Get("/payment-intents/{id}", s.handleGetPaymentIntent)
 			r.Get("/merchant/events", s.handleMerchantSSE)
 
@@ -134,6 +138,11 @@ func (s *Server) Router() http.Handler {
 			r.Post("/refresh-quote", s.handlePublicRefreshQuote)
 			r.Get("/events", s.handlePublicSSE)
 		})
+
+		r.Get("/public/stores/{slug}", s.handlePublicStoreGet)
+		r.Post("/public/stores/{slug}/pay", s.handlePublicStorePay)
+		r.Get("/public/links/{slug}", s.handlePublicPaymentLinkGet)
+		r.Post("/public/links/{slug}/start", s.handlePublicPaymentLinkStart)
 
 		r.Post("/integrations/telegram/webhook", s.handleTelegramWebhook)
 
