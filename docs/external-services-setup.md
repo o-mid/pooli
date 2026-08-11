@@ -72,6 +72,16 @@ curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" 
 
 Do **not** run this from the agent unless explicitly asked.
 
+### Production enablement checklist (Omid)
+
+1. Create a **new** BotFather token (never reuse a leaked token).
+2. Generate a long random `TELEGRAM_WEBHOOK_SECRET`.
+3. Set env on VPS; restart API.
+4. Confirm `GET /api/v1/ops/status` shows `telegram_enabled=true` (no token).
+5. Register webhook with the curl above.
+6. Merchant Settings → Connect → `/start` in @PooliShopbot → Connected ✓ → Send test.
+7. Confirm chat IDs never appear in `/api/v1/me` or the web UI.
+
 ### Merchant flow
 
 1. Settings → Notifications → Connect Telegram  
