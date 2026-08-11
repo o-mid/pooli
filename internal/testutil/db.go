@@ -72,6 +72,8 @@ func Reset(t *testing.T, pool *pgxpool.Pool) {
 			order_field_values,
 			order_field_definitions,
 			customer_addresses,
+			customer_notes,
+			customer_tags,
 			customers,
 			orders,
 			payment_links,

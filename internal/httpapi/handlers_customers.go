@@ -98,13 +98,152 @@ func (s *Server) loadCustomerForMerchant(ctx context.Context, merchantID, custom
 	}
 	addrs := s.loadCustomerAddresses(ctx, merchantID, id)
 	orders := s.loadCustomerOrders(ctx, merchantID, id, 20)
+	notes := s.loadCustomerNotes(ctx, merchantID, id)
+	tags := s.loadCustomerTags(ctx, merchantID, id)
+	var paidOrders int
+	var firstPurchase *time.Time
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT COUNT(*), MIN(pi.paid_at)
+		FROM orders o
+		JOIN payment_intents pi ON pi.order_id = o.id
+		WHERE o.merchant_id=$1::uuid AND o.customer_id=$2::uuid AND pi.status='PAID'`,
+		merchantID, id).Scan(&paidOrders, &firstPurchase)
 	return map[string]any{
 		"id": id, "full_name": name, "phone_e164": phone, "email": email,
 		"default_address_id": defaultAddrID,
-		"order_count": orderCount, "lifetime_paid_toman": lifetime,
-		"last_order_at": lastOrder, "created_at": created, "updated_at": updated,
+		"order_count": orderCount, "paid_orders": paidOrders, "lifetime_paid_toman": lifetime,
+		"last_order_at": lastOrder, "first_purchase_at": firstPurchase,
+		"created_at": created, "updated_at": updated,
 		"addresses": addrs, "recent_orders": orders,
+		"notes": notes, "tags": tags,
+		// Privacy: addresses are merchant-visible only. Public checkout must never
+		// auto-reveal saved addresses based on typed email/phone alone.
+		"privacy": map[string]any{
+			"addresses_visible_to": "merchant_only",
+			"buyer_autofill":       "disabled_until_verified_identity",
+		},
 	}, nil
+}
+
+func (s *Server) loadCustomerNotes(ctx context.Context, merchantID, customerID string) []map[string]any {
+	rows, err := s.Pool.Query(ctx, `
+		SELECT id::text, body, created_at, updated_at
+		FROM customer_notes
+		WHERE merchant_id=$1::uuid AND customer_id=$2::uuid
+		ORDER BY created_at DESC LIMIT 50`, merchantID, customerID)
+	if err != nil {
+		return []map[string]any{}
+	}
+	defer rows.Close()
+	var out []map[string]any
+	for rows.Next() {
+		var id, body string
+		var created, updated time.Time
+		_ = rows.Scan(&id, &body, &created, &updated)
+		out = append(out, map[string]any{"id": id, "body": body, "created_at": created, "updated_at": updated})
+	}
+	if out == nil {
+		out = []map[string]any{}
+	}
+	return out
+}
+
+func (s *Server) loadCustomerTags(ctx context.Context, merchantID, customerID string) []string {
+	rows, err := s.Pool.Query(ctx, `
+		SELECT tag FROM customer_tags
+		WHERE merchant_id=$1::uuid AND customer_id=$2::uuid
+		ORDER BY lower(tag)`, merchantID, customerID)
+	if err != nil {
+		return []string{}
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var tag string
+		_ = rows.Scan(&tag)
+		out = append(out, tag)
+	}
+	if out == nil {
+		out = []string{}
+	}
+	return out
+}
+
+func (s *Server) handleAddCustomerNote(w http.ResponseWriter, r *http.Request) {
+	mid, err := s.merchantID(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	cid := chi.URLParam(r, "id")
+	var req struct {
+		Body string `json:"body"`
+	}
+	if err := decodeJSON(r, &req); err != nil || strings.TrimSpace(req.Body) == "" {
+		writeErr(w, http.StatusBadRequest, "body required")
+		return
+	}
+	body := strings.TrimSpace(req.Body)
+	if len(body) > 2000 {
+		body = body[:2000]
+	}
+	var noteID string
+	err = s.Pool.QueryRow(r.Context(), `
+		INSERT INTO customer_notes (merchant_id, customer_id, body)
+		SELECT $1::uuid, c.id, $3 FROM customers c
+		WHERE c.id=$2::uuid AND c.merchant_id=$1::uuid
+		RETURNING id::text`, mid, cid, body).Scan(&noteID)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "customer not found")
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"id": noteID, "body": body})
+}
+
+func (s *Server) handleAddCustomerTag(w http.ResponseWriter, r *http.Request) {
+	mid, err := s.merchantID(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	cid := chi.URLParam(r, "id")
+	var req struct {
+		Tag string `json:"tag"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	tag := strings.TrimSpace(req.Tag)
+	if tag == "" || len(tag) > 40 {
+		writeErr(w, http.StatusBadRequest, "invalid tag")
+		return
+	}
+	_, err = s.Pool.Exec(r.Context(), `
+		INSERT INTO customer_tags (merchant_id, customer_id, tag)
+		SELECT $1::uuid, c.id, $3 FROM customers c
+		WHERE c.id=$2::uuid AND c.merchant_id=$1::uuid
+		ON CONFLICT DO NOTHING`, mid, cid, tag)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "tags": s.loadCustomerTags(r.Context(), mid, cid)})
+}
+
+func (s *Server) handleDeleteCustomerTag(w http.ResponseWriter, r *http.Request) {
+	mid, err := s.merchantID(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	cid := chi.URLParam(r, "id")
+	tag := strings.TrimSpace(chi.URLParam(r, "tag"))
+	_, _ = s.Pool.Exec(r.Context(), `
+		DELETE FROM customer_tags
+		WHERE merchant_id=$1::uuid AND customer_id=$2::uuid AND lower(tag)=lower($3)`,
+		mid, cid, tag)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "tags": s.loadCustomerTags(r.Context(), mid, cid)})
 }
 
 func (s *Server) loadCustomerAddresses(ctx context.Context, merchantID, customerID string) []map[string]any {

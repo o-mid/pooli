@@ -112,6 +112,8 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		attentionItems = []map[string]any{}
 	}
 
+	analytics := s.loadHomeAnalytics(r.Context(), mid)
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"today_paid_orders":   paidCount,
 		"today_toman_volume":  tomanVol,
@@ -120,7 +122,122 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		"needs_attention":     attention,
 		"attention_items":     attentionItems,
 		"recent_orders":       recent,
+		"analytics":           analytics,
 	})
+}
+
+// loadHomeAnalytics returns only metrics that can be computed from existing rows.
+// No placeholder conversion percentages.
+func (s *Server) loadHomeAnalytics(ctx context.Context, merchantID string) map[string]any {
+	var gmv7d int64
+	var paid7d int
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(o.fiat_amount_toman),0), COUNT(*)
+		FROM orders o
+		JOIN payment_intents pi ON pi.order_id = o.id
+		WHERE o.merchant_id=$1::uuid AND pi.status='PAID' AND pi.paid_at >= now() - interval '7 days'`,
+		merchantID).Scan(&gmv7d, &paid7d)
+	aov := int64(0)
+	if paid7d > 0 {
+		aov = gmv7d / int64(paid7d)
+	}
+	var expired7d, created7d int
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM payment_intents
+		WHERE merchant_id=$1::uuid AND status='EXPIRED' AND created_at >= now() - interval '7 days'`,
+		merchantID).Scan(&expired7d)
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM payment_intents
+		WHERE merchant_id=$1::uuid AND created_at >= now() - interval '7 days'`,
+		merchantID).Scan(&created7d)
+
+	rows, err := s.Pool.Query(ctx, `
+		SELECT po.network, COUNT(*)
+		FROM payment_options po
+		JOIN payment_intents pi ON pi.id = po.payment_intent_id
+		WHERE pi.merchant_id=$1::uuid AND pi.status='PAID' AND po.status='SETTLED'
+		  AND pi.paid_at >= now() - interval '30 days'
+		GROUP BY po.network`, merchantID)
+	networkMix := map[string]int{}
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var net string
+			var n int
+			_ = rows.Scan(&net, &n)
+			networkMix[net] = n
+		}
+	}
+
+	// Detection / confirm latency from payment_state_events when present.
+	var avgDetectSec, avgConfirmSec *float64
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT AVG(EXTRACT(EPOCH FROM (seen_at.created_at - created_at.created_at)))
+		FROM payment_state_events seen_at
+		JOIN payment_state_events created_at
+		  ON created_at.payment_intent_id = seen_at.payment_intent_id
+		 AND created_at.to_status = 'AWAITING_PAYMENT'
+		JOIN payment_intents pi ON pi.id = seen_at.payment_intent_id
+		WHERE pi.merchant_id=$1::uuid
+		  AND seen_at.to_status = 'SEEN'
+		  AND seen_at.created_at >= now() - interval '30 days'`, merchantID).Scan(&avgDetectSec)
+	_ = s.Pool.QueryRow(ctx, `
+		SELECT AVG(EXTRACT(EPOCH FROM (paid_at.created_at - seen_at.created_at)))
+		FROM payment_state_events paid_at
+		JOIN payment_state_events seen_at
+		  ON seen_at.payment_intent_id = paid_at.payment_intent_id
+		 AND seen_at.to_status IN ('SEEN','CONFIRMING')
+		JOIN payment_intents pi ON pi.id = paid_at.payment_intent_id
+		WHERE pi.merchant_id=$1::uuid
+		  AND paid_at.to_status = 'PAID'
+		  AND paid_at.created_at >= now() - interval '30 days'`, merchantID).Scan(&avgConfirmSec)
+
+	var recentCustomers []map[string]any
+	crows, err := s.Pool.Query(ctx, `
+		SELECT id::text, full_name, lifetime_paid_toman, last_order_at
+		FROM customers WHERE merchant_id=$1::uuid
+		ORDER BY COALESCE(last_order_at, updated_at) DESC LIMIT 5`, merchantID)
+	if err == nil {
+		defer crows.Close()
+		for crows.Next() {
+			var id, name string
+			var life int64
+			var last *time.Time
+			_ = crows.Scan(&id, &name, &life, &last)
+			recentCustomers = append(recentCustomers, map[string]any{
+				"id": id, "full_name": name, "lifetime_paid_toman": life, "last_order_at": last,
+			})
+		}
+	}
+	if recentCustomers == nil {
+		recentCustomers = []map[string]any{}
+	}
+
+	out := map[string]any{
+		"window_days":            7,
+		"gmv_toman_7d":           gmv7d,
+		"paid_orders_7d":         paid7d,
+		"average_order_value_7d": aov,
+		"intents_created_7d":     created7d,
+		"intents_expired_7d":     expired7d,
+		"network_mix_30d":        networkMix,
+		"recent_customers":       recentCustomers,
+		// Explicit: checkout conversion deferred until session funnel exists.
+		"checkout_conversion": nil,
+		"definitions": map[string]string{
+			"gmv_toman_7d":           "Sum of fiat_amount_toman on orders with PAID intents in last 7 days",
+			"average_order_value_7d": "gmv_toman_7d / paid_orders_7d",
+			"network_mix_30d":        "Count of SETTLED payment_options by network for PAID intents in 30 days",
+			"checkout_conversion":    "Not available — checkout session funnel not stored yet",
+		},
+	}
+	if avgDetectSec != nil {
+		out["avg_detection_seconds_30d"] = *avgDetectSec
+	}
+	if avgConfirmSec != nil {
+		out["avg_confirm_seconds_30d"] = *avgConfirmSec
+	}
+	return out
 }
 
 func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {

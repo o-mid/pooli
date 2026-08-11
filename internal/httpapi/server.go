@@ -98,6 +98,9 @@ func (s *Server) Router() http.Handler {
 
 			r.Get("/customers", s.handleListCustomers)
 			r.Get("/customers/{id}", s.handleGetCustomer)
+			r.Post("/customers/{id}/notes", s.handleAddCustomerNote)
+			r.Post("/customers/{id}/tags", s.handleAddCustomerTag)
+			r.Delete("/customers/{id}/tags/{tag}", s.handleDeleteCustomerTag)
 
 			r.Post("/orders", s.handleCreateOrder)
 			r.Get("/orders", s.handleListOrders)

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { BackLink } from "@/components/ui/BackLink";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -17,8 +17,12 @@ type Customer = {
   phone_e164: string;
   email: string;
   order_count: number;
+  paid_orders?: number;
   lifetime_paid_toman: number;
   last_order_at?: string;
+  first_purchase_at?: string;
+  notes?: Array<{ id: string; body: string }>;
+  tags?: string[];
   addresses?: Array<{
     id: string;
     label: string;
@@ -41,12 +45,39 @@ export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
   const t = useT();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [note, setNote] = useState("");
+  const [tag, setTag] = useState("");
+
+  async function load() {
+    const c = await api<Customer>(`/api/v1/customers/${params.id}`);
+    setCustomer(c);
+  }
 
   useEffect(() => {
-    api<Customer>(`/api/v1/customers/${params.id}`)
-      .then(setCustomer)
-      .catch(() => undefined);
+    load().catch(() => undefined);
   }, [params.id]);
+
+  async function addNote(e: FormEvent) {
+    e.preventDefault();
+    if (!note.trim()) return;
+    await api(`/api/v1/customers/${params.id}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ body: note.trim() }),
+    });
+    setNote("");
+    await load();
+  }
+
+  async function addTag(e: FormEvent) {
+    e.preventDefault();
+    if (!tag.trim()) return;
+    await api(`/api/v1/customers/${params.id}/tags`, {
+      method: "POST",
+      body: JSON.stringify({ tag: tag.trim() }),
+    });
+    setTag("");
+    await load();
+  }
 
   if (!customer) {
     return (
@@ -72,13 +103,61 @@ export default function CustomerDetailPage() {
         ) : null}
         {customer.email ? <p className="muted">{customer.email}</p> : null}
         <p className="tabular" style={{ margin: "var(--space-3) 0 0", fontWeight: 600 }}>
-          {customer.order_count} {t.customers.orders} · {customer.lifetime_paid_toman.toLocaleString()}{" "}
-          {t.checkout.toman}
+          {customer.order_count} {t.customers.orders}
+          {typeof customer.paid_orders === "number" ? ` · ${customer.paid_orders} ${t.customers.paidOrders}` : ""}
+          {" · "}
+          {customer.lifetime_paid_toman.toLocaleString()} {t.checkout.toman}
         </p>
+        {(customer.tags || []).length > 0 ? (
+          <p className="tag-row">
+            {customer.tags!.map((tg) => (
+              <button
+                key={tg}
+                type="button"
+                className="tag-chip"
+                onClick={async () => {
+                  await api(`/api/v1/customers/${params.id}/tags/${encodeURIComponent(tg)}`, { method: "DELETE" });
+                  await load();
+                }}
+              >
+                {tg} ×
+              </button>
+            ))}
+          </p>
+        ) : null}
         <Link className="btn btn-primary" href={newOrderHref} style={{ marginTop: "var(--space-4)" }}>
           + {t.customers.newOrder}
         </Link>
       </div>
+
+      <section className="section">
+        <h2 className="section-title">{t.customers.notes}</h2>
+        <form className="stack-form" onSubmit={addNote}>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.customers.notePlaceholder} />
+          <button className="btn-secondary" type="submit">
+            {t.customers.addNote}
+          </button>
+        </form>
+        <div className="list-group">
+          {(customer.notes || []).map((n) => (
+            <div key={n.id} className="list-row" style={{ cursor: "default" }}>
+              <div className="list-row-body">
+                <div className="list-row-meta">{n.body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
+        <h2 className="section-title">{t.customers.tags}</h2>
+        <form className="stack-form" onSubmit={addTag}>
+          <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder={t.customers.tagPlaceholder} />
+          <button className="btn-secondary" type="submit">
+            {t.customers.addTag}
+          </button>
+        </form>
+      </section>
 
       {customer.addresses && customer.addresses.length > 0 ? (
         <section className="section">

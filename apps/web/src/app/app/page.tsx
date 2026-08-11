@@ -35,6 +35,14 @@ type Home = {
     fulfillment_status?: string;
     customer_name?: string;
   }>;
+  analytics?: {
+    gmv_toman_7d: number;
+    paid_orders_7d: number;
+    average_order_value_7d: number;
+    network_mix_30d?: Record<string, number>;
+    recent_customers?: Array<{ id: string; full_name: string; lifetime_paid_toman: number }>;
+    checkout_conversion: null;
+  };
 };
 
 function greeting(t: ReturnType<typeof useT>): string {
@@ -176,6 +184,40 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {!loading && data?.analytics ? (
+        <section className="section">
+          <h2 className="section-title">{t.home.analytics}</h2>
+          <div className="stat-grid">
+            <div className="stat">
+              <div className="label">{t.home.gmv7d}</div>
+              <div className="value tabular">{data.analytics.gmv_toman_7d.toLocaleString()}</div>
+            </div>
+            <div className="stat">
+              <div className="label">{t.home.paid7d}</div>
+              <div className="value tabular">{data.analytics.paid_orders_7d}</div>
+            </div>
+            <div className="stat">
+              <div className="label">{t.home.aov7d}</div>
+              <div className="value tabular">{data.analytics.average_order_value_7d.toLocaleString()}</div>
+            </div>
+          </div>
+          {data.analytics.recent_customers && data.analytics.recent_customers.length > 0 ? (
+            <div className="list-group" style={{ marginTop: "0.75rem" }}>
+              {data.analytics.recent_customers.map((c) => (
+                <Link key={c.id} href={`/app/customers/${c.id}`} className="list-row">
+                  <div className="list-row-body">
+                    <div className="list-row-title">{c.full_name || "—"}</div>
+                    <div className="list-row-meta tabular">
+                      {c.lifetime_paid_toman.toLocaleString()} {t.checkout.toman}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
