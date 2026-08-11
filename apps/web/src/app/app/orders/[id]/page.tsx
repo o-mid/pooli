@@ -159,23 +159,6 @@ export default function OrderDetailPage() {
     });
   }
 
-  async function copyReceipt() {
-    const r = order?.receipt;
-    if (!r) return;
-    const lines = [
-      r.merchant,
-      r.order_title,
-      `${r.fiat_amount_toman?.toLocaleString()} ${t.checkout.toman}`,
-      `${r.usdt_amount} USDT`,
-      r.network,
-      `Order ${r.order_reference}`,
-      r.tx_hash,
-      r.explorer_url,
-    ].filter(Boolean);
-    await navigator.clipboard.writeText(lines.join("\n"));
-    showToast(t.common.copied);
-  }
-
   function fmtWhen(iso: string) {
     try {
       return new Date(iso).toLocaleString();
