@@ -1569,3 +1569,53 @@ html[dir="rtl"] .back-chevron {
   font-weight: 600;
   cursor: pointer;
 }
+
+.receipt-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.25rem 1rem;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--brand) 8%);
+  text-align: center;
+}
+
+.receipt-store {
+  margin: 0;
+  font-size: var(--text-title3);
+  font-weight: 750;
+}
+
+.receipt-success-msg {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.receipt-tech {
+  text-align: start;
+  margin-top: 0.5rem;
+}
+
+.receipt-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.checkout-accent-teal { --brand: #0f8f6b; }
+.checkout-accent-blue { --brand: #1d6fd8; }
+.checkout-accent-green { --brand: #2f9e44; }
+.checkout-accent-amber { --brand: #c77d1a; }
+.checkout-accent-rose { --brand: #c2255c; }
+.checkout-accent-slate { --brand: #3d4a5c; }
+
+@media print {
+  .nav, .app-topbar, .offline-banner, .btn, button, .InstallSheet {
+    display: none !important;
+  }
+  .receipt-card {
+    background: white;
+    color: black;
+  }
+}

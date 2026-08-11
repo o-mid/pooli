@@ -52,6 +52,7 @@ type Pay = {
     explorer_url?: string;
     order_reference?: string;
     paid_at?: string;
+    success_message?: string;
   } | null;
   trust?: {
     email_verified?: boolean;
@@ -59,6 +60,8 @@ type Pay = {
     wallet_configured?: boolean;
   };
   enabled_networks?: string[];
+  checkout_accent?: string;
+  success_message?: string;
 };
 
 type Step = "details" | "network" | "pay";
@@ -335,8 +338,13 @@ export default function CheckoutClient() {
           journeySteps.findIndex((s) => s.key === step),
         );
 
+  const accentClass = pay.checkout_accent ? ` checkout-accent-${pay.checkout_accent}` : "";
+  const receiptWithMessage = pay.receipt
+    ? { ...pay.receipt, success_message: pay.receipt.success_message || pay.success_message }
+    : pay.receipt;
+
   return (
-    <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}`}>
+    <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}${accentClass}`}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
           <div className="merchant-avatar">
@@ -485,7 +493,7 @@ export default function CheckoutClient() {
             option={selected}
             intentStatus={intentStatus}
             matched={matched}
-            receipt={pay.receipt}
+            receipt={receiptWithMessage}
             fulfillmentStatus={pay.fulfillment_status}
             shippingProvider={pay.shipping_provider}
             trackingNumber={pay.tracking_number}

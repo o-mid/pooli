@@ -195,12 +195,14 @@ export const fa: Messages = {
     defaultsHint: "پرداخت‌های جدید این تنظیمات را می‌گیرند. سفارش‌های قبلی تغییر نمی‌کنند.",
   },
   receipt: {
-    title: "پرداخت تأیید شد",
+    title: "پرداخت دریافت شد",
     copyDetails: "کپی جزئیات رسید",
     transaction: "تراکنش",
     network: "شبکه",
     usdt: "تتر",
     received: "دریافت‌شده",
+    share: "اشتراک‌گذاری رسید",
+    print: "چاپ",
   },
   timeline: {
     title: "جدول زمانی",

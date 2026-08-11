@@ -26,6 +26,7 @@ import {
   type PaymentOption,
   type WalletId,
 } from "@/lib/payment-handoff";
+import { ReceiptCard } from "@/components/receipt/ReceiptCard";
 import { PaymentDetailsDisclosure } from "./PaymentDetailsDisclosure";
 import { PaymentException } from "./PaymentException";
 import { WalletPickerSheet } from "./WalletPickerSheet";
@@ -45,6 +46,7 @@ export type PaySheetReceipt = {
   explorer_url?: string;
   order_reference?: string;
   paid_at?: string;
+  success_message?: string;
 } | null;
 
 export function PooliPaySheet({
@@ -195,57 +197,28 @@ export function PooliPaySheet({
 
   if (paid) {
     return (
-      <section className="card-panel success-pulse">
-        <div className="alert alert-success" role="status" style={{ marginBottom: "var(--space-4)", textAlign: "center" }}>
-          {t.checkout.successTitle}
-        </div>
-        <p style={{ margin: 0, textAlign: "center" }}>{t.checkout.successReceivedBy}</p>
-        <p style={{ margin: "var(--space-2) 0 0", fontWeight: 700, textAlign: "center", fontSize: "var(--text-title3)" }}>
-          {storeName}
-        </p>
-        {title ? <p style={{ margin: "var(--space-2) 0 0", textAlign: "center" }}>{title}</p> : null}
-        <AmountDisplay
-          primary={`${fiatAmountToman.toLocaleString()} ${t.checkout.toman}`}
-          secondary={
-            receipt?.usdt_amount
-              ? `${receipt.usdt_amount} ${asset} · ${networkLabel(receipt.network || option?.network || "")}`
-              : undefined
-          }
+      <div className="page-stack">
+        <ReceiptCard
+          storeName={storeName}
+          title={title}
+          fiatAmountToman={fiatAmountToman}
+          receipt={{
+            merchant: storeName,
+            order_title: title,
+            order_reference: receipt?.order_reference,
+            fiat_amount_toman: fiatAmountToman,
+            usdt_amount: receipt?.usdt_amount,
+            received_usdt_amount: receipt?.received_usdt_amount,
+            network: receipt?.network || option?.network,
+            tx_hash: matched?.tx_hash || receipt?.tx_hash,
+            explorer_url: matched?.explorer_url || receipt?.explorer_url,
+            success_message: receipt?.success_message,
+          }}
         />
-        {receipt?.order_reference ? (
-          <p className="muted mono-ltr" style={{ textAlign: "center", fontSize: "var(--text-footnote)" }}>
-            {t.checkout.orderRef} #{receipt.order_reference}
-          </p>
-        ) : null}
-        <p className="muted" style={{ textAlign: "center", marginTop: "var(--space-3)" }}>
+        <p className="muted" style={{ textAlign: "center" }}>
           {t.checkout.successSellerNotify}
         </p>
-
-        <details style={{ marginTop: "var(--space-4)" }}>
-          <summary className="linkish">{t.checkout.paymentDetails}</summary>
-          <p className="muted" style={{ marginTop: "var(--space-2)" }}>
-            {asset} · {networkLabel(receipt?.network || option?.network || "")}
-          </p>
-          {(matched?.tx_hash || receipt?.tx_hash) && (
-            <p className="mono-ltr" style={{ marginTop: "var(--space-2)" }}>
-              {t.receipt.transaction}: {(matched?.tx_hash || receipt?.tx_hash || "").slice(0, 10)}…
-              {(matched?.tx_hash || receipt?.tx_hash || "").slice(-6)}
-            </p>
-          )}
-          {(matched?.explorer_url || receipt?.explorer_url) && (
-            <a
-              className="btn btn-secondary"
-              style={{ marginTop: "var(--space-3)" }}
-              href={matched?.explorer_url || receipt?.explorer_url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t.checkout.viewTx}
-            </a>
-          )}
-        </details>
-
-        <div style={{ marginTop: "var(--space-4)" }}>
+        <div>
           <h2 className="section-title" style={{ paddingInline: 0 }}>
             {t.checkout.orderStatus}
           </h2>
@@ -268,7 +241,7 @@ export function PooliPaySheet({
             </div>
           ) : null}
         </div>
-      </section>
+      </div>
     );
   }
 

@@ -231,6 +231,12 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 	}
 	receipt := s.buildReceipt(ctx, orderID, intent)
 	timeline := s.loadTimelinePublic(ctx, orderID)
+	defaults, _ := s.loadCheckoutDefaults(ctx, merchantID)
+	var orderSuccess string
+	_ = s.Pool.QueryRow(ctx, `SELECT COALESCE(success_message,'') FROM orders WHERE id=$1::uuid`, orderID).Scan(&orderSuccess)
+	if orderSuccess == "" {
+		orderSuccess = defaults.SuccessMessage
+	}
 	return map[string]any{
 		"slug": slug, "store_name": storeName, "store_logo_url": logoURL, "title": title, "description": desc,
 		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status,
@@ -240,6 +246,8 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		"tracking_number": tracking, "shipped_at": shippedAt,
 		"timeline": timeline, "receipt": receipt,
 		"enabled_networks": s.Cfg.CheckoutNetworks(),
+		"success_message":  orderSuccess,
+		"checkout_accent":  defaults.CheckoutAccent,
 		"trust": map[string]any{
 			"email_verified":    emailVerified,
 			"phone_verified":    phoneVerified,
@@ -261,12 +269,15 @@ func (s *Server) buildReceipt(ctx context.Context, orderID string, intent map[st
 	if status != domain.StatusPaid && status != domain.StatusLatePayment {
 		return nil
 	}
-	var storeName, title, slug string
+	var storeName, title, slug, successMsg string
 	var toman int64
 	_ = s.Pool.QueryRow(ctx, `
-		SELECT COALESCE(NULLIF(m.display_name,''), m.name), o.title, o.slug, o.fiat_amount_toman
-		FROM orders o JOIN merchants m ON m.id = o.merchant_id
-		WHERE o.id=$1::uuid`, orderID).Scan(&storeName, &title, &slug, &toman)
+		SELECT COALESCE(NULLIF(m.display_name,''), m.name), o.title, o.slug, o.fiat_amount_toman,
+		       COALESCE(NULLIF(o.success_message,''), COALESCE(d.success_message,''))
+		FROM orders o
+		JOIN merchants m ON m.id = o.merchant_id
+		LEFT JOIN merchant_checkout_defaults d ON d.merchant_id = m.id
+		WHERE o.id=$1::uuid`, orderID).Scan(&storeName, &title, &slug, &toman, &successMsg)
 
 	var payUSDT string
 	var receivedUSDT string
@@ -336,22 +347,23 @@ func (s *Server) buildReceipt(ctx context.Context, orderID string, intent map[st
 	}
 
 	return map[string]any{
-		"merchant":              storeName,
-		"order_title":           title,
-		"order_reference":       slug,
-		"order_id":              orderID,
-		"fiat_amount_toman":     toman,
-		"fiat_currency":         "TMN",
-		"usdt_amount":           payUSDT,
-		"received_usdt_amount":  receivedUSDT,
-		"network":               network,
-		"destination_address":   dest,
-		"tx_hash":               txHash,
-		"explorer_url":          explorer,
-		"confirmations":         confirmations,
+		"merchant":               storeName,
+		"order_title":            title,
+		"order_reference":        slug,
+		"order_id":               orderID,
+		"fiat_amount_toman":      toman,
+		"fiat_currency":          "TMN",
+		"usdt_amount":            payUSDT,
+		"received_usdt_amount":   receivedUSDT,
+		"network":                network,
+		"destination_address":    dest,
+		"tx_hash":                txHash,
+		"explorer_url":           explorer,
+		"confirmations":          confirmations,
 		"required_confirmations": required,
-		"paid_at":               paidAt,
-		"payment_status":        status,
+		"paid_at":                paidAt,
+		"payment_status":         status,
+		"success_message":        successMsg,
 	}
 }
 

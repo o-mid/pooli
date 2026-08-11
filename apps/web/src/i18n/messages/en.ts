@@ -194,12 +194,14 @@ export const en = {
     defaultsHint: "New payments inherit these settings. Existing orders are never changed.",
   },
   receipt: {
-    title: "Payment confirmed",
+    title: "Payment received",
     copyDetails: "Copy receipt details",
     transaction: "Transaction",
     network: "Network",
     usdt: "USDT",
     received: "Received",
+    share: "Share receipt",
+    print: "Print",
   },
   timeline: {
     title: "Timeline",

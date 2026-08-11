@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { PaymentProgress } from "@/components/PaymentProgress";
+import { ReceiptCard } from "@/components/receipt/ReceiptCard";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
 import { BackLink } from "@/components/ui/BackLink";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -256,27 +257,21 @@ export default function OrderDetailPage() {
       </div>
 
       {order.receipt ? (
-        <section className="card-panel">
-          <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.receipt.title}</h2>
-          <p className="tabular" style={{ margin: "var(--space-3) 0 0", fontWeight: 600 }}>
-            {order.receipt.usdt_amount} USDT · {(order.receipt.network || "").toUpperCase()}
-          </p>
-          {order.receipt.tx_hash ? (
-            <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)" }}>
-              {order.receipt.tx_hash}
-            </p>
-          ) : null}
-          <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
-            {order.receipt.explorer_url ? (
-              <a className="btn btn-secondary" href={order.receipt.explorer_url} target="_blank" rel="noreferrer">
-                {t.checkout.viewTx}
-              </a>
-            ) : null}
-            <button className="btn btn-tertiary" type="button" onClick={copyReceipt}>
-              {t.receipt.copyDetails}
-            </button>
-          </div>
-        </section>
+        <ReceiptCard
+          storeName={order.receipt.merchant}
+          title={order.receipt.order_title || order.title}
+          fiatAmountToman={order.fiat_amount_toman}
+          receipt={{
+            merchant: order.receipt.merchant,
+            order_title: order.receipt.order_title || order.title,
+            order_reference: order.receipt.order_reference || order.slug,
+            fiat_amount_toman: order.fiat_amount_toman,
+            usdt_amount: order.receipt.usdt_amount,
+            network: order.receipt.network,
+            tx_hash: order.receipt.tx_hash,
+            explorer_url: order.receipt.explorer_url,
+          }}
+        />
       ) : null}
 
       {paid && order.fulfillment_status !== "DELIVERED" && order.fulfillment_status !== "CANCELLED" ? (
