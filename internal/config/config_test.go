@@ -65,6 +65,36 @@ func TestPhoneOTPDisabledInProductionWithMock(t *testing.T) {
 	}
 }
 
+func TestValidateEmail(t *testing.T) {
+	if err := (Config{EmailEnabled: false}).ValidateEmail(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Config{
+		EmailEnabled: true, EmailProvider: "resend", ResendAPIKey: "",
+		EmailFromAddress: "notifications@notify.pooli.shop",
+	}).ValidateEmail(); err == nil {
+		t.Fatal("expected missing key error")
+	}
+	if err := (Config{
+		AppEnv: "production", EmailEnabled: true, EmailProvider: "fake",
+		EmailFromAddress: "notifications@notify.pooli.shop",
+	}).ValidateEmail(); err == nil {
+		t.Fatal("fake forbidden in production")
+	}
+	if err := (Config{
+		AppEnv: "production", EmailEnabled: true, EmailProvider: "resend",
+		ResendAPIKey: "re_x", EmailFromAddress: "onboarding@resend.dev",
+	}).ValidateEmail(); err == nil {
+		t.Fatal("resend.dev forbidden in production")
+	}
+	if err := (Config{
+		EmailEnabled: true, EmailProvider: "resend", ResendAPIKey: "re_x",
+		EmailFromAddress: "notifications@notify.pooli.shop",
+	}).ValidateEmail(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCheckoutNetworksBSCGated(t *testing.T) {
 	off := Config{EnableBSCCheckout: false}
 	if got := off.CheckoutNetworks(); len(got) != 1 || got[0] != "tron" {

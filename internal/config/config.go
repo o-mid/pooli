@@ -9,37 +9,37 @@ import (
 )
 
 type Config struct {
-	AppEnv               string
-	APIAddr              string
-	WebOrigin            string
-	PublicBaseURL        string
-	DatabaseURL          string
-	RedisURL             string
-	SessionSecret        string
-	AdminEmails          map[string]bool
-	RateProvider         string
-	RateFallbackProvider string
-	RatePolicy           string
-	MockUSDTTmnRate      string
-	QuoteTTL                    time.Duration
-	LatePaymentReconcileWindow  time.Duration
-	RateStale                   time.Duration
-	RateCache                   time.Duration
-	RateMaxAge                  time.Duration
-	RateProviderTimeout         time.Duration
-	EnableChainSimulator        bool
-	TronNetwork          string
-	TronGridBaseURL      string
-	TronGridAPIKey       string
-	TronUSDTContract     string
-	BSCNetwork           string
-	BSCRPCURL            string
-	BSCChainID           int64
-	BSCUSDTContract      string
-	BSCUSDTDecimals      int
-	BSCConfirmations     int
-	TronConfirmations    int
-	ChainPollInterval    time.Duration
+	AppEnv                     string
+	APIAddr                    string
+	WebOrigin                  string
+	PublicBaseURL              string
+	DatabaseURL                string
+	RedisURL                   string
+	SessionSecret              string
+	AdminEmails                map[string]bool
+	RateProvider               string
+	RateFallbackProvider       string
+	RatePolicy                 string
+	MockUSDTTmnRate            string
+	QuoteTTL                   time.Duration
+	LatePaymentReconcileWindow time.Duration
+	RateStale                  time.Duration
+	RateCache                  time.Duration
+	RateMaxAge                 time.Duration
+	RateProviderTimeout        time.Duration
+	EnableChainSimulator       bool
+	TronNetwork                string
+	TronGridBaseURL            string
+	TronGridAPIKey             string
+	TronUSDTContract           string
+	BSCNetwork                 string
+	BSCRPCURL                  string
+	BSCChainID                 int64
+	BSCUSDTContract            string
+	BSCUSDTDecimals            int
+	BSCConfirmations           int
+	TronConfirmations          int
+	ChainPollInterval          time.Duration
 	TelegramBotToken           string
 	TelegramEnabled            bool
 	TelegramBotUsername        string
@@ -47,9 +47,9 @@ type Config struct {
 	TelegramWebhookBaseURL     string
 	TelegramConnectTokenTTL    time.Duration
 	UploadDir                  string
-	TronExplorerTxURL    string
-	BSCExplorerTxURL     string
-	EnableBSCWatcher     bool
+	TronExplorerTxURL          string
+	BSCExplorerTxURL           string
+	EnableBSCWatcher           bool
 	// EnableBSCCheckout controls whether buyers can select BNB Chain at checkout.
 	// Keep false until WalletConnect + watcher are production-verified.
 	EnableBSCCheckout bool
@@ -62,6 +62,13 @@ type Config struct {
 	GoogleClientID       string
 	GoogleClientSecret   string
 	GoogleRedirectURL    string
+	EmailEnabled         bool
+	EmailProvider        string // resend | fake
+	ResendAPIKey         string
+	EmailFromName        string
+	EmailFromAddress     string
+	EmailReplyTo         string
+	EmailTimeout         time.Duration
 }
 
 // Canonical Binance-Peg USDT on BNB Smart Chain mainnet (18 decimals).
@@ -88,14 +95,14 @@ func Load() Config {
 		tronExplorer = "https://tronscan.org/#/transaction/%s"
 	}
 	cfg := Config{
-		AppEnv:               getenv("APP_ENV", "development"),
-		APIAddr:              getenv("API_ADDR", ":8080"),
-		WebOrigin:            getenv("WEB_ORIGIN", "http://localhost:3000"),
-		PublicBaseURL:        getenv("PUBLIC_BASE_URL", "http://localhost:3000"),
-		DatabaseURL:          getenv("DATABASE_URL", "postgres://pooli:pooli@localhost:5432/pooli?sslmode=disable"),
-		RedisURL:             getenv("REDIS_URL", "redis://localhost:6379/0"),
-		SessionSecret:        getenv("SESSION_SECRET", "dev-session-secret-change-me-32chars"),
-		AdminEmails:          admin,
+		AppEnv:                     getenv("APP_ENV", "development"),
+		APIAddr:                    getenv("API_ADDR", ":8080"),
+		WebOrigin:                  getenv("WEB_ORIGIN", "http://localhost:3000"),
+		PublicBaseURL:              getenv("PUBLIC_BASE_URL", "http://localhost:3000"),
+		DatabaseURL:                getenv("DATABASE_URL", "postgres://pooli:pooli@localhost:5432/pooli?sslmode=disable"),
+		RedisURL:                   getenv("REDIS_URL", "redis://localhost:6379/0"),
+		SessionSecret:              getenv("SESSION_SECRET", "dev-session-secret-change-me-32chars"),
+		AdminEmails:                admin,
 		RateProvider:               getenv("RATE_PROVIDER", "mock"),
 		RateFallbackProvider:       getenv("RATE_FALLBACK_PROVIDER", "wallex"),
 		RatePolicy:                 getenv("RATE_POLICY", "best_buy"),
@@ -107,40 +114,75 @@ func Load() Config {
 		RateMaxAge:                 durationSeconds("RATE_MAX_AGE_SECONDS", 60),
 		RateProviderTimeout:        durationSeconds("RATE_PROVIDER_TIMEOUT_SECONDS", 5),
 		EnableChainSimulator:       getenv("ENABLE_CHAIN_SIMULATOR", "true") == "true",
-		TronNetwork:          tronNet,
-		TronGridBaseURL:      getenv("TRONGRID_BASE_URL", "https://nile.trongrid.io"),
-		TronGridAPIKey:       getenv("TRONGRID_API_KEY", ""),
-		TronUSDTContract:     getenv("TRON_USDT_CONTRACT", NileUSDTTRC20),
-		BSCNetwork:           strings.ToLower(getenv("BSC_NETWORK", "mainnet")),
-		BSCRPCURL:            getenv("BSC_RPC_URL", "https://bsc-dataseed.binance.org"),
-		BSCChainID:           int64(getenvInt("BSC_CHAIN_ID", 56)),
-		BSCUSDTContract:      getenv("BSC_USDT_CONTRACT", MainnetUSDTBEP20),
-		BSCUSDTDecimals:      getenvInt("BSC_USDT_DECIMALS", 18),
-		BSCConfirmations:     getenvInt("BSC_CONFIRMATIONS", 15),
-		TronConfirmations:    getenvInt("TRON_CONFIRMATIONS", tronConfDefault),
-		ChainPollInterval:    durationSeconds("CHAIN_POLL_INTERVAL_SECONDS", 8),
-		TelegramBotToken:        getenv("TELEGRAM_BOT_TOKEN", ""),
-		TelegramEnabled:         getenv("TELEGRAM_ENABLED", "false") == "true",
-		TelegramBotUsername:     getenv("TELEGRAM_BOT_USERNAME", "PooliShopbot"),
-		TelegramWebhookSecret:   getenv("TELEGRAM_WEBHOOK_SECRET", ""),
-		TelegramWebhookBaseURL:  getenv("TELEGRAM_WEBHOOK_BASE_URL", ""),
-		TelegramConnectTokenTTL: durationSeconds("TELEGRAM_CONNECT_TOKEN_TTL_SECONDS", 600),
-		UploadDir:               getenv("UPLOAD_DIR", "uploads"),
-		TronExplorerTxURL:    getenv("TRON_EXPLORER_TX_URL", tronExplorer),
-		BSCExplorerTxURL:     getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
-		EnableBSCWatcher:     getenv("ENABLE_BSC_WATCHER", "true") == "true",
-		EnableBSCCheckout:    getenv("ENABLE_BSC_CHECKOUT", "false") == "true",
-		OTPSMSProvider:       strings.ToLower(getenv("OTP_SMS_PROVIDER", "mock")),
-		GitSHA:               getenv("GIT_SHA", ""),
-		WorkerHeartbeatStale: durationSeconds("WORKER_HEARTBEAT_STALE_SECONDS", 120),
-		GoogleClientID:       getenv("GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret:   getenv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURL:    getenv("GOOGLE_REDIRECT_URL", ""),
+		TronNetwork:                tronNet,
+		TronGridBaseURL:            getenv("TRONGRID_BASE_URL", "https://nile.trongrid.io"),
+		TronGridAPIKey:             getenv("TRONGRID_API_KEY", ""),
+		TronUSDTContract:           getenv("TRON_USDT_CONTRACT", NileUSDTTRC20),
+		BSCNetwork:                 strings.ToLower(getenv("BSC_NETWORK", "mainnet")),
+		BSCRPCURL:                  getenv("BSC_RPC_URL", "https://bsc-dataseed.binance.org"),
+		BSCChainID:                 int64(getenvInt("BSC_CHAIN_ID", 56)),
+		BSCUSDTContract:            getenv("BSC_USDT_CONTRACT", MainnetUSDTBEP20),
+		BSCUSDTDecimals:            getenvInt("BSC_USDT_DECIMALS", 18),
+		BSCConfirmations:           getenvInt("BSC_CONFIRMATIONS", 15),
+		TronConfirmations:          getenvInt("TRON_CONFIRMATIONS", tronConfDefault),
+		ChainPollInterval:          durationSeconds("CHAIN_POLL_INTERVAL_SECONDS", 8),
+		TelegramBotToken:           getenv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramEnabled:            getenv("TELEGRAM_ENABLED", "false") == "true",
+		TelegramBotUsername:        getenv("TELEGRAM_BOT_USERNAME", "PooliShopbot"),
+		TelegramWebhookSecret:      getenv("TELEGRAM_WEBHOOK_SECRET", ""),
+		TelegramWebhookBaseURL:     getenv("TELEGRAM_WEBHOOK_BASE_URL", ""),
+		TelegramConnectTokenTTL:    durationSeconds("TELEGRAM_CONNECT_TOKEN_TTL_SECONDS", 600),
+		UploadDir:                  getenv("UPLOAD_DIR", "uploads"),
+		TronExplorerTxURL:          getenv("TRON_EXPLORER_TX_URL", tronExplorer),
+		BSCExplorerTxURL:           getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
+		EnableBSCWatcher:           getenv("ENABLE_BSC_WATCHER", "true") == "true",
+		EnableBSCCheckout:          getenv("ENABLE_BSC_CHECKOUT", "false") == "true",
+		OTPSMSProvider:             strings.ToLower(getenv("OTP_SMS_PROVIDER", "mock")),
+		GitSHA:                     getenv("GIT_SHA", ""),
+		WorkerHeartbeatStale:       durationSeconds("WORKER_HEARTBEAT_STALE_SECONDS", 120),
+		GoogleClientID:             getenv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:         getenv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURL:          getenv("GOOGLE_REDIRECT_URL", ""),
+		EmailEnabled:               getenv("EMAIL_ENABLED", "false") == "true",
+		EmailProvider:              strings.ToLower(getenv("EMAIL_PROVIDER", "resend")),
+		ResendAPIKey:               getenv("RESEND_API_KEY", ""),
+		EmailFromName:              getenv("EMAIL_FROM_NAME", "Pooli"),
+		EmailFromAddress:           getenv("EMAIL_FROM_ADDRESS", "notifications@notify.pooli.shop"),
+		EmailReplyTo:               getenv("EMAIL_REPLY_TO", "support@pooli.shop"),
+		EmailTimeout:               durationSeconds("EMAIL_TIMEOUT_SECONDS", 8),
 	}
 	if cfg.GoogleRedirectURL == "" && cfg.PublicBaseURL != "" {
 		cfg.GoogleRedirectURL = strings.TrimRight(cfg.PublicBaseURL, "/") + "/api/v1/auth/google/callback"
 	}
 	return cfg
+}
+
+// ValidateEmail returns a fatal configuration error when email is enabled unsafely.
+// When EMAIL_ENABLED=false, missing credentials are allowed (no crash).
+func (c Config) ValidateEmail() error {
+	if !c.EmailEnabled {
+		return nil
+	}
+	provider := strings.ToLower(strings.TrimSpace(c.EmailProvider))
+	switch provider {
+	case "resend":
+		if strings.TrimSpace(c.ResendAPIKey) == "" {
+			return fmt.Errorf("RESEND_API_KEY is required when EMAIL_ENABLED=true and EMAIL_PROVIDER=resend")
+		}
+	case "fake":
+		if c.AppEnv == "production" {
+			return fmt.Errorf("EMAIL_PROVIDER=fake is forbidden in production")
+		}
+	default:
+		return fmt.Errorf("EMAIL_PROVIDER must be resend or fake (got %q)", c.EmailProvider)
+	}
+	if strings.TrimSpace(c.EmailFromAddress) == "" {
+		return fmt.Errorf("EMAIL_FROM_ADDRESS is required when EMAIL_ENABLED=true")
+	}
+	if c.AppEnv == "production" && strings.Contains(strings.ToLower(c.EmailFromAddress), "resend.dev") {
+		return fmt.Errorf("EMAIL_FROM_ADDRESS must not use onboarding@resend.dev in production")
+	}
+	return nil
 }
 
 // GoogleOAuthEnabled reports whether Google sign-in is configured.
