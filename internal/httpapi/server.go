@@ -30,18 +30,19 @@ type Server struct {
 	Hub      *sse.Hub
 	Matcher  *payment.Matcher
 	Telegram *notify.Telegram
+	Email    *notify.Email
 	EVM      chain.Adapter
 	Tron     chain.Adapter
 
 	refreshQuoteLimit *slidingWindowLimiter
 }
 
-func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *sse.Hub, matcher *payment.Matcher, tg *notify.Telegram, evm, tron chain.Adapter) *Server {
+func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *sse.Hub, matcher *payment.Matcher, tg *notify.Telegram, mail *notify.Email, evm, tron chain.Adapter) *Server {
 	return &Server{
 		Cfg: cfg, Pool: pool,
-		Auth: &auth.Service{Pool: pool, AdminEmails: cfg.AdminEmails},
-		OTP:  otp.NewService(pool, otp.MockProvider{}, cfg.AppEnv),
-		Rates: rates, Hub: hub, Matcher: matcher, Telegram: tg, EVM: evm, Tron: tron,
+		Auth:  &auth.Service{Pool: pool, AdminEmails: cfg.AdminEmails},
+		OTP:   otp.NewService(pool, otp.MockProvider{}, cfg.AppEnv),
+		Rates: rates, Hub: hub, Matcher: matcher, Telegram: tg, Email: mail, EVM: evm, Tron: tron,
 		// Public refresh-quote: 8 attempts / slug / 10 minutes (abuse guard).
 		refreshQuoteLimit: newSlidingWindowLimiter(10*time.Minute, 8),
 	}
@@ -108,6 +109,8 @@ func (s *Server) Router() http.Handler {
 			r.Post("/telegram/connect-link", s.handleTelegramConnectLink)
 			r.Post("/telegram/disconnect", s.handleTelegramDisconnect)
 			r.Post("/telegram/test", s.handleTelegramTest)
+			r.Get("/merchant/notification-prefs", s.handleGetNotificationPrefs)
+			r.Patch("/merchant/notification-prefs", s.handlePatchNotificationPrefs)
 
 			r.Group(func(r chi.Router) {
 				r.Use(s.requireAdmin)

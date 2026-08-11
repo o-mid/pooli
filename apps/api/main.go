@@ -49,6 +49,11 @@ func main() {
 		Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled,
 		BotUsername: cfg.TelegramBotUsername, PublicBase: cfg.PublicBaseURL,
 	}
+	mail, err := notify.BuildEmail(cfg, pool)
+	if err != nil {
+		log.Fatal(err)
+	}
+	channels := notify.Channels{Telegram: tg, Email: mail}
 	matcher := &payment.Matcher{
 		Pool: pool, BSCConfirmations: cfg.BSCConfirmations, TronConfirmations: cfg.TronConfirmations,
 		LateReconcileWindow: cfg.LatePaymentReconcileWindow,
@@ -56,8 +61,8 @@ func main() {
 			hub.PublishIntent(intentID, sse.Event{Type: eventType, Payload: payload})
 			hub.PublishMerchant(merchantID, sse.Event{Type: eventType, Payload: payload})
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
-			// Async after matcher commit — never hold matching on Telegram HTTP.
-			go notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
+			// Async after matcher commit — never hold matching on notify HTTP.
+			go notify.DispatchTransition(context.Background(), pool, channels, merchantID, intentID, eventType, payload)
 		},
 	}
 
@@ -71,7 +76,7 @@ func main() {
 	}
 	tronAdapter := chain.NewTronAdapter(cfg.TronGridBaseURL, cfg.TronGridAPIKey, cfg.TronUSDTContract, cfg.TronConfirmations)
 
-	srv := httpapi.NewServer(cfg, pool, rates, hub, matcher, tg, evmAdapter, tronAdapter)
+	srv := httpapi.NewServer(cfg, pool, rates, hub, matcher, tg, mail, evmAdapter, tronAdapter)
 	httpServer := &http.Server{Addr: cfg.APIAddr, Handler: srv.Router()}
 
 	go func() {

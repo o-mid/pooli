@@ -42,7 +42,7 @@ func newTestServer(t *testing.T) (*httpapi.Server, *auth.Service) {
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
 		},
 	}
-	srv := httpapi.NewServer(cfg, pool, rates, hub, matcher, &notify.Telegram{}, &chain.NoopAdapter{Name: "bsc"}, &chain.NoopAdapter{Name: "tron"})
+	srv := httpapi.NewServer(cfg, pool, rates, hub, matcher, &notify.Telegram{}, nil, &chain.NoopAdapter{Name: "bsc"}, &chain.NoopAdapter{Name: "tron"})
 	return srv, &auth.Service{Pool: pool, AdminEmails: map[string]bool{}}
 }
 

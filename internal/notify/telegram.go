@@ -88,7 +88,7 @@ func (t *Telegram) DeliverPaid(ctx context.Context, n PaidNotify) error {
 		return nil
 	}
 	eventKey := "payment.paid:" + n.IntentID
-	ok, err := t.beginDelivery(ctx, n.MerchantID, n.IntentID, "payment.paid", eventKey, map[string]any{
+	ok, err := beginDelivery(ctx, t.Pool, n.MerchantID, "telegram", n.IntentID, "payment.paid", eventKey, map[string]any{
 		"order_ref": n.OrderRef, "toman": n.Toman,
 	})
 	if err != nil || !ok {
@@ -121,7 +121,7 @@ func (t *Telegram) DeliverNeedsAttention(ctx context.Context, n AttentionNotify)
 		return nil
 	}
 	eventKey := "payment.needs_review:" + n.IntentID
-	ok, err := t.beginDelivery(ctx, n.MerchantID, n.IntentID, "payment.needs_review", eventKey, map[string]any{
+	ok, err := beginDelivery(ctx, t.Pool, n.MerchantID, "telegram", n.IntentID, "payment.needs_review", eventKey, map[string]any{
 		"status": n.Status, "order_ref": n.OrderRef,
 	})
 	if err != nil || !ok {
@@ -180,51 +180,15 @@ func (t *Telegram) chatID(ctx context.Context, merchantID string) (string, error
 	return chatID, nil
 }
 
-func (t *Telegram) beginDelivery(ctx context.Context, merchantID, intentID, eventType, eventKey string, payload map[string]any) (bool, error) {
-	b, _ := json.Marshal(payload)
-	tag, err := t.Pool.Exec(ctx, `
-		INSERT INTO notification_deliveries (
-			merchant_id, channel, event_type, event_key, payment_intent_id, payload_json, status, attempts
-		) VALUES (
-			$1::uuid, 'telegram', $2, $3,
-			NULLIF($4,'')::uuid, $5::jsonb, 'pending', 0
-		)
-		ON CONFLICT (merchant_id, channel, event_key) WHERE event_key IS NOT NULL
-		DO NOTHING`, merchantID, eventType, eventKey, intentID, string(b))
-	if err != nil {
-		// payment_intent_id may be non-uuid for legacy — retry without it
-		if isInvalidUUID(err) {
-			tag, err = t.Pool.Exec(ctx, `
-				INSERT INTO notification_deliveries (
-					merchant_id, channel, event_type, event_key, payload_json, status, attempts
-				) VALUES ($1::uuid,'telegram',$2,$3,$4::jsonb,'pending',0)
-				ON CONFLICT (merchant_id, channel, event_key) WHERE event_key IS NOT NULL
-				DO NOTHING`, merchantID, eventType, eventKey, string(b))
-		}
-		if err != nil {
-			return false, err
-		}
-	}
-	return tag.RowsAffected() == 1, nil
-}
-
 func (t *Telegram) sendWithRetry(ctx context.Context, merchantID, eventKey, chatID, text string) error {
 	var lastErr error
 	for i := 1; i <= t.maxAttempts(); i++ {
 		lastErr = t.postMessage(ctx, chatID, text)
 		if lastErr == nil {
-			_, _ = t.Pool.Exec(ctx, `
-				UPDATE notification_deliveries
-				SET status='delivered', attempts=$3, delivered_at=now(), last_error=''
-				WHERE merchant_id=$1::uuid AND channel='telegram' AND event_key=$2`,
-				merchantID, eventKey, i)
+			markDelivered(ctx, t.Pool, merchantID, "telegram", eventKey, "telegram", "", i)
 			return nil
 		}
-		_, _ = t.Pool.Exec(ctx, `
-			UPDATE notification_deliveries
-			SET status='failed', attempts=$3, last_error=$4
-			WHERE merchant_id=$1::uuid AND channel='telegram' AND event_key=$2`,
-			merchantID, eventKey, i, truncateErr(lastErr))
+		markFailed(ctx, t.Pool, merchantID, "telegram", eventKey, i, lastErr)
 		if !isRetryable(lastErr) {
 			break
 		}
@@ -235,15 +199,6 @@ func (t *Telegram) sendWithRetry(ctx context.Context, merchantID, eventKey, chat
 		}
 	}
 	return lastErr
-}
-
-func (t *Telegram) failDelivery(ctx context.Context, merchantID, eventKey, reason string) error {
-	_, err := t.Pool.Exec(ctx, `
-		UPDATE notification_deliveries
-		SET status='failed', last_error=$3, attempts=GREATEST(attempts,1)
-		WHERE merchant_id=$1::uuid AND channel='telegram' AND event_key=$2`,
-		merchantID, eventKey, reason)
-	return err
 }
 
 func (t *Telegram) postMessage(ctx context.Context, chatID, text string) error {

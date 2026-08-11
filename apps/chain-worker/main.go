@@ -40,6 +40,11 @@ func main() {
 		Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled,
 		BotUsername: cfg.TelegramBotUsername, PublicBase: cfg.PublicBaseURL,
 	}
+	mail, err := notify.BuildEmail(cfg, pool)
+	if err != nil {
+		log.Fatal(err)
+	}
+	channels := notify.Channels{Telegram: tg, Email: mail}
 	matcher := &payment.Matcher{
 		Pool:                pool,
 		BSCConfirmations:    cfg.BSCConfirmations,
@@ -48,7 +53,7 @@ func main() {
 		OnTransition: func(merchantID, intentID, eventType string, payload map[string]any) {
 			log.Printf("transition %s intent=%s", eventType, intentID)
 			payment.RecordPaymentTimeline(context.Background(), pool, merchantID, intentID, eventType, payload)
-			go notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, eventType, payload)
+			go notify.DispatchTransition(context.Background(), pool, channels, merchantID, intentID, eventType, payload)
 		},
 	}
 

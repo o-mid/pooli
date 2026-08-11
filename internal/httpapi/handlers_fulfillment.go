@@ -114,12 +114,42 @@ func (s *Server) handlePatchFulfillment(w http.ResponseWriter, r *http.Request) 
 			"tracking_number":   strings.TrimSpace(req.TrackingNumber),
 		})
 
+	if req.Status == domain.FulfillmentShipped || req.Status == domain.FulfillmentDelivered {
+		go s.dispatchFulfillmentEmail(context.Background(), mid, orderID, req.Status,
+			strings.TrimSpace(req.ShippingProvider), strings.TrimSpace(req.TrackingNumber))
+	}
+
 	order, err := s.loadOrderForMerchant(r.Context(), mid, orderID)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
+}
+
+func (s *Server) dispatchFulfillmentEmail(ctx context.Context, merchantID, orderID, status, provider, tracking string) {
+	if s.Email == nil || !s.Email.Enabled {
+		return
+	}
+	var slug, orderRef, buyerEmail, customerEmail string
+	err := s.Pool.QueryRow(ctx, `
+		SELECT o.slug, COALESCE(NULLIF(o.merchant_reference,''), o.slug),
+		       COALESCE((SELECT value FROM order_field_values WHERE order_id=o.id AND field_key='email' LIMIT 1),''),
+		       COALESCE(c.email,'')
+		FROM orders o
+		LEFT JOIN customers c ON c.id=o.customer_id
+		WHERE o.id=$1::uuid AND o.merchant_id=$2::uuid`, orderID, merchantID).
+		Scan(&slug, &orderRef, &buyerEmail, &customerEmail)
+	if err != nil {
+		return
+	}
+	if strings.TrimSpace(buyerEmail) == "" {
+		buyerEmail = customerEmail
+	}
+	if strings.TrimSpace(buyerEmail) == "" {
+		return
+	}
+	_ = s.Email.DeliverFulfillmentBuyer(ctx, merchantID, orderID, slug, orderRef, status, provider, tracking, buyerEmail)
 }
 
 func (s *Server) handleGetOrderTimeline(w http.ResponseWriter, r *http.Request) {

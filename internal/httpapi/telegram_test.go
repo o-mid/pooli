@@ -182,10 +182,11 @@ func TestPaidNotifyOnceAndOutageDoesNotBreakPaid(t *testing.T) {
 	tg := &notify.Telegram{
 		Pool: pool, Token: "t", Enabled: true, APIBase: fake.URL, PublicBase: "https://pooli.shop", MaxAttempts: 1,
 	}
-	notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, "payment.paid", map[string]any{
+	ch := notify.Channels{Telegram: tg}
+	notify.DispatchTransition(context.Background(), pool, ch, merchantID, intentID, "payment.paid", map[string]any{
 		"network": "tron", "amount_base_units": int64(30158731),
 	})
-	notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, "payment.paid", map[string]any{
+	notify.DispatchTransition(context.Background(), pool, ch, merchantID, intentID, "payment.paid", map[string]any{
 		"network": "tron", "amount_base_units": int64(30158731),
 	})
 	if sends.Load() != 1 {
@@ -197,7 +198,7 @@ func TestPaidNotifyOnceAndOutageDoesNotBreakPaid(t *testing.T) {
 	}))
 	defer down.Close()
 	tg.APIBase = down.URL
-	notify.DispatchTransition(context.Background(), pool, tg, merchantID, intentID, "payment.needs_review", map[string]any{
+	notify.DispatchTransition(context.Background(), pool, ch, merchantID, intentID, "payment.needs_review", map[string]any{
 		"match_type": "UNDERPAID", "amount_base_units": int64(30158000),
 	})
 	var status string

@@ -23,7 +23,7 @@ func TestOpsStatusAndPhoneProviders(t *testing.T) {
 	cfg.EnableBSCCheckout = false
 	cfg.OTPSMSProvider = "mock"
 	cfg.WorkerHeartbeatStale = time.Minute
-	s := NewServer(cfg, pool, nil, nil, nil, nil, nil, nil)
+	s := NewServer(cfg, pool, nil, nil, nil, nil, nil, nil, nil)
 
 	if err := ops.Beat(context.Background(), pool, ops.ChainWorkerName, map[string]any{"test": true}); err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestOpsStatusAndPhoneProviders(t *testing.T) {
 	// Production + mock OTP → phone disabled on providers endpoint.
 	cfg.AppEnv = "production"
 	cfg.OTPSMSProvider = "mock"
-	s = NewServer(cfg, pool, nil, nil, nil, nil, nil, nil)
+	s = NewServer(cfg, pool, nil, nil, nil, nil, nil, nil, nil)
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/auth/providers", nil)
 	rec = httptest.NewRecorder()
 	s.Router().ServeHTTP(rec, req)
