@@ -1,4 +1,4 @@
-const CACHE = "pooli-shell-v5";
+const CACHE = "pooli-shell-v6";
 const STATIC = ["/", "/app", "/manifest.webmanifest", "/brand/logo-color.svg", "/brand/mark.svg"];
 
 self.addEventListener("install", (event) => {
