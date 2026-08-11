@@ -23,6 +23,23 @@ type Merchant = {
     username?: string;
     bot?: string;
   };
+  email_notifications?: {
+    enabled?: boolean;
+    destination?: string;
+    payment_received?: boolean;
+    needs_attention?: boolean;
+    order_updates?: boolean;
+  };
+};
+
+type NotifyPrefs = {
+  email_enabled?: boolean;
+  email_destination?: string;
+  email?: {
+    payment_received?: boolean;
+    needs_attention?: boolean;
+    order_updates?: boolean;
+  };
 };
 
 type Me = {
@@ -56,6 +73,12 @@ export default function SettingsPage() {
   const [tgError, setTgError] = useState("");
   const [tgBusy, setTgBusy] = useState(false);
   const [tgDeepLink, setTgDeepLink] = useState("");
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [emailDestination, setEmailDestination] = useState("");
+  const [emailPayment, setEmailPayment] = useState(true);
+  const [emailAttention, setEmailAttention] = useState(true);
+  const [emailOrders, setEmailOrders] = useState(true);
+  const [emailBusy, setEmailBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -84,9 +107,43 @@ export default function SettingsPage() {
     return Boolean(data.merchant?.telegram?.connected);
   }
 
+  async function refreshEmailPrefs() {
+    const prefs = await api<NotifyPrefs>("/api/v1/merchant/notification-prefs");
+    setEmailEnabled(Boolean(prefs.email_enabled));
+    setEmailDestination(prefs.email_destination || "");
+    setEmailPayment(prefs.email?.payment_received !== false);
+    setEmailAttention(prefs.email?.needs_attention !== false);
+    setEmailOrders(prefs.email?.order_updates !== false);
+  }
+
+  async function patchEmailPref(next: {
+    payment_received?: boolean;
+    needs_attention?: boolean;
+    order_updates?: boolean;
+  }) {
+    setEmailBusy(true);
+    setError("");
+    try {
+      const prefs = await api<NotifyPrefs>("/api/v1/merchant/notification-prefs", {
+        method: "PATCH",
+        body: JSON.stringify({ email: next }),
+      });
+      setEmailPayment(prefs.email?.payment_received !== false);
+      setEmailAttention(prefs.email?.needs_attention !== false);
+      setEmailOrders(prefs.email?.order_updates !== false);
+      setMsg(t.common.saved);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
   useEffect(() => {
     setStandalone(isStandaloneDisplay());
-    refreshMe().catch(() => undefined);
+    refreshMe()
+      .then(() => refreshEmailPrefs().catch(() => undefined))
+      .catch(() => undefined);
     api<Defaults>("/api/v1/merchant/checkout-defaults")
       .then(setDefaults)
       .catch(() => undefined);
@@ -385,6 +442,69 @@ export default function SettingsPage() {
                 </p>
               ) : null}
               {tgMsg ? <p className="ok" style={{ marginTop: "var(--space-3)" }}>{tgMsg}</p> : null}
+
+              <h3 style={{ margin: "var(--space-6) 0 0", fontSize: "var(--text-headline)" }}>{t.settings.email}</h3>
+              {!emailEnabled ? (
+                <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+                  {t.settings.emailDisabledHint}
+                </p>
+              ) : (
+                <>
+                  <p className="muted mono-ltr" style={{ margin: "var(--space-2) 0 0" }}>
+                    {emailDestination || me?.user?.email || "—"}
+                  </p>
+                  <p className="muted" style={{ margin: "var(--space-1) 0 0" }}>
+                    {t.settings.emailDestinationHint}
+                  </p>
+                  <div style={{ marginTop: "var(--space-4)", display: "grid", gap: "var(--space-3)" }}>
+                    <label className="list-row" style={{ cursor: emailBusy ? "wait" : "pointer" }}>
+                      <div className="list-row-body">
+                        <div className="list-row-title">{t.settings.emailPaymentReceived}</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={emailPayment}
+                        disabled={emailBusy}
+                        onChange={(e) => {
+                          const v = e.target.checked;
+                          setEmailPayment(v);
+                          void patchEmailPref({ payment_received: v });
+                        }}
+                      />
+                    </label>
+                    <label className="list-row" style={{ cursor: emailBusy ? "wait" : "pointer" }}>
+                      <div className="list-row-body">
+                        <div className="list-row-title">{t.settings.emailNeedsAttention}</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={emailAttention}
+                        disabled={emailBusy}
+                        onChange={(e) => {
+                          const v = e.target.checked;
+                          setEmailAttention(v);
+                          void patchEmailPref({ needs_attention: v });
+                        }}
+                      />
+                    </label>
+                    <label className="list-row" style={{ cursor: emailBusy ? "wait" : "pointer" }}>
+                      <div className="list-row-body">
+                        <div className="list-row-title">{t.settings.emailOrderUpdates}</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={emailOrders}
+                        disabled={emailBusy}
+                        onChange={(e) => {
+                          const v = e.target.checked;
+                          setEmailOrders(v);
+                          void patchEmailPref({ order_updates: v });
+                        }}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
             </div>
           </section>
         </div>

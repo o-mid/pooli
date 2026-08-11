@@ -85,13 +85,27 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	if telegramConnectedAt != nil {
 		telegram["connected_at"] = telegramConnectedAt
 	}
+	var emailPaid, emailAttn, emailOrders bool
+	var preferredLocale string
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT notify_email_payment_received, notify_email_payment_attention, notify_email_order_updates, preferred_locale
+		FROM merchants WHERE id=$1::uuid`, merchantID).
+		Scan(&emailPaid, &emailAttn, &emailOrders, &preferredLocale)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user": u,
 		"merchant": map[string]any{
 			"id": merchantID, "name": merchantName, "display_name": displayName,
 			"description": description, "logo_url": logoURL, "support_contact": support,
-			"slug": merchantSlug,
+			"slug":     merchantSlug,
 			"telegram": telegram,
+			"email_notifications": map[string]any{
+				"enabled":          s.Cfg.EmailEnabled,
+				"destination":      u.Email,
+				"payment_received": emailPaid,
+				"needs_attention":  emailAttn,
+				"order_updates":    emailOrders,
+				"preferred_locale": preferredLocale,
+			},
 		},
 	})
 }
