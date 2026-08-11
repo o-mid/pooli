@@ -58,6 +58,7 @@ type Pay = {
     phone_verified?: boolean;
     wallet_configured?: boolean;
   };
+  enabled_networks?: string[];
 };
 
 type Step = "details" | "network" | "pay";
@@ -439,24 +440,28 @@ export default function CheckoutClient() {
         <section className="section">
           <h2 className="section-title">{t.checkout.selectNetwork}</h2>
           <div className="network-choice">
-            <button type="button" className="recommended" onClick={() => chooseNetwork("tron")}>
-              <span>
-                <strong>USDT · TRON</strong>
-                <span className="network-hint">
-                  {preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.networkTronHint}
+            {(pay?.enabled_networks || ["tron"]).includes("tron") ? (
+              <button type="button" className="recommended" onClick={() => chooseNetwork("tron")}>
+                <span>
+                  <strong>USDT · TRON</strong>
+                  <span className="network-hint">
+                    {preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.networkTronHint}
+                  </span>
                 </span>
-              </span>
-              <span className="badge">{preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.recommend}</span>
-            </button>
-            <button type="button" onClick={() => chooseNetwork("bsc")}>
-              <span>
-                <strong>USDT · BNB Chain</strong>
-                <span className="network-hint">
-                  {preferredNet === "bsc" ? t.checkout.previouslyUsed : t.checkout.networkBscHint}
+                <span className="badge">{preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.recommend}</span>
+              </button>
+            ) : null}
+            {(pay?.enabled_networks || []).includes("bsc") ? (
+              <button type="button" onClick={() => chooseNetwork("bsc")}>
+                <span>
+                  <strong>USDT · BNB Chain</strong>
+                  <span className="network-hint">
+                    {preferredNet === "bsc" ? t.checkout.previouslyUsed : t.checkout.networkBscHint}
+                  </span>
                 </span>
-              </span>
-              {preferredNet === "bsc" ? <span className="badge">{t.checkout.previouslyUsed}</span> : null}
-            </button>
+                {preferredNet === "bsc" ? <span className="badge">{t.checkout.previouslyUsed}</span> : null}
+              </button>
+            ) : null}
           </div>
           {error && (
             <p className="field-error" role="alert">

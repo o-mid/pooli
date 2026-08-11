@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -28,6 +28,16 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phoneEnabled, setPhoneEnabled] = useState(false);
+
+  useEffect(() => {
+    api<{ phone?: boolean }>("/api/v1/auth/providers")
+      .then((p) => {
+        setPhoneEnabled(Boolean(p.phone));
+        if (!p.phone) setMode("email");
+      })
+      .catch(() => setPhoneEnabled(false));
+  }, []);
 
   async function onEmailSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -122,20 +132,22 @@ export default function RegisterPage() {
 
       <GoogleAuthButton mode="register" />
 
-      <SegmentedControl
-        ariaLabel={t.register}
-        value={mode}
-        onChange={(v) => {
-          setMode(v);
-          setPhoneStep("details");
-          setError("");
-          setInfo("");
-        }}
-        options={[
-          { value: "email", label: t.email },
-          { value: "phone", label: t.phone },
-        ]}
-      />
+      {phoneEnabled ? (
+        <SegmentedControl
+          ariaLabel={t.register}
+          value={mode}
+          onChange={(v) => {
+            setMode(v);
+            setPhoneStep("details");
+            setError("");
+            setInfo("");
+          }}
+          options={[
+            { value: "email", label: t.email },
+            { value: "phone", label: t.phone },
+          ]}
+        />
+      ) : null}
 
       {mode === "email" ? (
         <form className="card-panel" onSubmit={onEmailSubmit}>

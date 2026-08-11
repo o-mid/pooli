@@ -36,6 +36,8 @@ func (s *Server) googleOAuthConfig() *oauth2.Config {
 func (s *Server) handleGoogleAuthProviders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"google": s.Cfg.GoogleOAuthEnabled(),
+		"email":  true,
+		"phone":  s.Cfg.PhoneOTPEnabled(),
 	})
 }
 

@@ -50,7 +50,9 @@ assert len(opts) >= 1, order
 amounts = sorted(o["pay_usdt_amount_base_units"] for o in opts)
 print("   reserved amounts", amounts)
 tron = next(o for o in opts if o["network"] == "tron")
-bsc = next(o for o in opts if o["network"] == "bsc")
+bsc = next((o for o in opts if o["network"] == "bsc"), None)
+if bsc is None:
+    raise RuntimeError("BSC option missing — set ENABLE_BSC_CHECKOUT=true for make verify")
 
 print("4) concurrent similar base amounts stay unique per network")
 order2 = req("POST", "/api/v1/orders", {"fiat_amount_toman": 3800000, "title": "Verify hoodie 2"})[1]

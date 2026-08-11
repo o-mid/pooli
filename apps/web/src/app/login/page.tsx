@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phoneEnabled, setPhoneEnabled] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -33,6 +34,15 @@ export default function LoginPage() {
       setError(t.googleAuthError);
     }
   }, [t.googleAuthError]);
+
+  useEffect(() => {
+    api<{ phone?: boolean }>("/api/v1/auth/providers")
+      .then((p) => {
+        setPhoneEnabled(Boolean(p.phone));
+        if (!p.phone) setMode("email");
+      })
+      .catch(() => setPhoneEnabled(false));
+  }, []);
 
   async function onEmailSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -112,20 +122,22 @@ export default function LoginPage() {
 
       <GoogleAuthButton mode="login" />
 
-      <SegmentedControl
-        ariaLabel={t.login}
-        value={mode}
-        onChange={(v) => {
-          setMode(v);
-          setPhoneStep("phone");
-          setError("");
-          setInfo("");
-        }}
-        options={[
-          { value: "email", label: t.loginWithEmail },
-          { value: "phone", label: t.loginWithPhone },
-        ]}
-      />
+      {phoneEnabled ? (
+        <SegmentedControl
+          ariaLabel={t.login}
+          value={mode}
+          onChange={(v) => {
+            setMode(v);
+            setPhoneStep("phone");
+            setError("");
+            setInfo("");
+          }}
+          options={[
+            { value: "email", label: t.loginWithEmail },
+            { value: "phone", label: t.loginWithPhone },
+          ]}
+        />
+      ) : null}
 
       {mode === "email" ? (
         <form className="card-panel" onSubmit={onEmailSubmit}>

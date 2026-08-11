@@ -6,6 +6,13 @@ cd "$ROOT"
 API_BIN="${API_BIN:-$ROOT/bin/api}"
 API_URL="${API_BASE_URL:-http://127.0.0.1:8080}"
 export DATABASE_URL="${DATABASE_URL:-postgres://pooli:pooli@localhost:5432/pooli?sslmode=disable}"
+# Local MVP verify exercises both rails via the chain simulator.
+export ENABLE_CHAIN_SIMULATOR="${ENABLE_CHAIN_SIMULATOR:-true}"
+export ENABLE_BSC_CHECKOUT="${ENABLE_BSC_CHECKOUT:-true}"
+export ENABLE_BSC_WATCHER="${ENABLE_BSC_WATCHER:-true}"
+export APP_ENV="${APP_ENV:-development}"
+# Verify must never depend on live market rates.
+export RATE_PROVIDER="${RATE_PROVIDER:-mock}"
 
 mkdir -p bin
 go build -o "$API_BIN" ./apps/api

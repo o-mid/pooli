@@ -12,6 +12,10 @@ func (s *Server) handleOTPSend(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "otp unavailable")
 		return
 	}
+	if !s.Cfg.PhoneOTPEnabled() {
+		writeErr(w, http.StatusServiceUnavailable, "phone login unavailable")
+		return
+	}
 	var req struct {
 		Phone   string `json:"phone"`
 		Purpose string `json:"purpose"`
@@ -61,6 +65,10 @@ func (s *Server) handleOTPVerify(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "otp unavailable")
 		return
 	}
+	if !s.Cfg.PhoneOTPEnabled() {
+		writeErr(w, http.StatusServiceUnavailable, "phone login unavailable")
+		return
+	}
 	var req struct {
 		Phone   string `json:"phone"`
 		Code    string `json:"code"`
@@ -99,6 +107,10 @@ func (s *Server) handleOTPVerify(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleOTPRegister(w http.ResponseWriter, r *http.Request) {
 	if s.OTP == nil {
 		writeErr(w, http.StatusServiceUnavailable, "otp unavailable")
+		return
+	}
+	if !s.Cfg.PhoneOTPEnabled() {
+		writeErr(w, http.StatusServiceUnavailable, "phone login unavailable")
 		return
 	}
 	var req struct {

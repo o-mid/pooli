@@ -14,6 +14,7 @@ import (
 	"github.com/pooli-shop/pooli/internal/db"
 	"github.com/pooli-shop/pooli/internal/domain"
 	"github.com/pooli-shop/pooli/internal/notify"
+	"github.com/pooli-shop/pooli/internal/ops"
 	"github.com/pooli-shop/pooli/internal/payment"
 )
 
@@ -70,20 +71,35 @@ func main() {
 	ticker := time.NewTicker(cfg.ChainPollInterval)
 	defer ticker.Stop()
 
+	// Immediate heartbeat so ops status is green before first poll interval elapses.
+	_ = ops.Beat(ctx, pool, ops.ChainWorkerName, map[string]any{
+		"tron_network": cfg.TronNetwork, "bsc_watcher": cfg.EnableBSCWatcher, "started": true,
+	})
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			pollErrs := 0
 			for _, ad := range adapters {
 				if err := pollNetwork(ctx, pool, matcher, ad); err != nil {
 					log.Printf("poll %s: %v", ad.Network(), err)
+					pollErrs++
 				}
 				if err := advanceConfirmations(ctx, pool, matcher, ad); err != nil {
 					log.Printf("confirm %s: %v", ad.Network(), err)
 				}
 			}
 			expireIntents(ctx, pool)
+			if err := ops.Beat(ctx, pool, ops.ChainWorkerName, map[string]any{
+				"tron_network": cfg.TronNetwork,
+				"bsc_watcher":  cfg.EnableBSCWatcher,
+				"adapters":     len(adapters),
+				"poll_errors":  pollErrs,
+			}); err != nil {
+				log.Printf("heartbeat: %v", err)
+			}
 		}
 	}
 }

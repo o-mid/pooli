@@ -53,3 +53,25 @@ func TestValidateBSCPilotRejectsSimulator(t *testing.T) {
 		t.Fatal("expected simulator conflict")
 	}
 }
+
+func TestPhoneOTPDisabledInProductionWithMock(t *testing.T) {
+	cfg := Config{AppEnv: "production", OTPSMSProvider: "mock"}
+	if cfg.PhoneOTPEnabled() {
+		t.Fatal("mock OTP must be disabled in production")
+	}
+	dev := Config{AppEnv: "development", OTPSMSProvider: "mock"}
+	if !dev.PhoneOTPEnabled() {
+		t.Fatal("mock OTP allowed in development")
+	}
+}
+
+func TestCheckoutNetworksBSCGated(t *testing.T) {
+	off := Config{EnableBSCCheckout: false}
+	if got := off.CheckoutNetworks(); len(got) != 1 || got[0] != "tron" {
+		t.Fatalf("got %#v", got)
+	}
+	on := Config{EnableBSCCheckout: true}
+	if got := on.CheckoutNetworks(); len(got) != 2 {
+		t.Fatalf("got %#v", got)
+	}
+}

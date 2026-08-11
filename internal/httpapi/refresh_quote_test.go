@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -37,13 +38,13 @@ func TestRefreshQuoteCreatesNewActiveOptions(t *testing.T) {
 
 	// Expire intent + reservation like the worker.
 	pool := srv.Pool
-	_, err := pool.Exec(t.Context(), `
+	_, err := pool.Exec(context.Background(), `
 		UPDATE payment_intents SET status='EXPIRED', expires_at=$2, updated_at=now() WHERE id=$1::uuid`,
 		intentID, time.Now().UTC().Add(-2*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = pool.Exec(t.Context(), `
+	_, err = pool.Exec(context.Background(), `
 		UPDATE amount_reservations SET status='released', expires_at=now()
 		WHERE payment_option_id=$1::uuid AND status='active'`, oldID)
 	if err != nil {

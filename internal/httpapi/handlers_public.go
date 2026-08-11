@@ -120,6 +120,17 @@ func (s *Server) handlePublicSelectNetwork(w http.ResponseWriter, r *http.Reques
 		writeErr(w, http.StatusBadRequest, "network required")
 		return
 	}
+	allowed := false
+	for _, n := range s.Cfg.CheckoutNetworks() {
+		if n == req.Network {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		writeErr(w, http.StatusBadRequest, "network unavailable")
+		return
+	}
 	pay, err := s.loadPublicBySlug(r.Context(), slug)
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "not found")
@@ -146,6 +157,10 @@ func (s *Server) handlePublicSelectNetwork(w http.ResponseWriter, r *http.Reques
 // Never mutates options that already have observed money; never reuses reservations unsafely.
 func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
+	if s.refreshQuoteLimit != nil && !s.refreshQuoteLimit.allow(slug) {
+		writeErr(w, http.StatusTooManyRequests, "rate limited")
+		return
+	}
 	var orderID, merchantID, intentID, status string
 	var expiresAt time.Time
 	var toman int64

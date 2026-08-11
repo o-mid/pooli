@@ -239,6 +239,7 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		"fulfillment_status": fulfill, "shipping_provider": shipProvider,
 		"tracking_number": tracking, "shipped_at": shippedAt,
 		"timeline": timeline, "receipt": receipt,
+		"enabled_networks": s.Cfg.CheckoutNetworks(),
 		"trust": map[string]any{
 			"email_verified":    emailVerified,
 			"phone_verified":    phoneVerified,

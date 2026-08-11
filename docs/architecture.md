@@ -8,7 +8,9 @@ Pooli is a non-custodial USDT payment/order product for social-commerce sellers.
 - `apps/api` — Go HTTP API (chi)
 - `apps/chain-worker` — Go background worker (observe → verify → match → notify)
 - Shared Go packages under `internal/`
-- PostgreSQL source of truth, Redis for jobs/cache/SSE fanout helpers
+- PostgreSQL is the source of truth
+- Realtime uses in-process SSE hubs (not Redis). `REDIS_URL` remains in env/compose for possible future jobs but is unused by the Go services today
+- Production deploy: Docker Compose on Hostinger VPS (`deploy/hostinger/`), nginx TLS for `pooli.shop` + `api.pooli.shop`
 
 ## Money model
 
@@ -28,6 +30,11 @@ Buyer pays USDT directly to the merchant wallet. Pooli maps transfers to payment
 ## Realtime
 
 SSE streams `payment.*` events to checkout and merchant dashboards. Clients always refetch canonical REST state on reconnect.
+
+## Ops status
+
+- `GET /healthz` — liveness
+- `GET /api/v1/ops/status` — non-secret config enums + chain-worker heartbeat + watcher cursor ages (HTTP 503 in production when rates are mock, simulator is on, or worker heartbeat is stale)
 
 ## Non-goals (V1)
 

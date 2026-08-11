@@ -38,7 +38,9 @@ Behavior:
 4. On Nobitex failure/invalid → Wallex `USDTTMN.lastPrice`
 5. Both fail → **no financial quote** (fail closed; never silent mock)
 
-This sprint does **not** change production Hostinger env for you. Apply the vars manually, then restart API.
+Apply the vars manually on Hostinger, then restart API. See [`hostinger-cutover.md`](./hostinger-cutover.md) and run `scripts/hostinger-readonly-audit.sh` after SSH works.
+
+After deploy, confirm via `GET https://api.pooli.shop/api/v1/ops/status` that `config.rate_provider` is `nobitex` (never `mock`).
 
 ## Telegram merchant bot (@PooliShopbot)
 

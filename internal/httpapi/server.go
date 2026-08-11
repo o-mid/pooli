@@ -32,6 +32,8 @@ type Server struct {
 	Telegram *notify.Telegram
 	EVM      chain.Adapter
 	Tron     chain.Adapter
+
+	refreshQuoteLimit *slidingWindowLimiter
 }
 
 func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *sse.Hub, matcher *payment.Matcher, tg *notify.Telegram, evm, tron chain.Adapter) *Server {
@@ -40,6 +42,8 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *
 		Auth: &auth.Service{Pool: pool, AdminEmails: cfg.AdminEmails},
 		OTP:  otp.NewService(pool, otp.MockProvider{}, cfg.AppEnv),
 		Rates: rates, Hub: hub, Matcher: matcher, Telegram: tg, EVM: evm, Tron: tron,
+		// Public refresh-quote: 8 attempts / slug / 10 minutes (abuse guard).
+		refreshQuoteLimit: newSlidingWindowLimiter(10*time.Minute, 8),
 	}
 }
 
@@ -60,6 +64,8 @@ func (s *Server) Router() http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/ops/status", s.handleOpsStatus)
+
 		r.Post("/auth/register", s.handleRegister)
 		r.Post("/auth/login", s.handleLogin)
 		r.Post("/auth/logout", s.handleLogout)

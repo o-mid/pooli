@@ -9,7 +9,8 @@ Primary domain: `pooli.shop`
 - `apps/web` — Next.js PWA (merchant + public checkout)
 - `apps/api` — Go HTTP API
 - `apps/chain-worker` — Go chain observer / matcher
-- PostgreSQL + Redis (Docker Compose)
+- PostgreSQL (Docker Compose; Redis is present but unused by Go services today)
+- Production: Hostinger VPS — see [`docs/hostinger-cutover.md`](docs/hostinger-cutover.md)
 
 ## Quick start
 
@@ -44,10 +45,14 @@ make simulate-pay PAYMENT_OPTION_ID=<option-uuid>
 - [Architecture](docs/architecture.md)
 - [Payment lifecycle](docs/payment-lifecycle.md)
 - [Local development](docs/local-development.md)
+- [Hostinger cutover / SSH audit](docs/hostinger-cutover.md)
+- [External services setup](docs/external-services-setup.md)
 - [TRON mainnet pilot](docs/tron-mainnet-pilot.md)
 - [Security](docs/security.md)
 - [Implementation plan](docs/implementation-plan.md)
 - [ADRs](docs/decisions/)
+
+Ops (after deploy): `GET https://api.pooli.shop/api/v1/ops/status`
 
 ## MVP principles
 

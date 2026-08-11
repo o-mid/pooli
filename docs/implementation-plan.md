@@ -16,5 +16,5 @@ See ADRs in `docs/decisions/`.
 ## Assumptions
 
 - Unique-amount matching is sufficient for V1 social-commerce volumes.
-- Mock rate provider is acceptable for local demo; Nobitex/Wallex for staging/prod.
-- Railway is the initial deployment target.
+- Mock rate provider is acceptable for local demo/CI; Nobitex/Wallex for production (mock forbidden when `APP_ENV=production`).
+- Production deployment target is Hostinger VPS (`deploy/hostinger/`). Railway references are historical only.

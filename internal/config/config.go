@@ -50,6 +50,15 @@ type Config struct {
 	TronExplorerTxURL    string
 	BSCExplorerTxURL     string
 	EnableBSCWatcher     bool
+	// EnableBSCCheckout controls whether buyers can select BNB Chain at checkout.
+	// Keep false until WalletConnect + watcher are production-verified.
+	EnableBSCCheckout bool
+	// OTPSMSProvider: "mock" (default) or a future real SMS provider id.
+	// Phone OTP is rejected in production while provider is mock.
+	OTPSMSProvider string
+	GitSHA         string
+	// WorkerHeartbeatStale is the max age for chain-worker heartbeat to count as OK.
+	WorkerHeartbeatStale time.Duration
 	GoogleClientID       string
 	GoogleClientSecret   string
 	GoogleRedirectURL    string
@@ -120,6 +129,10 @@ func Load() Config {
 		TronExplorerTxURL:    getenv("TRON_EXPLORER_TX_URL", tronExplorer),
 		BSCExplorerTxURL:     getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
 		EnableBSCWatcher:     getenv("ENABLE_BSC_WATCHER", "true") == "true",
+		EnableBSCCheckout:    getenv("ENABLE_BSC_CHECKOUT", "false") == "true",
+		OTPSMSProvider:       strings.ToLower(getenv("OTP_SMS_PROVIDER", "mock")),
+		GitSHA:               getenv("GIT_SHA", ""),
+		WorkerHeartbeatStale: durationSeconds("WORKER_HEARTBEAT_STALE_SECONDS", 120),
 		GoogleClientID:       getenv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret:   getenv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:    getenv("GOOGLE_REDIRECT_URL", ""),
@@ -135,6 +148,26 @@ func (c Config) GoogleOAuthEnabled() bool {
 	return strings.TrimSpace(c.GoogleClientID) != "" &&
 		strings.TrimSpace(c.GoogleClientSecret) != "" &&
 		strings.TrimSpace(c.GoogleRedirectURL) != ""
+}
+
+// PhoneOTPEnabled is true only when a real SMS provider is configured.
+// Mock OTP must never be the sole production phone auth path.
+func (c Config) PhoneOTPEnabled() bool {
+	p := strings.ToLower(strings.TrimSpace(c.OTPSMSProvider))
+	if p == "" || p == "mock" || p == "none" || p == "disabled" {
+		// Allow mock OTP outside production for local/CI.
+		return c.AppEnv != "production"
+	}
+	return true
+}
+
+// CheckoutNetworks returns networks offered to buyers when creating payment options.
+func (c Config) CheckoutNetworks() []string {
+	nets := []string{"tron"}
+	if c.EnableBSCCheckout {
+		nets = append(nets, "bsc")
+	}
+	return nets
 }
 
 // ValidateBSCPilot returns a fatal configuration error for unsafe BSC mainnet settings.

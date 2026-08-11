@@ -161,6 +161,7 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	} else {
 		req.Networks = normalizeEnabledNetworks(req.Networks, defaults.EnabledNetworks)
 	}
+	req.Networks = s.filterCheckoutNetworks(req.Networks)
 	expiresMinutes := req.ExpiresInMinutes
 	if expiresMinutes <= 0 {
 		expiresMinutes = defaults.DefaultExpiryMinutes
@@ -374,7 +375,7 @@ func (s *Server) handleGetPaymentIntent(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) createPaymentIntentForOrder(ctx context.Context, merchantID, orderID string, networks []string) (map[string]any, error) {
 	if len(networks) == 0 {
-		networks = []string{domain.NetworkTRON, domain.NetworkBSC}
+		networks = s.Cfg.CheckoutNetworks()
 	}
 	quote, err := s.Rates.FetchUSDTTmn(ctx)
 	if err != nil {
@@ -453,7 +454,7 @@ func (s *Server) insertPaymentOptions(
 	networks []string,
 ) (int, error) {
 	if len(networks) == 0 {
-		networks = []string{domain.NetworkTRON, domain.NetworkBSC}
+		networks = s.Cfg.CheckoutNetworks()
 	}
 	created := 0
 	for _, network := range networks {
