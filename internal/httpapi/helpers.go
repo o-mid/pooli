@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pooli-shop/pooli/internal/domain"
 )
 
@@ -184,6 +185,7 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 	var support string
 	var emailVerified, phoneVerified bool
 	var walletConfigured bool
+	var operationalStatus string
 	var shippedAt *time.Time
 	err := s.Pool.QueryRow(ctx, `
 		SELECT o.id::text, o.merchant_id::text, o.title, o.description, o.fiat_amount_toman, o.status,
@@ -202,15 +204,19 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		       EXISTS (
 		         SELECT 1 FROM merchant_wallet_addresses w
 		         WHERE w.merchant_id = m.id AND w.is_active = true
-		       )
+		       ),
+		       m.operational_status
 		FROM orders o JOIN merchants m ON m.id = o.merchant_id
 		WHERE o.slug=$1`, slug).Scan(
 		&orderID, &merchantID, &title, &desc, &amount, &status, &storeName, &logoPath, &support,
 		&fulfill, &shipProvider, &tracking, &shippedAt,
-		&emailVerified, &phoneVerified, &walletConfigured,
+		&emailVerified, &phoneVerified, &walletConfigured, &operationalStatus,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if operationalStatus == "suspended" {
+		return nil, pgx.ErrNoRows
 	}
 	fields := s.loadFieldDefs(ctx, orderID)
 	values := s.loadFieldValues(ctx, orderID)
