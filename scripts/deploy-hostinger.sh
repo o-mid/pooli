@@ -85,7 +85,7 @@ export GIT_SHA
 # Compose interpolates NEXT_PUBLIC_* from deploy/hostinger/.env into web build args.
 # Rebuild web whenever those build-args change — runtime env cannot inject NEXT_PUBLIC_*.
 docker compose build --build-arg GIT_SHA="$GIT_SHA" pooli-api pooli-chain-worker pooli-web
-docker compose up -d pooli-api pooli-chain-worker pooli-web
+docker compose up -d --wait pooli-api pooli-chain-worker pooli-web
 
 for i in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8180/healthz >/dev/null 2>&1; then
@@ -96,6 +96,24 @@ for i in $(seq 1 60); do
 done
 curl -fsS http://127.0.0.1:8180/healthz
 echo
+
+WEB_OK=0
+for i in $(seq 1 60); do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/login || echo 000)"
+  if [[ "$code" == "200" ]]; then
+    echo "web healthy (login=$code)"
+    WEB_OK=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$WEB_OK" -ne 1 ]]; then
+  echo "ERROR: pooli-web did not become healthy on :3100/login within timeout"
+  docker ps --format 'table {{.Names}}\t{{.Status}}'
+  docker logs --tail 80 pooli-web || true
+  exit 1
+fi
+curl -fsS -o /dev/null -w "web_login_http=%{http_code}\n" http://127.0.0.1:3100/login
 
 docker compose --profile migrate run --rm pooli-migrate
 
@@ -141,6 +159,18 @@ else
     console.log('wc_bundle_check:', hits > 0 ? 'ok' : 'MISSING_IN_BUNDLE', 'hits', hits);
   "
 fi
+
+# Sync nginx reliability snippets (upgrade map + pooli.shop vhost).
+if [[ -f /opt/pooli/deploy/hostinger/nginx-pooli-upgrade-map.conf ]]; then
+  cp /opt/pooli/deploy/hostinger/nginx-pooli-upgrade-map.conf /etc/nginx/conf.d/pooli-upgrade-map.conf
+fi
+if [[ -f /opt/pooli/deploy/hostinger/nginx-pooli.shop.conf.proposed ]]; then
+  cp /opt/pooli/deploy/hostinger/nginx-pooli.shop.conf.proposed /etc/nginx/sites-available/pooli.shop
+  ln -sf /etc/nginx/sites-available/pooli.shop /etc/nginx/sites-enabled/pooli.shop
+  nginx -t
+  systemctl reload nginx
+  echo "nginx pooli.shop reloaded"
+fi
 EOS
 
 echo
@@ -162,5 +192,11 @@ print("bsc_gates: checkout=off watcher=off")
 print("git_sha:", d.get("git_sha"))
 print("ok:", d.get("ok"))
 PY
+
+echo
+echo "=== Production smoke ==="
+chmod +x ./scripts/smoke-prod.sh
+./scripts/smoke-prod.sh 5
+
 echo
 echo "DEPLOY_OK ${SHORT}"

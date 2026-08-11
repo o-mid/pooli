@@ -2,19 +2,47 @@
 # Destination: /etc/nginx/sites-available/pooli.shop
 # Do NOT edit kasramadihi.com.
 #
+# Also install deploy/hostinger/nginx-pooli-upgrade-map.conf as
+# /etc/nginx/conf.d/pooli-upgrade-map.conf (once).
+#
+# Static error page: deploy/hostinger/static/pooli-unavailable.html
+# on VPS at /opt/pooli/deploy/hostinger/static/pooli-unavailable.html
+#
 # Certbot manages the listen 443 ssl blocks and HTTP→HTTPS redirects.
-# After first install of the HTTP-only skeleton, run:
-#   certbot --nginx -d pooli.shop -d www.pooli.shop
-# and keep the resulting SSL stanzas.
 
 server {
     server_name pooli.shop www.pooli.shop;
+
+    error_page 502 503 504 /pooli-unavailable.html;
+
+    location = /pooli-unavailable.html {
+        internal;
+        root /opt/pooli/deploy/hostinger/static;
+        default_type text/html;
+    }
+
+    # SSE and long-lived API streams: bypass Next.js rewrite to avoid buffering/timeouts.
+    location /api/v1/merchant/events {
+        proxy_pass http://127.0.0.1:8180;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_buffering off;
+        add_header Cache-Control "no-store" always;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 3600s;
+        proxy_read_timeout 3600s;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:3100;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -24,12 +52,12 @@ server {
         proxy_send_timeout 60s;
     }
 
-    # Same-origin /api rewrites are handled by Next; keep buffering off for SSE/polling.
+    # Same-origin /api rewrites are handled by Next for most routes.
     location /api/ {
         proxy_pass http://127.0.0.1:3100;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
