@@ -85,3 +85,9 @@ Notifications (idempotent):
 - `payment.needs_review` — under/over/late/review attention  
 
 Telegram failures never change payment status.
+
+## Transactional email (Resend)
+
+See [email-resend-setup.md](./email-resend-setup.md).
+
+Keep `EMAIL_ENABLED=false` until `notify.pooli.shop` is Verified. Never put `RESEND_API_KEY` in git. Email failures never change payment status.
