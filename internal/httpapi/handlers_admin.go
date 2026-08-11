@@ -2,11 +2,61 @@ package httpapi
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/pooli-shop/pooli/internal/domain"
 	"github.com/pooli-shop/pooli/internal/payment"
 )
+
+var allowedOperationalStatuses = map[string]bool{
+	"new": true, "active": true, "review_required": true, "suspended": true,
+}
+
+func (s *Server) handleAdminPatchMerchantStatus(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	merchantID := chi.URLParam(r, "id")
+	if merchantID == "" {
+		writeErr(w, http.StatusBadRequest, "merchant id required")
+		return
+	}
+	var req struct {
+		OperationalStatus string `json:"operational_status"`
+		Reason            string `json:"reason"`
+	}
+	if err := decodeJSON(r, &req); err != nil || strings.TrimSpace(req.Reason) == "" {
+		writeErr(w, http.StatusBadRequest, "operational_status and reason required")
+		return
+	}
+	status := strings.ToLower(strings.TrimSpace(req.OperationalStatus))
+	if !allowedOperationalStatuses[status] {
+		writeErr(w, http.StatusBadRequest, "invalid operational_status")
+		return
+	}
+	var from string
+	err := s.Pool.QueryRow(r.Context(), `
+		SELECT operational_status FROM merchants WHERE id=$1::uuid`, merchantID).Scan(&from)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "merchant not found")
+		return
+	}
+	_, err = s.Pool.Exec(r.Context(), `
+		UPDATE merchants SET operational_status=$2 WHERE id=$1::uuid`, merchantID, status)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_, _ = s.Pool.Exec(r.Context(), `
+		INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, reason, metadata_json)
+		VALUES ($1::uuid,'set_operational_status','merchant',$2,$3,$4::jsonb)`,
+		u.ID, merchantID, req.Reason,
+		`{"from":"`+from+`","to":"`+status+`"}`)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true, "merchant_id": merchantID,
+		"operational_status": status, "previous": from,
+	})
+}
 
 func (s *Server) handleAdminListIntents(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.Pool.Query(r.Context(), `

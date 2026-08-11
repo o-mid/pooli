@@ -32,7 +32,7 @@ type Service struct {
 }
 
 func (s *Service) createMerchantForUser(ctx context.Context, userID, merchantName string) (string, error) {
-	baseSlug := slugify(merchantName)
+	baseSlug := Slugify(merchantName)
 	if baseSlug == "" {
 		baseSlug = "merchant"
 	}
@@ -43,7 +43,8 @@ func (s *Service) createMerchantForUser(ctx context.Context, userID, merchantNam
 			slug = fmt.Sprintf("%s-%s", baseSlug, userID[:6+i%3])
 		}
 		err := s.Pool.QueryRow(ctx, `
-			INSERT INTO merchants (name, display_name, slug) VALUES ($1,$1,$2) RETURNING id::text`, merchantName, slug).Scan(&merchantID)
+			INSERT INTO merchants (name, display_name, slug, operational_status)
+			VALUES ($1,$1,$2,'new') RETURNING id::text`, merchantName, slug).Scan(&merchantID)
 		if err == nil {
 			break
 		}
@@ -224,7 +225,8 @@ func ClearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{Name: CookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
 }
 
-func slugify(s string) string {
+// Slugify produces a URL-safe merchant slug from a display name.
+func Slugify(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	var b strings.Builder
 	for _, r := range s {
@@ -239,4 +241,13 @@ func slugify(s string) string {
 		out = strings.ReplaceAll(out, "--", "-")
 	}
 	return out
+}
+
+// ReservedMerchantSlugs cannot be claimed as storefront paths.
+var ReservedMerchantSlugs = map[string]bool{
+	"app": true, "p": true, "admin": true, "login": true, "register": true,
+	"api": true, "m": true, "onboarding": true, "healthz": true, "static": true,
+	"favicon.ico": true, "robots.txt": true, "manifest.webmanifest": true,
+	"sw.js": true, "icons": true, "assets": true, "link": true, "links": true,
+	"store": true, "pay": true, "checkout": true, "ops": true, "internal": true,
 }

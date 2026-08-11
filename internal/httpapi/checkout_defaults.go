@@ -15,6 +15,12 @@ type checkoutDefaults struct {
 	DefaultNetwork       string            `json:"default_network"`
 	DefaultExpiryMinutes int               `json:"default_expiry_minutes"`
 	FulfillmentRequired  bool              `json:"fulfillment_required"`
+	SuccessMessage       string            `json:"success_message"`
+	CheckoutAccent       string            `json:"checkout_accent"`
+}
+
+var allowedCheckoutAccents = map[string]bool{
+	"teal": true, "blue": true, "green": true, "amber": true, "rose": true, "slate": true,
 }
 
 func defaultCheckoutDefaults() checkoutDefaults {
@@ -28,6 +34,8 @@ func defaultCheckoutDefaults() checkoutDefaults {
 		DefaultNetwork:       domain.NetworkTRON,
 		DefaultExpiryMinutes: 60,
 		FulfillmentRequired:  true,
+		SuccessMessage:       "",
+		CheckoutAccent:       "teal",
 	}
 }
 
@@ -46,11 +54,13 @@ func (s *Server) loadCheckoutDefaults(ctx context.Context, merchantID string) (c
 	var defNetwork string
 	var expiry int
 	var fulfillment bool
+	var successMsg, accent string
 	err := s.Pool.QueryRow(ctx, `
 		SELECT customer_fields_json, enabled_networks, default_network,
-		       default_expiry_minutes, fulfillment_required
+		       default_expiry_minutes, fulfillment_required,
+		       COALESCE(success_message,''), COALESCE(checkout_accent,'teal')
 		FROM merchant_checkout_defaults WHERE merchant_id=$1::uuid`, merchantID).
-		Scan(&fieldsRaw, &networks, &defNetwork, &expiry, &fulfillment)
+		Scan(&fieldsRaw, &networks, &defNetwork, &expiry, &fulfillment, &successMsg, &accent)
 	if err != nil {
 		return defaultCheckoutDefaults(), err
 	}
@@ -58,6 +68,10 @@ func (s *Server) loadCheckoutDefaults(ctx context.Context, merchantID string) (c
 	out.DefaultNetwork = defNetwork
 	out.DefaultExpiryMinutes = expiry
 	out.FulfillmentRequired = fulfillment
+	out.SuccessMessage = successMsg
+	if allowedCheckoutAccents[accent] {
+		out.CheckoutAccent = accent
+	}
 	if len(networks) > 0 {
 		out.EnabledNetworks = networks
 	}
@@ -180,6 +194,14 @@ func (s *Server) saveCheckoutDefaults(ctx context.Context, merchantID string, d 
 	if expiry > 10080 {
 		expiry = 10080
 	}
+	accent := strings.ToLower(strings.TrimSpace(d.CheckoutAccent))
+	if !allowedCheckoutAccents[accent] {
+		accent = "teal"
+	}
+	success := strings.TrimSpace(d.SuccessMessage)
+	if len(success) > 280 {
+		success = success[:280]
+	}
 	_, err = s.Pool.Exec(ctx, `
 		UPDATE merchant_checkout_defaults SET
 			customer_fields_json=$2::jsonb,
@@ -187,9 +209,11 @@ func (s *Server) saveCheckoutDefaults(ctx context.Context, merchantID string, d 
 			default_network=$4,
 			default_expiry_minutes=$5,
 			fulfillment_required=$6,
+			success_message=$7,
+			checkout_accent=$8,
 			updated_at=now()
 		WHERE merchant_id=$1::uuid`,
-		merchantID, string(b), networks, defNet, expiry, d.FulfillmentRequired)
+		merchantID, string(b), networks, defNet, expiry, d.FulfillmentRequired, success, accent)
 	return err
 }
 

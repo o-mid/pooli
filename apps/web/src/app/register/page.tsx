@@ -54,7 +54,7 @@ export default function RegisterPage() {
           merchant_name: fd.get("merchant_name"),
         }),
       });
-      router.push("/app");
+      router.push("/app/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
@@ -113,7 +113,7 @@ export default function RegisterPage() {
           merchant_name: merchantName.trim(),
         }),
       });
-      router.push("/app");
+      router.push("/app/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : t.auth.otpInvalid);
     } finally {

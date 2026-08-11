@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pooli-shop/pooli/internal/auth"
 )
 
 func (s *Server) handlePatchMerchant(w http.ResponseWriter, r *http.Request) {
@@ -21,20 +22,48 @@ func (s *Server) handlePatchMerchant(w http.ResponseWriter, r *http.Request) {
 		DisplayName    *string `json:"display_name"`
 		Description    *string `json:"description"`
 		SupportContact *string `json:"support_contact"`
+		SupportEmail   *string `json:"support_email"`
+		SupportPhone   *string `json:"support_phone"`
 		Name           *string `json:"name"`
+		Slug           *string `json:"slug"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid json")
 		return
+	}
+	var slugVal any
+	if req.Slug != nil {
+		slug := auth.Slugify(*req.Slug)
+		if slug == "" {
+			writeErr(w, http.StatusBadRequest, "invalid slug")
+			return
+		}
+		if auth.ReservedMerchantSlugs[slug] {
+			writeErr(w, http.StatusBadRequest, "slug reserved")
+			return
+		}
+		var taken bool
+		_ = s.Pool.QueryRow(r.Context(), `
+			SELECT EXISTS(SELECT 1 FROM merchants WHERE lower(slug)=lower($1) AND id<>$2::uuid)`,
+			slug, mid).Scan(&taken)
+		if taken {
+			writeErr(w, http.StatusConflict, "slug already taken")
+			return
+		}
+		slugVal = slug
 	}
 	_, err = s.Pool.Exec(r.Context(), `
 		UPDATE merchants SET
 			display_name = COALESCE($2, display_name),
 			description = COALESCE($3, description),
 			support_contact = COALESCE($4, support_contact),
-			name = COALESCE($5, name)
+			name = COALESCE($5, name),
+			slug = COALESCE($6, slug),
+			support_email = COALESCE($7, support_email),
+			support_phone = COALESCE($8, support_phone)
 		WHERE id=$1::uuid`,
-		mid, req.DisplayName, req.Description, req.SupportContact, req.Name)
+		mid, req.DisplayName, req.Description, req.SupportContact, req.Name, slugVal,
+		req.SupportEmail, req.SupportPhone)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return

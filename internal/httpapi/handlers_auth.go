@@ -62,10 +62,14 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
 	merchantID, _ := s.Auth.MerchantIDForUser(r.Context(), u.ID)
 	var merchantName, displayName, description, logoPath, support, merchantSlug string
+	var supportEmail, supportPhone, operationalStatus string
+	var onboardingCompletedAt *time.Time
 	_ = s.Pool.QueryRow(r.Context(), `
-		SELECT name, COALESCE(NULLIF(display_name,''), name), description, logo_path, support_contact, slug
+		SELECT name, COALESCE(NULLIF(display_name,''), name), description, logo_path, support_contact, slug,
+		       COALESCE(support_email,''), COALESCE(support_phone,''), operational_status, onboarding_completed_at
 		FROM merchants WHERE id=$1::uuid`, merchantID).
-		Scan(&merchantName, &displayName, &description, &logoPath, &support, &merchantSlug)
+		Scan(&merchantName, &displayName, &description, &logoPath, &support, &merchantSlug,
+			&supportEmail, &supportPhone, &operationalStatus, &onboardingCompletedAt)
 	var telegramChatID, telegramUsername string
 	var telegramEnabled bool
 	var telegramConnectedAt *time.Time
@@ -96,7 +100,11 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"merchant": map[string]any{
 			"id": merchantID, "name": merchantName, "display_name": displayName,
 			"description": description, "logo_url": logoURL, "support_contact": support,
-			"slug":     merchantSlug,
+			"support_email": supportEmail, "support_phone": supportPhone,
+			"slug":               merchantSlug,
+			"operational_status": operationalStatus,
+			"onboarding_completed": onboardingCompletedAt != nil,
+			"onboarding_completed_at": onboardingCompletedAt,
 			"telegram": telegram,
 			"email_notifications": map[string]any{
 				"enabled":          s.Cfg.EmailEnabled,

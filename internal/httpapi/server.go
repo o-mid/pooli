@@ -84,6 +84,10 @@ func (s *Server) Router() http.Handler {
 			r.Get("/home", s.handleHome)
 			r.Patch("/merchant", s.handlePatchMerchant)
 			r.Post("/merchant/logo", s.handleMerchantLogo)
+			r.Get("/merchant/onboarding", s.handleGetOnboarding)
+			r.Post("/merchant/onboarding/complete", s.handleCompleteOnboarding)
+			r.Get("/merchant/slug/check", s.handleCheckSlug)
+			r.Get("/merchant/slug/suggest", s.handleSuggestSlug)
 			r.Get("/merchant/checkout-defaults", s.handleGetCheckoutDefaults)
 			r.Patch("/merchant/checkout-defaults", s.handlePatchCheckoutDefaults)
 
@@ -118,6 +122,7 @@ func (s *Server) Router() http.Handler {
 				r.Get("/admin/chain-events", s.handleAdminChainEvents)
 				r.Get("/admin/unmatched", s.handleAdminUnmatched)
 				r.Post("/admin/resolve", s.handleAdminResolve)
+				r.Patch("/admin/merchants/{id}/status", s.handleAdminPatchMerchantStatus)
 			})
 		})
 

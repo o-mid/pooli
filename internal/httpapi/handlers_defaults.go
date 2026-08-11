@@ -33,6 +33,8 @@ func (s *Server) handlePatchCheckoutDefaults(w http.ResponseWriter, r *http.Requ
 		DefaultNetwork       *string           `json:"default_network"`
 		DefaultExpiryMinutes *int              `json:"default_expiry_minutes"`
 		FulfillmentRequired  *bool             `json:"fulfillment_required"`
+		SuccessMessage       *string           `json:"success_message"`
+		CheckoutAccent       *string           `json:"checkout_accent"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid json")
@@ -64,6 +66,12 @@ func (s *Server) handlePatchCheckoutDefaults(w http.ResponseWriter, r *http.Requ
 	}
 	if req.FulfillmentRequired != nil {
 		cur.FulfillmentRequired = *req.FulfillmentRequired
+	}
+	if req.SuccessMessage != nil {
+		cur.SuccessMessage = *req.SuccessMessage
+	}
+	if req.CheckoutAccent != nil {
+		cur.CheckoutAccent = strings.ToLower(strings.TrimSpace(*req.CheckoutAccent))
 	}
 	if err := s.saveCheckoutDefaults(r.Context(), mid, cur); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
