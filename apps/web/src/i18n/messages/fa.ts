@@ -320,7 +320,8 @@ export const fa: Messages = {
   },
   admin: {
     title: "ادمین / تطبیق",
-    resolve: "رفع دستی",
+    resolve: "بررسی / رفع",
+    resolveHint: "علامت‌گذاری دستی Paid ممکن نیست. فقط تطبیق زنجیره Paid می‌کند.",
     intentId: "شناسه payment intent",
     action: "اقدام",
     reason: "دلیل",
@@ -330,6 +331,12 @@ export const fa: Messages = {
     events: "رویدادهای زنجیره",
     unmatched: "رویدادهای بدون تطبیق",
     resolved: "اعمال شد",
+    search: "جستجو",
+    searchPlaceholder: "فروشگاه، سفارش، intent، هش تراکنش…",
+    exceptions: "استثناها",
+    timeline: "خط زمانی پرداخت",
+    deliveries: "ارسال اعلان‌ها",
+    ops: "وضعیت عملیات",
   },
   store: {
     payThisBusiness: "پرداخت به این فروشگاه",

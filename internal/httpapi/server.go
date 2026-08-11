@@ -130,6 +130,11 @@ func (s *Server) Router() http.Handler {
 				r.Get("/admin/unmatched", s.handleAdminUnmatched)
 				r.Post("/admin/resolve", s.handleAdminResolve)
 				r.Patch("/admin/merchants/{id}/status", s.handleAdminPatchMerchantStatus)
+				r.Get("/admin/search", s.handleAdminSearch)
+				r.Get("/admin/payment-intents/{id}/timeline", s.handleAdminPaymentTimeline)
+				r.Get("/admin/exceptions", s.handleAdminExceptions)
+				r.Get("/admin/notification-deliveries", s.handleAdminNotificationDeliveries)
+				r.Post("/admin/notification-deliveries/{id}/retry", s.handleAdminRetryDelivery)
 			})
 		})
 

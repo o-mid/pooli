@@ -56,6 +56,46 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusServiceUnavailable
 	}
 
+	var quoteAgeSec *float64
+	var quoteSource string
+	var lastQuoteAt *time.Time
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT source, fetched_at, EXTRACT(EPOCH FROM (now() - fetched_at))
+		FROM exchange_rate_quotes ORDER BY fetched_at DESC LIMIT 1`).
+		Scan(&quoteSource, &lastQuoteAt, &quoteAgeSec)
+
+	var failedNotify24h, pendingNotify int
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM notification_deliveries
+		WHERE status='failed' AND created_at >= now() - interval '24 hours'`).Scan(&failedNotify24h)
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM notification_deliveries WHERE status='pending'`).Scan(&pendingNotify)
+
+	var stuckConfirming, needsReview int
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM payment_intents
+		WHERE status='CONFIRMING' AND updated_at < now() - interval '30 minutes'`).Scan(&stuckConfirming)
+	_ = s.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM payment_intents
+		WHERE status IN ('NEEDS_REVIEW','UNDERPAID','OVERPAID','LATE_PAYMENT')`).Scan(&needsReview)
+
+	alerts := []string{}
+	if !workerOK {
+		alerts = append(alerts, "chain_worker_heartbeat_stale")
+	}
+	if quoteAgeSec != nil && *quoteAgeSec > 600 {
+		alerts = append(alerts, "rate_quote_stale")
+	}
+	if stuckConfirming > 0 {
+		alerts = append(alerts, "payments_stuck_confirming")
+	}
+	if needsReview > 10 {
+		alerts = append(alerts, "needs_review_elevated")
+	}
+	if failedNotify24h > 20 {
+		alerts = append(alerts, "notification_failures_elevated")
+	}
+
 	writeJSON(w, status, map[string]any{
 		"ok":      overall,
 		"service": "pooli-api",
@@ -97,5 +137,21 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 			"ok":      cursorOK,
 			"cursors": cursors,
 		},
+		"rates": map[string]any{
+			"configured_provider":  s.Cfg.RateProvider,
+			"fallback_provider":    s.Cfg.RateFallbackProvider,
+			"last_quote_source":    quoteSource,
+			"last_quote_at":        lastQuoteAt,
+			"quote_age_seconds":    quoteAgeSec,
+		},
+		"notifications": map[string]any{
+			"failed_24h": failedNotify24h,
+			"pending":    pendingNotify,
+		},
+		"payments": map[string]any{
+			"stuck_confirming": stuckConfirming,
+			"needs_review":     needsReview,
+		},
+		"alerts": alerts,
 	})
 }

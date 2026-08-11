@@ -146,7 +146,7 @@ func (s *Server) handleAdminResolve(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
 	var req struct {
 		PaymentIntentID string `json:"payment_intent_id"`
-		Action          string `json:"action"` // mark_paid | needs_review
+		Action          string `json:"action"` // needs_review | acknowledge_exception | note
 		Reason          string `json:"reason"`
 		ChainEventID    string `json:"event_id"`
 	}
@@ -154,48 +154,54 @@ func (s *Server) handleAdminResolve(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "payment_intent_id and reason required")
 		return
 	}
-	to := domain.StatusNeedsReview
-	if req.Action == "mark_paid" {
-		to = domain.StatusPaid
+	action := strings.TrimSpace(req.Action)
+	if action == "" {
+		action = "needs_review"
 	}
+	// SECURITY: Admin must never set PAID without a matcher-verified matched_transaction.
+	// Legacy action name mark_paid is rejected explicitly.
+	if action == "mark_paid" || action == "force_paid" {
+		writeErr(w, http.StatusBadRequest, "manual PAID is forbidden; only chain-verified settlement may mark PAID")
+		return
+	}
+	if action != "needs_review" && action != "acknowledge_exception" && action != "note" {
+		writeErr(w, http.StatusBadRequest, "action must be needs_review, acknowledge_exception, or note")
+		return
+	}
+
 	err := payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
 		var from string
 		err := tx.QueryRow(r.Context(), `SELECT status FROM payment_intents WHERE id=$1::uuid`, req.PaymentIntentID).Scan(&from)
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(r.Context(), `
-			INSERT INTO payment_state_events (payment_intent_id, from_status, to_status, reason, actor, metadata_json)
-			VALUES ($1::uuid,$2,$3,$4,$5,$6::jsonb)`,
-			req.PaymentIntentID, from, to, req.Reason, u.Email, `{"manual":true}`)
-		if err != nil {
-			return err
-		}
-		paidAt := interface{}(nil)
-		if to == domain.StatusPaid {
-			paidAt = nowUTC()
+		to := from
+		if action == "needs_review" {
+			to = domain.StatusNeedsReview
 			_, err = tx.Exec(r.Context(), `
-				UPDATE orders SET status='PAID', updated_at=now()
-				WHERE id=(SELECT order_id FROM payment_intents WHERE id=$1::uuid)`, req.PaymentIntentID)
+				UPDATE payment_intents SET status=$2, updated_at=now() WHERE id=$1::uuid`,
+				req.PaymentIntentID, to)
 			if err != nil {
 				return err
 			}
 		}
+		meta := `{"manual":true,"action":"` + action + `","event_id":"` + strings.ReplaceAll(req.ChainEventID, `"`, "") + `"}`
 		_, err = tx.Exec(r.Context(), `
-			UPDATE payment_intents SET status=$2, paid_at=COALESCE($3::timestamptz, paid_at), updated_at=now()
-			WHERE id=$1::uuid`, req.PaymentIntentID, to, paidAt)
+			INSERT INTO payment_state_events (payment_intent_id, from_status, to_status, reason, actor, metadata_json)
+			VALUES ($1::uuid,$2,$3,$4,$5,$6::jsonb)`,
+			req.PaymentIntentID, from, to, req.Reason, u.Email, meta)
 		if err != nil {
 			return err
 		}
 		_, err = tx.Exec(r.Context(), `
 			INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, reason, metadata_json)
 			VALUES ($1::uuid,$2,'payment_intent',$3,$4,$5::jsonb)`,
-			u.ID, req.Action, req.PaymentIntentID, req.Reason, `{"event_id":"`+req.ChainEventID+`"}`)
+			u.ID, action, req.PaymentIntentID, req.Reason, meta)
 		return err
 	})
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": to})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "action": action})
 }

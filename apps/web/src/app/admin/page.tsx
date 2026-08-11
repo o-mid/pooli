@@ -11,20 +11,26 @@ export default function AdminPage() {
   const t = useT();
   const { showToast } = useToast();
   const [intents, setIntents] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [unmatched, setUnmatched] = useState<any[]>([]);
+  const [exceptions, setExceptions] = useState<any[]>([]);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [ops, setOps] = useState<any>(null);
+  const [search, setSearch] = useState("");
+  const [searchResult, setSearchResult] = useState<any>(null);
+  const [timeline, setTimeline] = useState<any>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function load() {
-    const [i, e, u] = await Promise.all([
+    const [i, ex, d, o] = await Promise.all([
       api<{ payment_intents: any[] }>("/api/v1/admin/payment-intents"),
-      api<{ chain_events: any[] }>("/api/v1/admin/chain-events"),
-      api<{ unmatched: any[] }>("/api/v1/admin/unmatched"),
+      api<{ exceptions: any[] }>("/api/v1/admin/exceptions"),
+      api<{ deliveries: any[] }>("/api/v1/admin/notification-deliveries"),
+      api<any>("/api/v1/ops/status").catch(() => null),
     ]);
-    setIntents(i.payment_intents);
-    setEvents(e.chain_events);
-    setUnmatched(u.unmatched);
+    setIntents(i.payment_intents || []);
+    setExceptions(ex.exceptions || []);
+    setDeliveries(d.deliveries || []);
+    setOps(o);
   }
 
   useEffect(() => {
@@ -56,6 +62,18 @@ export default function AdminPage() {
     }
   }
 
+  async function runSearch(e: FormEvent) {
+    e.preventDefault();
+    if (search.trim().length < 2) return;
+    const res = await api<any>(`/api/v1/admin/search?q=${encodeURIComponent(search.trim())}`);
+    setSearchResult(res);
+  }
+
+  async function loadTimeline(id: string) {
+    const res = await api<any>(`/api/v1/admin/payment-intents/${id}/timeline`);
+    setTimeline(res);
+  }
+
   return (
     <main className="shell rise page-stack shell-wide">
       <BackLink href="/app/settings" />
@@ -66,8 +84,31 @@ export default function AdminPage() {
         </p>
       )}
 
+      {ops ? (
+        <section className="section card-panel">
+          <h2 className="section-title">{t.admin.ops}</h2>
+          <p className="muted mono-ltr">
+            ok={String(ops.ok)} worker={String(ops.worker?.ok)} alerts={(ops.alerts || []).join(", ") || "—"}
+          </p>
+          <p className="muted">
+            stuck={ops.payments?.stuck_confirming ?? 0} review={ops.payments?.needs_review ?? 0} notify_fail_24h=
+            {ops.notifications?.failed_24h ?? 0}
+          </p>
+        </section>
+      ) : null}
+
+      <form className="card-panel stack-form" onSubmit={runSearch}>
+        <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.admin.search}</h2>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.admin.searchPlaceholder} />
+        <button className="btn btn-secondary" type="submit">
+          {t.admin.search}
+        </button>
+      </form>
+      {searchResult ? <Section title={t.admin.search} rows={[searchResult]} /> : null}
+
       <form className="card-panel" onSubmit={resolve}>
         <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.admin.resolve}</h2>
+        <p className="muted">{t.admin.resolveHint}</p>
         <div className="field" style={{ marginTop: "var(--space-3)" }}>
           <label htmlFor="payment_intent_id">{t.admin.intentId}</label>
           <input id="payment_intent_id" name="payment_intent_id" required className="mono-ltr" />
@@ -76,7 +117,8 @@ export default function AdminPage() {
           <label htmlFor="action">{t.admin.action}</label>
           <select id="action" name="action" defaultValue="needs_review">
             <option value="needs_review">Needs review</option>
-            <option value="mark_paid">Mark paid</option>
+            <option value="acknowledge_exception">Acknowledge exception</option>
+            <option value="note">Audit note only</option>
           </select>
         </div>
         <div className="field">
@@ -92,9 +134,35 @@ export default function AdminPage() {
         </button>
       </form>
 
+      <section className="section">
+        <h2 className="section-title">{t.admin.exceptions}</h2>
+        <div className="list-group">
+          {exceptions.slice(0, 40).map((ex) => (
+            <button key={ex.id} type="button" className="list-row" onClick={() => loadTimeline(ex.id)}>
+              <div className="list-row-body">
+                <div className="list-row-title">{ex.exception_label}</div>
+                <div className="list-row-meta mono-ltr">{ex.id}</div>
+                <div className="list-row-meta tabular">
+                  {ex.fiat_amount_toman?.toLocaleString?.()} · {ex.order_slug}
+                </div>
+              </div>
+            </button>
+          ))}
+          {!exceptions.length && <p className="muted">—</p>}
+        </div>
+      </section>
+
+      {timeline ? (
+        <section className="section">
+          <h2 className="section-title">{t.admin.timeline}</h2>
+          <pre className="card-panel mono-ltr" style={{ whiteSpace: "pre-wrap", fontSize: "0.75rem" }}>
+            {JSON.stringify(timeline, null, 2)}
+          </pre>
+        </section>
+      ) : null}
+
       <Section title={t.admin.intents} rows={intents} />
-      <Section title={t.admin.unmatched} rows={unmatched} />
-      <Section title={t.admin.events} rows={events} />
+      <Section title={t.admin.deliveries} rows={deliveries} />
     </main>
   );
 }

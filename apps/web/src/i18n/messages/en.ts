@@ -319,7 +319,8 @@ export const en = {
   },
   admin: {
     title: "Admin / Reconciliation",
-    resolve: "Manual resolve",
+    resolve: "Review / resolve",
+    resolveHint: "Cannot mark PAID manually. Only chain-verified settlement sets Paid.",
     intentId: "Payment intent ID",
     action: "Action",
     reason: "Reason",
@@ -329,6 +330,12 @@ export const en = {
     events: "Recent chain events",
     unmatched: "Unmatched events",
     resolved: "Resolved",
+    search: "Search",
+    searchPlaceholder: "Merchant, order, intent, tx hash…",
+    exceptions: "Exceptions",
+    timeline: "Payment timeline",
+    deliveries: "Notification deliveries",
+    ops: "Ops status",
   },
   store: {
     payThisBusiness: "Pay this business",
