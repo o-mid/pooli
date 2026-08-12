@@ -32,3 +32,6 @@ brand/
 apps/web/public/fonts/
 apps/web/public/brand/logo-fa-brand.svg
 apps/web/public/brand/logo-fa-on-dark.svg
+
+# Local creative workspace — never commit generated marketing artifacts
+.local-brand-studio/
