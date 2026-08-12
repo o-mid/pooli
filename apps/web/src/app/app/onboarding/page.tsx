@@ -3,57 +3,27 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/LocaleProvider";
-import { api, apiMultipart } from "@/lib/api";
-
-type Steps = {
-  business: boolean;
-  defaults: boolean;
-  wallets: boolean;
-  rail: boolean;
-  checkout: boolean;
-  notifications: boolean;
-  ready: boolean;
-  can_complete: boolean;
-};
+import { api } from "@/lib/api";
 
 type Onboarding = {
   completed: boolean;
-  steps: Steps;
+  steps: { can_complete: boolean; wallets: boolean };
   bsc_checkout_enabled: boolean;
-  checkout_networks: string[];
   public_store_url_prefix: string;
   wallet_count: number;
   merchant: {
     display_name: string;
     slug: string;
-    description: string;
-    logo_url?: string;
-    support_email: string;
-    support_phone: string;
-    preferred_locale: string;
-  };
-  checkout_defaults: {
-    customer_fields: Record<string, string>;
-    enabled_networks: string[];
-    default_network: string;
-    default_expiry_minutes: number;
-    fulfillment_required: boolean;
-    success_message: string;
-    checkout_accent: string;
   };
 };
 
-const TOTAL = 7;
+const TOTAL = 3;
 
 function validateAddress(network: string, address: string): boolean {
   const trimmed = address.trim();
   if (network === "tron") return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(trimmed);
   if (network === "bsc") return /^0x[a-fA-F0-9]{40}$/.test(trimmed);
   return false;
-}
-
-function fieldMode(fields: Record<string, string>, key: string): string {
-  return fields[key] || "disabled";
 }
 
 export default function OnboardingPage() {
@@ -64,43 +34,20 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [slugStatus, setSlugStatus] = useState("");
-
   const [displayName, setDisplayName] = useState("");
   const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [supportEmail, setSupportEmail] = useState("");
-  const [supportPhone, setSupportPhone] = useState("");
-  const [locale, setLocale] = useState("fa");
   const [walletNetwork, setWalletNetwork] = useState("tron");
   const [walletAddress, setWalletAddress] = useState("");
-  const [walletLabel, setWalletLabel] = useState("");
-  const [defaultNetwork, setDefaultNetwork] = useState("tron");
-  const [fields, setFields] = useState<Record<string, string>>({});
-  const [expiry, setExpiry] = useState(60);
-  const [fulfillment, setFulfillment] = useState(true);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [emailPaid, setEmailPaid] = useState(true);
-  const [emailAttn, setEmailAttn] = useState(true);
-  const [emailOrders, setEmailOrders] = useState(true);
 
   const load = useCallback(async () => {
     const onb = await api<Onboarding>("/api/v1/merchant/onboarding");
     setData(onb);
     setDisplayName(onb.merchant.display_name || "");
     setSlug(onb.merchant.slug || "");
-    setDescription(onb.merchant.description || "");
-    setSupportEmail(onb.merchant.support_email || "");
-    setSupportPhone(onb.merchant.support_phone || "");
-    setLocale(onb.merchant.preferred_locale || "fa");
-    setDefaultNetwork(onb.checkout_defaults.default_network || "tron");
-    setFields(onb.checkout_defaults.customer_fields || {});
-    setExpiry(onb.checkout_defaults.default_expiry_minutes || 60);
-    setFulfillment(onb.checkout_defaults.fulfillment_required);
-    setSuccessMessage(onb.checkout_defaults.success_message || "");
     if (onb.completed) {
-      setStep(6);
+      router.replace("/app");
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : t.common.error));
@@ -127,9 +74,9 @@ export default function OnboardingPage() {
     }
   }
 
-  async function suggestSlug() {
+  async function suggestSlug(name: string) {
     const res = await api<{ slug: string }>(
-      `/api/v1/merchant/slug/suggest?name=${encodeURIComponent(displayName || "store")}`,
+      `/api/v1/merchant/slug/suggest?name=${encodeURIComponent(name || "store")}`,
     );
     setSlug(res.slug);
     setSlugStatus("");
@@ -142,18 +89,7 @@ export default function OnboardingPage() {
         display_name: displayName.trim(),
         name: displayName.trim(),
         slug: slug.trim(),
-        description: description.trim(),
-        support_email: supportEmail.trim(),
-        support_phone: supportPhone.trim(),
-        support_contact: supportEmail.trim() || supportPhone.trim(),
       }),
-    });
-  }
-
-  async function saveDefaults() {
-    await api("/api/v1/merchant/notification-prefs", {
-      method: "PATCH",
-      body: JSON.stringify({ preferred_locale: locale }),
     });
   }
 
@@ -161,7 +97,7 @@ export default function OnboardingPage() {
     e.preventDefault();
     setError("");
     if (!validateAddress(walletNetwork, walletAddress)) {
-      setError(t.common.error);
+      setError(t.wallets.invalidAddress);
       return;
     }
     setLoading(true);
@@ -171,12 +107,11 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           network: walletNetwork,
           address: walletAddress.trim(),
-          label: walletLabel.trim() || (walletNetwork === "tron" ? t.onboarding.tronLabel : t.onboarding.bscLabel),
+          label: walletNetwork === "tron" ? t.onboarding.tronLabel : t.onboarding.bscLabel,
           is_default: true,
         }),
       });
       setWalletAddress("");
-      setWalletLabel("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
@@ -185,70 +120,25 @@ export default function OnboardingPage() {
     }
   }
 
-  async function saveRail() {
-    const enabled = data?.bsc_checkout_enabled
-      ? ["tron", "bsc"]
-      : ["tron"];
-    await api("/api/v1/merchant/checkout-defaults", {
-      method: "PATCH",
-      body: JSON.stringify({
-        enabled_networks: enabled,
-        default_network: defaultNetwork === "bsc" && data?.bsc_checkout_enabled ? "bsc" : "tron",
-      }),
-    });
-  }
-
-  async function saveCheckout() {
-    await api("/api/v1/merchant/checkout-defaults", {
-      method: "PATCH",
-      body: JSON.stringify({
-        customer_fields: fields,
-        default_expiry_minutes: expiry,
-        fulfillment_required: fulfillment,
-        success_message: successMessage,
-      }),
-    });
-  }
-
-  async function saveNotify() {
-    await api("/api/v1/merchant/notification-prefs", {
-      method: "PATCH",
-      body: JSON.stringify({
-        email: {
-          payment_received: emailPaid,
-          needs_attention: emailAttn,
-          order_updates: emailOrders,
-        },
-      }),
-    });
-  }
-
   async function onNext() {
     setError("");
     setLoading(true);
     try {
       if (step === 0) {
-        if (!displayName.trim() || !slug.trim()) {
+        if (!displayName.trim()) {
           setError(t.common.error);
           setLoading(false);
           return;
         }
+        if (!slug.trim()) await suggestSlug(displayName);
         await saveBusiness();
       } else if (step === 1) {
-        await saveDefaults();
-      } else if (step === 2) {
         if ((data?.wallet_count || 0) < 1) {
           setError(t.onboarding.walletsHint);
           setLoading(false);
           return;
         }
-      } else if (step === 3) {
-        await saveRail();
-      } else if (step === 4) {
-        await saveCheckout();
-      } else if (step === 5) {
-        await saveNotify();
-      } else if (step === 6) {
+      } else if (step === 2) {
         await api("/api/v1/merchant/onboarding/complete", { method: "POST", body: "{}" });
         router.push("/app/create");
         return;
@@ -260,22 +150,6 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function onLogo(file: File | null) {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append("logo", file);
-    try {
-      await apiMultipart("/api/v1/merchant/logo", fd);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.common.error);
-    }
-  }
-
-  function setField(key: string, mode: string) {
-    setFields((prev) => ({ ...prev, [key]: mode }));
   }
 
   if (!data) {
@@ -308,7 +182,14 @@ export default function OnboardingPage() {
           <p className="muted">{t.onboarding.businessHint}</p>
           <label>
             {t.onboarding.storeName}
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="organization" />
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              onBlur={() => {
+                if (displayName.trim() && !slug) void suggestSlug(displayName);
+              }}
+              autoComplete="organization"
+            />
           </label>
           <label>
             {t.onboarding.storeSlug}
@@ -321,162 +202,38 @@ export default function OnboardingPage() {
               />
             </div>
             {slugStatus && <span className="field-error">{slugStatus}</span>}
-            <button type="button" className="btn-ghost" onClick={() => suggestSlug().catch(() => undefined)}>
-              {t.onboarding.suggestSlug}
-            </button>
-          </label>
-          <label>
-            {t.onboarding.description}
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
-          </label>
-          <label>
-            {t.settings.logo}
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => onLogo(e.target.files?.[0] || null)} />
-          </label>
-          {data.merchant.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.merchant.logo_url} alt="" className="onboarding-logo" />
-          ) : null}
-          <label>
-            {t.onboarding.supportEmail}
-            <input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} />
-          </label>
-          <label>
-            {t.onboarding.supportPhone}
-            <input value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} />
           </label>
         </section>
       )}
 
       {step === 1 && (
         <section className="stack-form">
-          <h2>{t.onboarding.defaults}</h2>
-          <p className="muted">{t.onboarding.defaultsHint}</p>
-          <fieldset className="choice-set">
-            <legend>{t.onboarding.locale}</legend>
-            <label className="choice">
-              <input type="radio" checked={locale === "fa"} onChange={() => setLocale("fa")} />
-              {t.onboarding.localeFa}
-            </label>
-            <label className="choice">
-              <input type="radio" checked={locale === "en"} onChange={() => setLocale("en")} />
-              {t.onboarding.localeEn}
-            </label>
-          </fieldset>
-        </section>
-      )}
-
-      {step === 2 && (
-        <section className="stack-form">
           <h2>{t.onboarding.wallets}</h2>
           <p className="muted">{t.onboarding.walletsHint}</p>
-          <p className="stat-chip">
-            {data.wallet_count > 0 ? `${data.wallet_count}` : "0"} wallet(s)
-          </p>
-          <form onSubmit={addWallet} className="stack-form">
-            <label>
-              {t.onboarding.walletNetwork}
-              <select value={walletNetwork} onChange={(e) => setWalletNetwork(e.target.value)}>
-                <option value="tron">{t.onboarding.tronLabel}</option>
-                {data.bsc_checkout_enabled ? (
-                  <option value="bsc">{t.onboarding.bscLabel}</option>
-                ) : null}
-              </select>
-            </label>
-            {!data.bsc_checkout_enabled && <p className="muted">{t.onboarding.bscUnavailable}</p>}
-            <label>
-              {t.onboarding.walletAddress}
-              <input value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} autoComplete="off" />
-            </label>
-            <label>
-              {t.onboarding.walletLabel}
-              <input value={walletLabel} onChange={(e) => setWalletLabel(e.target.value)} />
-            </label>
-            <button type="submit" className="btn-secondary" disabled={loading}>
-              {t.onboarding.addWallet}
-            </button>
-          </form>
-        </section>
-      )}
-
-      {step === 3 && (
-        <section className="stack-form">
-          <h2>{t.onboarding.rail}</h2>
-          <p className="muted">{t.onboarding.railHint}</p>
-          <label className="choice">
-            <input type="radio" checked={defaultNetwork === "tron"} onChange={() => setDefaultNetwork("tron")} />
-            {t.onboarding.railTron}
-          </label>
-          {data.bsc_checkout_enabled ? (
-            <label className="choice">
-              <input type="radio" checked={defaultNetwork === "bsc"} onChange={() => setDefaultNetwork("bsc")} />
-              {t.onboarding.railBsc}
-            </label>
+          {data.wallet_count > 0 ? (
+            <p className="ok">{t.trust.walletConfigured}</p>
           ) : (
-            <p className="muted">{t.onboarding.bscUnavailable}</p>
+            <form onSubmit={addWallet} className="stack-form">
+              <label>
+                {t.onboarding.walletNetwork}
+                <select value={walletNetwork} onChange={(e) => setWalletNetwork(e.target.value)}>
+                  <option value="tron">{t.onboarding.tronLabel}</option>
+                  {data.bsc_checkout_enabled ? <option value="bsc">{t.onboarding.bscLabel}</option> : null}
+                </select>
+              </label>
+              <label>
+                {t.onboarding.walletAddress}
+                <input className="mono-ltr" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} autoComplete="off" />
+              </label>
+              <button type="submit" className="btn btn-secondary" disabled={loading}>
+                {t.onboarding.addWallet}
+              </button>
+            </form>
           )}
         </section>
       )}
 
-      {step === 4 && (
-        <section className="stack-form">
-          <h2>{t.onboarding.checkout}</h2>
-          <p className="muted">{t.onboarding.checkoutHint}</p>
-          {(
-            [
-              ["full_name", t.onboarding.requireName],
-              ["phone", t.onboarding.requirePhone],
-              ["email", t.onboarding.requireEmail],
-              ["shipping_address", t.onboarding.requireAddress],
-              ["postal_code", t.onboarding.requirePostal],
-              ["customer_note", t.onboarding.allowNote],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key}>
-              {label}
-              <select value={fieldMode(fields, key)} onChange={(e) => setField(key, e.target.value)}>
-                <option value="required">{t.settings.fieldRequired}</option>
-                <option value="optional">{t.settings.fieldOptional}</option>
-                <option value="disabled">{t.settings.fieldDisabled}</option>
-              </select>
-            </label>
-          ))}
-          <label className="choice">
-            <input type="checkbox" checked={fulfillment} onChange={(e) => setFulfillment(e.target.checked)} />
-            {t.onboarding.shippingRequired}
-          </label>
-          <label>
-            {t.onboarding.expiry}
-            <input type="number" min={5} max={10080} value={expiry} onChange={(e) => setExpiry(Number(e.target.value))} />
-          </label>
-          <label>
-            {t.onboarding.successMessage}
-            <input value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} />
-          </label>
-        </section>
-      )}
-
-      {step === 5 && (
-        <section className="stack-form">
-          <h2>{t.onboarding.notifications}</h2>
-          <p className="muted">{t.onboarding.notificationsHint}</p>
-          <label className="choice">
-            <input type="checkbox" checked={emailPaid} onChange={(e) => setEmailPaid(e.target.checked)} />
-            {t.onboarding.emailPayments}
-          </label>
-          <label className="choice">
-            <input type="checkbox" checked={emailAttn} onChange={(e) => setEmailAttn(e.target.checked)} />
-            {t.onboarding.emailAttention}
-          </label>
-          <label className="choice">
-            <input type="checkbox" checked={emailOrders} onChange={(e) => setEmailOrders(e.target.checked)} />
-            {t.onboarding.emailOrders}
-          </label>
-          <p className="muted">{t.onboarding.telegramLater}</p>
-        </section>
-      )}
-
-      {step === 6 && (
+      {step === 2 && (
         <section className="stack-form ready-card">
           <h2>{t.onboarding.readyTitle}</h2>
           <p>{t.onboarding.readyBody}</p>
@@ -490,7 +247,7 @@ export default function OnboardingPage() {
       )}
 
       <div className="onboarding-actions">
-        {step > 0 && step < 6 ? (
+        {step > 0 && step < 2 ? (
           <button type="button" className="btn-ghost" onClick={() => setStep((s) => s - 1)} disabled={loading}>
             {t.onboarding.back}
           </button>
@@ -498,7 +255,7 @@ export default function OnboardingPage() {
           <span />
         )}
         <button type="button" className="btn-primary" onClick={() => onNext()} disabled={loading}>
-          {step === 6 ? t.onboarding.createPayment : step === 5 ? t.onboarding.finish : t.onboarding.next}
+          {step === 2 ? t.onboarding.createPayment : t.onboarding.next}
         </button>
       </div>
     </div>

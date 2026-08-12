@@ -67,6 +67,9 @@ export function PaymentException({
         <p className="alert alert-warning" style={{ marginTop: "var(--space-3)" }}>
           {t.checkout.exception.dontSendAgain}
         </p>
+        <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+          {t.common.moneySafe}
+        </p>
       </section>
     );
   }
@@ -81,6 +84,9 @@ export function PaymentException({
         <p className="alert alert-warning" style={{ marginTop: "var(--space-3)" }}>
           {t.checkout.exception.dontSendAgain}
         </p>
+        <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+          {t.common.moneySafe}
+        </p>
       </section>
     );
   }
@@ -92,6 +98,12 @@ export function PaymentException({
         <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
           {t.checkout.exception.lateBody}
         </p>
+        <p className="alert alert-warning" style={{ marginTop: "var(--space-3)" }}>
+          {t.checkout.exception.dontSendAgain}
+        </p>
+        <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+          {t.common.moneySafe}
+        </p>
       </section>
     );
   }
@@ -102,6 +114,12 @@ export function PaymentException({
         <p style={{ margin: 0, fontWeight: 650 }}>{t.checkout.exception.reviewTitle}</p>
         <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
           {t.checkout.exception.reviewBody}
+        </p>
+        <p className="alert alert-warning" style={{ marginTop: "var(--space-3)" }}>
+          {t.checkout.exception.dontSendAgain}
+        </p>
+        <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+          {t.common.moneySafe}
         </p>
       </section>
     );

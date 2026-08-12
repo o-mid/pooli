@@ -1,11 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { BackLink } from "@/components/ui/BackLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { WalletAddress } from "@/components/ui/WalletAddress";
 import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/i18n/LocaleProvider";
+import { networkLabel, shortenAddress, tokenStandard } from "@/lib/address";
 import { api } from "@/lib/api";
 
 type Wallet = {
@@ -40,6 +41,7 @@ export default function WalletsPage() {
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loading, setLoading] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   async function load() {
     const d = await api<{ wallets: Wallet[] }>("/api/v1/wallets");
@@ -59,7 +61,7 @@ export default function WalletsPage() {
     const label = String(fd.get("label")).trim();
 
     if (!validateAddress(network, address)) {
-      setError(t.common.error);
+      setError(t.wallets.invalidAddress);
       return;
     }
 
@@ -130,21 +132,16 @@ export default function WalletsPage() {
 
   return (
     <div className="rise page-stack">
+      <BackLink href="/app/settings/getting-paid" />
       <PageHeader title={t.wallets.title} />
-
-      {!draft && (
-        <div className="alert alert-warning" role="note">
-          {t.wallets.confirmWarn}
-        </div>
-      )}
 
       {!draft ? (
         <form className="card-panel" onSubmit={onFormSubmit}>
           <div className="field">
             <label htmlFor="network">{t.wallets.network}</label>
             <select id="network" name="network" defaultValue="tron">
-              <option value="tron">TRON (TRC-20)</option>
-              <option value="bsc">BNB Smart Chain (BEP-20)</option>
+              <option value="tron">{t.wallets.tron}</option>
+              <option value="bsc">{t.wallets.bsc}</option>
             </select>
           </div>
           <div className="field">
@@ -153,7 +150,7 @@ export default function WalletsPage() {
           </div>
           <div className="field">
             <label htmlFor="label">{t.wallets.label}</label>
-            <input id="label" name="label" placeholder="Instagram Store" />
+            <input id="label" name="label" placeholder="Instagram" />
           </div>
           {wallets.length > 0 && (
             <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
@@ -178,13 +175,13 @@ export default function WalletsPage() {
             <div className="list-row" style={{ cursor: "default" }}>
               <div className="list-row-body">
                 <div className="list-row-meta">{t.wallets.network}</div>
-                <div className="list-row-title">{draft.network.toUpperCase()}</div>
+                <div className="list-row-title">{networkLabel(draft.network, t.wallets.tron, t.wallets.bsc)}</div>
               </div>
             </div>
-            <div className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
+            <div className="list-row" style={{ cursor: "default" }}>
               <div className="list-row-body">
                 <div className="list-row-meta">{t.wallets.address}</div>
-                <WalletAddress address={draft.address} showCopy={false} />
+                <div className="list-row-title mono-ltr short-addr">{shortenAddress(draft.address)}</div>
               </div>
             </div>
           </div>
@@ -206,58 +203,66 @@ export default function WalletsPage() {
 
       {wallets.length > 0 ? (
         <section className="section">
-          <h2 className="section-title">{t.wallets.title}</h2>
           <div className="list-group">
             {wallets.map((w) => (
               <div key={w.id} className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
                 <div className="list-row-body" style={{ gap: "var(--space-2)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-2)" }}>
-                    <div className="list-row-title">{w.label || w.network.toUpperCase()}</div>
-                    <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
-                      {w.is_default && w.is_active && <span className="status-badge paid">{t.wallets.default}</span>}
-                      {!w.is_active && <span className="status-badge expired">{t.wallets.inactive}</span>}
-                    </div>
+                  <div className="list-row-title">
+                    {networkLabel(w.network, t.wallets.tron, t.wallets.bsc)}
+                    {w.is_default && w.is_active ? ` · ${t.wallets.default}` : ""}
                   </div>
-                  <div className="list-row-meta">
-                    {w.network.toUpperCase()} · USDT
-                  </div>
-                  <WalletAddress address={w.address} />
-                  {(w.active_payment_intents || 0) > 0 ? (
-                    <div className="list-row-meta">
-                      {t.wallets.activeIntents}: {w.active_payment_intents}
+                  <div className="list-row-meta mono-ltr short-addr">{shortenAddress(w.address)}</div>
+                  {w.label ? <div className="list-row-meta">{w.label}</div> : null}
+                  <button
+                    type="button"
+                    className="quiet-link"
+                    style={{ background: "none", border: 0, textAlign: "start", padding: 0 }}
+                    onClick={() => setOpenId(openId === w.id ? null : w.id)}
+                  >
+                    {t.wallets.details}
+                  </button>
+                  {openId === w.id ? (
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
+                      <code className="wallet-addr mono-ltr">{w.address}</code>
+                      {tokenStandard(w.network) ? (
+                        <div className="list-row-meta">
+                          {t.wallets.tokenStandard}: {tokenStandard(w.network)}
+                        </div>
+                      ) : null}
+                      {(w.active_payment_intents || 0) > 0 ? (
+                        <div className="list-row-meta">
+                          {t.wallets.activeIntents}: {w.active_payment_intents}
+                        </div>
+                      ) : null}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                        <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} onClick={() => copyAddr(w.address)}>
+                          {t.wallets.copy}
+                        </button>
+                        {w.explorer_url ? (
+                          <a className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} href={w.explorer_url} target="_blank" rel="noreferrer">
+                            {t.wallets.explorer}
+                          </a>
+                        ) : null}
+                        {!w.is_default && w.is_active && (
+                          <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => setDefault(w.id)}>
+                            {t.wallets.setDefault}
+                          </button>
+                        )}
+                        {w.is_active && (
+                          <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => archive(w.id)}>
+                            {t.wallets.archive}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : null}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
-                    <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} onClick={() => copyAddr(w.address)}>
-                      {t.wallets.copy}
-                    </button>
-                    {w.explorer_url ? (
-                      <a className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} href={w.explorer_url} target="_blank" rel="noreferrer">
-                        {t.wallets.explorer}
-                      </a>
-                    ) : null}
-                    {!w.is_default && w.is_active && (
-                      <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => setDefault(w.id)}>
-                        {t.wallets.setDefault}
-                      </button>
-                    )}
-                    {w.is_active && (
-                      <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => archive(w.id)}>
-                        {t.wallets.archive}
-                      </button>
-                    )}
-                  </div>
                 </div>
               </div>
             ))}
           </div>
         </section>
       ) : (
-        !draft && (
-          <EmptyState title={t.wallets.title} action={<span className="muted">{t.wallets.add}</span>}>
-            {t.wallets.empty}
-          </EmptyState>
-        )
+        !draft && <EmptyState title={t.wallets.title}>{t.wallets.empty}</EmptyState>
       )}
     </div>
   );

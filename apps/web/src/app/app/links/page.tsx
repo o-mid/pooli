@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { BackLink } from "@/components/ui/BackLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
@@ -43,7 +44,7 @@ export default function PaymentLinksPage() {
     setError("");
     try {
       const body: Record<string, unknown> = {
-        title: title.trim() || "Payment",
+        title: title.trim() || t.links.title,
         mode,
       };
       if (mode === "fixed") {
@@ -70,14 +71,19 @@ export default function PaymentLinksPage() {
 
   return (
     <div className="rise page-stack">
-      <PageHeader title={t.links.title} />
-      {error ? <p className="field-error">{error}</p> : null}
+      <BackLink href="/app/settings/getting-paid" />
+      <PageHeader title={t.links.title} subtitle={t.links.hint} />
+      {error ? (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
-      <form className="stack-form" onSubmit={onCreate}>
-        <label>
-          {t.create.orderTitle}
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </label>
+      <form className="card-panel" onSubmit={onCreate}>
+        <div className="field">
+          <label htmlFor="link-title">{t.create.orderTitle}</label>
+          <input id="link-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
         <fieldset className="choice-set">
           <legend>{t.links.create}</legend>
           <label className="choice">
@@ -90,34 +96,40 @@ export default function PaymentLinksPage() {
           </label>
         </fieldset>
         {mode === "fixed" ? (
-          <label>
-            {t.create.amount}
-            <input value={amount} onChange={(e) => setAmount(formatTomanInput(e.target.value))} inputMode="numeric" />
-          </label>
+          <div className="field">
+            <label htmlFor="link-amount">{t.create.amount}</label>
+            <input
+              id="link-amount"
+              className="tabular"
+              value={amount}
+              onChange={(e) => setAmount(formatTomanInput(e.target.value))}
+              inputMode="numeric"
+            />
+          </div>
         ) : null}
-        <button className="btn-primary" type="submit" disabled={loading}>
+        <button className="btn btn-primary" type="submit" disabled={loading}>
           {t.links.create}
         </button>
       </form>
 
       {links.length === 0 ? (
-        <EmptyState title={t.links.empty}>{t.links.empty}</EmptyState>
+        <EmptyState title={t.links.empty}>{t.links.hint}</EmptyState>
       ) : (
-        <ul className="list-plain">
+        <div className="list-group">
           {links.map((l) => (
-            <li key={l.id} className="list-row">
-              <div>
-                <strong>{l.title || l.slug}</strong>
-                <p className="muted">
-                  {l.mode === "fixed" ? formatTomanInput(String(l.fiat_amount_toman)) : t.links.custom}
+            <div key={l.id} className="list-row" style={{ cursor: "default" }}>
+              <div className="list-row-body">
+                <div className="list-row-title">{l.title || l.slug}</div>
+                <div className="list-row-meta tabular">
+                  {l.mode === "fixed" ? `${formatTomanInput(String(l.fiat_amount_toman))} ${t.checkout.toman}` : t.links.custom}
                   {" · "}
                   {l.active ? t.links.active : t.links.inactive}
-                </p>
-                <p className="muted mono">{l.public_url}</p>
+                </div>
               </div>
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn btn-tertiary"
+                style={{ width: "auto" }}
                 onClick={async () => {
                   await navigator.clipboard.writeText(l.public_url);
                   showToast(t.common.copied);
@@ -125,9 +137,9 @@ export default function PaymentLinksPage() {
               >
                 {t.common.copy}
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
