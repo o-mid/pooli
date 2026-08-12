@@ -16,6 +16,9 @@ uploads/
 !uploads/.gitkeep
 deploy/hostinger/.env
 
+# Cursor IDE local config (never publish to GitHub)
+.cursor/
+
 # Brand source kit (large); runtime assets live under apps/web/public/brand/
 brand/
 apps/web/public/fonts/
