@@ -233,6 +233,22 @@ export const en = {
   },
   timeline: {
     title: "Activity",
+    events: {
+      "order.created": "Order created",
+      "customer.details_submitted": "Customer details submitted",
+      "fulfillment.processing": "Preparing",
+      "fulfillment.shipped": "Shipped",
+      "fulfillment.delivered": "Delivered",
+      "fulfillment.cancelled": "Cancelled",
+      "payment.seen": "Payment detected",
+      "payment.confirming": "Confirming payment",
+      "payment.paid": "Paid ✓",
+      "payment.expired": "Expired",
+      "payment.underpaid": "Amount is short",
+      "payment.overpaid": "Amount is over",
+      "payment.needs_review": "Needs attention",
+      "payment.unmatched_ambiguous": "Needs attention",
+    },
   },
   trust: {
     emailVerified: "Email verified",

@@ -16,6 +16,7 @@ import {
   setPreferredNetwork,
   type PaymentOption,
 } from "@/lib/payment-handoff";
+import { checkoutFieldLabel } from "@/lib/checkoutFields";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type PaymentIntent = {
@@ -414,7 +415,7 @@ export default function CheckoutClient() {
           {pay.fields.map((f) => (
             <div className="field" key={f.key} style={{ marginTop: "var(--space-3)" }}>
               <label htmlFor={f.key}>
-                {f.label}
+                {checkoutFieldLabel(f.key, t, f.label)}
                 {f.required ? " *" : ""}
               </label>
               {f.type === "textarea" ? (

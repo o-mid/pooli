@@ -11,11 +11,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
-import { useT } from "@/i18n/LocaleProvider";
+import { useT, useLocale } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
+import { checkoutFieldLabel } from "@/lib/checkoutFields";
 import { canFulfill, fulfillmentLabel } from "@/lib/fulfillment";
 import { buildShareText, sharePaymentLink } from "@/lib/share";
 import { networkLabel } from "@/lib/address";
+import { timelineLabel } from "@/lib/timeline";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type TimelineEvent = {
@@ -68,6 +70,7 @@ type Order = {
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const t = useT();
+  const { locale } = useLocale();
   const { showToast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [shipOpen, setShipOpen] = useState(false);
@@ -162,7 +165,7 @@ export default function OrderDetailPage() {
 
   function fmtWhen(iso: string) {
     try {
-      return new Date(iso).toLocaleString();
+      return new Date(iso).toLocaleString(locale === "fa" ? "fa-IR" : "en-US");
     } catch {
       return iso;
     }
@@ -312,7 +315,7 @@ export default function OrderDetailPage() {
             {order.field_values.map((f) => (
               <div key={f.key} className="list-row" style={{ cursor: "default" }}>
                 <div className="list-row-body">
-                  <div className="list-row-meta">{f.label}</div>
+                  <div className="list-row-meta">{checkoutFieldLabel(f.key, t, f.label)}</div>
                   <div className="list-row-title">{f.value}</div>
                 </div>
               </div>
@@ -327,7 +330,7 @@ export default function OrderDetailPage() {
           <ol className="timeline-list">
             {order.timeline.map((e, i) => (
               <li key={e.id || `${e.event_type}-${i}`}>
-                <div className="timeline-title">{e.title || e.event_type}</div>
+                <div className="timeline-title">{timelineLabel(e.event_type, t, e.title)}</div>
                 {e.detail ? <div className="timeline-detail">{e.detail}</div> : null}
                 <div className="timeline-when muted">{fmtWhen(e.created_at)}</div>
               </li>

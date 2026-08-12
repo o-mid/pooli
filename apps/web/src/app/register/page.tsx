@@ -150,7 +150,7 @@ export default function RegisterPage() {
       ) : null}
 
       {mode === "email" ? (
-        <form className="card-panel" onSubmit={onEmailSubmit}>
+        <form className="card-panel" method="post" onSubmit={onEmailSubmit}>
           <div className="field">
             <label htmlFor="name">{t.name}</label>
             <input id="name" name="name" required />

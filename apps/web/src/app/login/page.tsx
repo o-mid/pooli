@@ -140,7 +140,7 @@ export default function LoginPage() {
       ) : null}
 
       {mode === "email" ? (
-        <form className="card-panel" onSubmit={onEmailSubmit}>
+        <form className="card-panel" method="post" onSubmit={onEmailSubmit}>
           <div className="field">
             <label htmlFor="email">{t.email}</label>
             <input id="email" name="email" type="email" required autoComplete="email" />

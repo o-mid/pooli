@@ -235,6 +235,22 @@ export const fa: Messages = {
   },
   timeline: {
     title: "فعالیت",
+    events: {
+      "order.created": "سفارش ساخته شد",
+      "customer.details_submitted": "جزئیات مشتری ثبت شد",
+      "fulfillment.processing": "در حال آماده‌سازی",
+      "fulfillment.shipped": "ارسال شد",
+      "fulfillment.delivered": "تحویل شد",
+      "fulfillment.cancelled": "لغو شد",
+      "payment.seen": "پرداخت دیده شد",
+      "payment.confirming": "در حال تأیید",
+      "payment.paid": "پرداخت شد ✓",
+      "payment.expired": "منقضی شد",
+      "payment.underpaid": "مبلغ کمتر است",
+      "payment.overpaid": "مبلغ بیشتر است",
+      "payment.needs_review": "نیاز به بررسی",
+      "payment.unmatched_ambiguous": "نیاز به بررسی",
+    },
   },
   trust: {
     emailVerified: "ایمیل تأیید شده",
