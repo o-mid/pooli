@@ -71,7 +71,16 @@ export default function CustomersPage() {
       {items === null ? (
         <SkeletonRows count={4} />
       ) : items.length === 0 ? (
-        <EmptyState title={t.customers.title}>{t.customers.empty}</EmptyState>
+        <EmptyState
+          title={t.customers.title}
+          action={
+            <Link className="btn btn-secondary" href="/app/create">
+              {t.home.newOrder}
+            </Link>
+          }
+        >
+          {t.customers.empty}
+        </EmptyState>
       ) : (
         <div className="list-group">
           {items.map((c) => (

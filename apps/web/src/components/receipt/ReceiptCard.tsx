@@ -66,10 +66,7 @@ export function ReceiptCard({ receipt, storeName, title, fiatAmountToman, showAc
       </div>
       <p className="receipt-store">{merchant}</p>
       {title || receipt.order_title ? <p className="muted">{title || receipt.order_title}</p> : null}
-      <AmountDisplay
-        primary={`${amount.toLocaleString()} ${t.checkout.toman}`}
-        secondary={usdt ? `${usdt} USDT · ${networkLabel(network)}` : undefined}
-      />
+      <AmountDisplay primary={`${amount.toLocaleString()} ${t.checkout.toman}`} />
       {receipt.order_reference ? (
         <p className="muted mono-ltr" style={{ textAlign: "center" }}>
           {t.checkout.orderRef} #{receipt.order_reference}

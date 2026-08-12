@@ -15,6 +15,7 @@ import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
 import { canFulfill, fulfillmentLabel } from "@/lib/fulfillment";
 import { buildShareText, sharePaymentLink } from "@/lib/share";
+import { networkLabel } from "@/lib/address";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type TimelineEvent = {
@@ -173,70 +174,63 @@ export default function OrderDetailPage() {
       <PageHeader title={order.title || t.checkout.orderRef} />
 
       <div className="card-panel">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
-          <div>
-            <div className="muted" style={{ fontSize: "var(--text-caption)" }}>
-              {t.orders.payment}
-            </div>
-            {displayStatus === "PAID" ? (
-              <strong style={{ fontSize: "var(--text-title3)" }}>
-                {(order.field_values?.find((f) => f.key === "full_name")?.value || "").trim()
-                  ? `${order.field_values?.find((f) => f.key === "full_name")?.value} ${t.orders.paidCheck}`
-                  : t.orders.status.PAID}
-              </strong>
-            ) : (
-              <StatusBadge status={displayStatus} t={t} />
-            )}
-          </div>
-          <div style={{ textAlign: "end" }}>
-            <div className="muted" style={{ fontSize: "var(--text-caption)" }}>
-              {t.orders.order}
-            </div>
-            <strong>{fulfillmentLabel(order.fulfillment_status, t)}</strong>
-          </div>
-        </div>
+        {displayStatus === "PAID" ? (
+          <strong style={{ fontSize: "var(--text-title3)" }}>
+            {(order.field_values?.find((f) => f.key === "full_name")?.value || "").trim()
+              ? `${order.field_values?.find((f) => f.key === "full_name")?.value} ${t.orders.paidCheck}`
+              : t.orders.paidCheck}
+          </strong>
+        ) : (
+          <StatusBadge status={displayStatus} t={t} />
+        )}
 
-        {order.field_values?.find((f) => f.key === "full_name")?.value ? (
-          <p style={{ margin: "0 0 var(--space-2)", fontWeight: 650 }}>
+        {order.field_values?.find((f) => f.key === "full_name")?.value && displayStatus !== "PAID" ? (
+          <p style={{ margin: "var(--space-2) 0 0", fontWeight: 650 }}>
             {order.field_values.find((f) => f.key === "full_name")?.value}
           </p>
         ) : null}
 
-        <AmountDisplay
-          primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`}
-          secondary={
-            intent?.options?.[0]
-              ? `${intent.options[0].pay_usdt_amount} USDT · ${(intent.options[0].network || "").toUpperCase()}`
-              : undefined
-          }
-        />
-
-        <PaymentProgress
-          status={displayStatus}
-          network={matched?.tx_hash ? intent?.options?.[0]?.network : undefined}
-          confirmations={matched?.confirmations}
-          requiredConfirmations={matched?.required_confirmations}
-          txHash={matched?.tx_hash}
-          explorerUrl={matched?.explorer_url}
-          compact
-        />
-
-        <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)", marginTop: "var(--space-4)" }}>
-          {order.checkout_url}
-        </p>
-        <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
-          <button className="btn btn-primary" onClick={share}>
-            {t.create.share}
-          </button>
-          <button className="btn btn-secondary" onClick={copyLink}>
-            {t.create.copyLink}
-          </button>
+        <div style={{ marginTop: "var(--space-3)" }}>
+          <AmountDisplay primary={`${order.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
         </div>
-        <div className="qr-card" style={{ marginTop: "var(--space-3)", border: 0, padding: 0 }}>
-          <div className="qr-frame">
-            <QRCodeSVG value={order.checkout_url} size={140} bgColor="#ffffff" fgColor="#0b1f1a" />
+
+        {displayStatus !== "PAID" ? (
+          <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
+            <button className="btn btn-primary" onClick={share}>
+              {t.create.share}
+            </button>
+            <button className="quiet-link" type="button" onClick={copyLink} style={{ background: "none", border: 0 }}>
+              {t.create.copyLink}
+            </button>
           </div>
-        </div>
+        ) : null}
+
+        <details className="details-block">
+          <summary>{t.checkout.paymentDetails}</summary>
+          <PaymentProgress
+            status={displayStatus}
+            network={matched?.tx_hash ? intent?.options?.[0]?.network : undefined}
+            confirmations={matched?.confirmations}
+            requiredConfirmations={matched?.required_confirmations}
+            txHash={matched?.tx_hash}
+            explorerUrl={matched?.explorer_url}
+            compact
+          />
+          {intent?.options?.[0] ? (
+            <p className="muted" style={{ marginTop: "var(--space-3)" }}>
+              {intent.options[0].pay_usdt_amount} {t.receipt.usdt} ·{" "}
+              {networkLabel(intent.options[0].network || "", t.wallets.tron, t.wallets.bsc)}
+            </p>
+          ) : null}
+          <p className="mono-ltr muted" style={{ fontSize: "var(--text-footnote)", marginTop: "var(--space-3)" }}>
+            {order.checkout_url}
+          </p>
+          <div className="qr-card" style={{ marginTop: "var(--space-3)", border: 0, padding: 0 }}>
+            <div className="qr-frame">
+              <QRCodeSVG value={order.checkout_url} size={140} bgColor="#ffffff" fgColor="#0b1f1a" />
+            </div>
+          </div>
+        </details>
       </div>
 
       {order.receipt ? (
@@ -328,8 +322,8 @@ export default function OrderDetailPage() {
       )}
 
       {order.timeline && order.timeline.length > 0 ? (
-        <section className="section">
-          <h2 className="section-title">{t.timeline.title}</h2>
+        <details className="details-block">
+          <summary>{t.timeline.title}</summary>
           <ol className="timeline-list">
             {order.timeline.map((e, i) => (
               <li key={e.id || `${e.event_type}-${i}`}>
@@ -339,7 +333,7 @@ export default function OrderDetailPage() {
               </li>
             ))}
           </ol>
-        </section>
+        </details>
       ) : null}
     </div>
   );

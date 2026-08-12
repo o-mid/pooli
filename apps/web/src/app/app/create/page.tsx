@@ -31,7 +31,13 @@ function CreateOrderForm() {
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [title, setTitle] = useState("");
+  const [showMore, setShowMore] = useState(false);
+  const [showMoreShare, setShowMoreShare] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [reference, setReference] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [expiry, setExpiry] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [result, setResult] = useState<Result | null>(null);
 
   useEffect(() => {
@@ -51,6 +57,14 @@ function CreateOrderForm() {
         description: "",
       };
       if (customerId) body.customer_id = customerId;
+      if (showMore) {
+        if (reference.trim()) body.merchant_reference = reference.trim();
+        const qty = Number(quantity);
+        if (qty > 1) body.item_quantity = qty;
+        const exp = Number(expiry);
+        if (exp > 0) body.expires_in_minutes = exp;
+        if (successMessage.trim()) body.success_message = successMessage.trim();
+      }
       const res = await api<Result>("/api/v1/orders", {
         method: "POST",
         body: JSON.stringify(body),
@@ -107,51 +121,57 @@ function CreateOrderForm() {
       <div className="rise page-stack">
         <PageHeader title={t.create.created} />
         <div className="card-panel" style={{ textAlign: "center" }}>
-          <p className="ok" style={{ margin: 0, fontWeight: 600 }}>
-            ✓ {t.create.created}
-          </p>
           {result.fiat_amount_toman ? (
-            <p className="tabular" style={{ fontSize: "var(--text-title2)", margin: "var(--space-3) 0 0", fontWeight: 700 }}>
+            <p className="tabular" style={{ fontSize: "var(--text-title2)", margin: 0, fontWeight: 700 }}>
               {result.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
             </p>
           ) : null}
           {result.title ? (
             <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-headline)" }}>{result.title}</p>
           ) : null}
-          <p className="mono-ltr muted" style={{ marginTop: "var(--space-3)", fontSize: "var(--text-footnote)" }}>
-            {result.checkout_url.replace(/^https?:\/\//, "")}
+          <p className="muted" style={{ marginTop: "var(--space-3)" }}>
+            {t.create.shareHint}
           </p>
-
-          {showQR ? (
-            <div className="qr-card" style={{ marginTop: "var(--space-4)" }}>
-              <div className="qr-frame">
-                <QRCodeSVG value={result.checkout_url} size={180} bgColor="#ffffff" fgColor="#0b1f1a" />
-              </div>
-            </div>
-          ) : null}
-
           <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
             <button className="btn btn-primary" onClick={shareLink}>
               {canShare ? t.create.share : t.create.copyLink}
             </button>
-            <button className="btn btn-secondary" onClick={copyLink}>
-              {t.create.copyLink}
-            </button>
-            <button className="btn btn-secondary" type="button" onClick={() => setShowQR((v) => !v)}>
-              {t.create.qr}
-            </button>
-            <Link className="btn btn-secondary" href={`/p/${result.slug}`}>
-              {t.create.openCheckout}
-            </Link>
-            <div style={{ display: "flex", gap: "var(--space-2)" }}>
-              <a className="btn btn-tertiary" style={{ flex: 1 }} href={telegramShareURL(shareText, result.checkout_url)} target="_blank" rel="noreferrer">
-                {t.create.shareTelegram}
-              </a>
-              <a className="btn btn-tertiary" style={{ flex: 1 }} href={whatsappShareURL(shareText)} target="_blank" rel="noreferrer">
-                {t.create.shareWhatsApp}
-              </a>
-            </div>
+            {!canShare ? null : (
+              <button className="btn btn-secondary" onClick={copyLink}>
+                {t.create.copyLink}
+              </button>
+            )}
           </div>
+          <button
+            type="button"
+            className="quiet-link"
+            style={{ marginTop: "var(--space-4)", background: "none", border: 0, width: "100%" }}
+            onClick={() => setShowMoreShare((v) => !v)}
+          >
+            {t.create.moreShare}
+          </button>
+          {showMoreShare ? (
+            <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
+              <button className="btn btn-secondary" type="button" onClick={() => setShowQR((v) => !v)}>
+                {t.create.qr}
+              </button>
+              <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                <a className="btn btn-tertiary" style={{ flex: 1 }} href={telegramShareURL(shareText, result.checkout_url)} target="_blank" rel="noreferrer">
+                  {t.create.shareTelegram}
+                </a>
+                <a className="btn btn-tertiary" style={{ flex: 1 }} href={whatsappShareURL(shareText)} target="_blank" rel="noreferrer">
+                  {t.create.shareWhatsApp}
+                </a>
+              </div>
+              {showQR ? (
+                <div className="qr-card">
+                  <div className="qr-frame">
+                    <QRCodeSVG value={result.checkout_url} size={180} bgColor="#ffffff" fgColor="#0b1f1a" />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <button type="button" className="btn btn-tertiary btn-block" onClick={() => router.push(`/app/orders/${result.id}`)}>
           {t.common.back}
@@ -189,18 +209,57 @@ function CreateOrderForm() {
               {t.checkout.toman}
             </span>
           </div>
-          <p className="field-hint">{t.create.amountHint}</p>
         </div>
         <div className="field">
           <label htmlFor="title">{t.create.description}</label>
           <input
             id="title"
             name="title"
-            placeholder="Nike Air Max"
+            placeholder="Nike Air Max 90"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
+        <button
+          type="button"
+          className="quiet-link"
+          style={{ background: "none", border: 0, marginBottom: "var(--space-3)" }}
+          onClick={() => setShowMore((v) => !v)}
+        >
+          {showMore ? t.create.hideOptions : t.create.moreOptions}
+        </button>
+        {showMore ? (
+          <>
+            <div className="field">
+              <label htmlFor="quantity">{t.create.quantity}</label>
+              <input
+                id="quantity"
+                className="tabular"
+                inputMode="numeric"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value.replace(/[^\d]/g, ""))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="reference">{t.create.reference}</label>
+              <input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="expiry">{t.create.expiry}</label>
+              <input
+                id="expiry"
+                className="tabular"
+                inputMode="numeric"
+                value={expiry}
+                onChange={(e) => setExpiry(e.target.value.replace(/[^\d]/g, ""))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="success">{t.create.successMessage}</label>
+              <input id="success" value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} />
+            </div>
+          </>
+        ) : null}
         {error && (
           <p className="field-error" role="alert">
             {error}
@@ -210,6 +269,9 @@ function CreateOrderForm() {
           {loading ? t.common.loading : customerId ? t.create.createShare : t.create.create}
         </button>
       </form>
+      <Link className="quiet-link" href="/app/links" style={{ alignSelf: "center" }}>
+        {t.create.reusableInstead}
+      </Link>
     </div>
   );
 }

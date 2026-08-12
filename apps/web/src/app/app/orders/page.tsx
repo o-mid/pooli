@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { NewPaymentButton } from "@/components/NewPaymentButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { OrderListRow } from "@/components/ui/OrderListRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonRows } from "@/components/ui/Skeleton";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 import { fulfillmentLabel } from "@/lib/fulfillment";
@@ -30,6 +31,7 @@ function OrdersContent() {
   const [q, setQ] = useState(search.get("q") || "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -39,12 +41,15 @@ function OrdersContent() {
       if (q.trim()) params.set("q", q.trim());
       const qs = params.toString();
       api<{ orders: Order[] }>(`/api/v1/orders${qs ? `?${qs}` : ""}`)
-        .then((d) => setOrders(d.orders))
-        .catch(() => undefined)
+        .then((d) => {
+          setOrders(d.orders);
+          setError("");
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : t.common.error))
         .finally(() => setLoading(false));
     }, 200);
     return () => clearTimeout(handle);
-  }, [filter, q]);
+  }, [filter, q, t.common.error]);
 
   function setFilter(next: "all" | "attention") {
     const params = new URLSearchParams();
@@ -56,58 +61,68 @@ function OrdersContent() {
 
   return (
     <div className="rise page-stack">
-      <PageHeader title={t.orders.title} />
+      <PageHeader title={t.orders.title} trailing={<NewPaymentButton compact />} />
 
-      <div className="field" style={{ margin: 0 }}>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t.orders.searchPlaceholder}
-          autoComplete="off"
-        />
-      </div>
+      {(!loading && orders.length >= 5) || q.trim() ? (
+        <div className="field" style={{ margin: 0 }}>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t.orders.searchPlaceholder}
+            autoComplete="off"
+          />
+        </div>
+      ) : null}
 
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-        <button
-          type="button"
-          className={`filter-chip${filter === "all" ? " active" : ""}`}
-          onClick={() => setFilter("all")}
-        >
-          {t.orders.filterAll}
-        </button>
-        <button
-          type="button"
-          className={`filter-chip${filter === "attention" ? " active" : ""}`}
-          onClick={() => setFilter("attention")}
-        >
-          {t.orders.filterAttention}
-        </button>
-      </div>
+      {filter === "attention" || (!loading && orders.some((o) => o.payment_status !== "AWAITING_PAYMENT" && o.payment_status !== "CREATED")) ? (
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className={`filter-chip${filter === "all" ? " active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            {t.orders.filterAll}
+          </button>
+          <button
+            type="button"
+            className={`filter-chip${filter === "attention" ? " active" : ""}`}
+            onClick={() => setFilter("attention")}
+          >
+            {t.orders.filterAttention}
+          </button>
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {loading && <SkeletonRows count={5} />}
 
       {!loading && orders.length > 0 && (
         <div className="list-group">
           {orders.map((o) => (
-            <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
-              <div className="list-row-body">
-                <div className="list-row-title">{o.customer_name || o.title || o.slug}</div>
-                <div className="list-row-meta tabular">
-                  {o.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
-                </div>
-                {o.fulfillment_status && o.fulfillment_status !== "UNFULFILLED" ? (
-                  <div className="list-row-meta">{fulfillmentLabel(o.fulfillment_status, t)}</div>
-                ) : null}
-              </div>
-              <div className="list-row-trailing">
-                <StatusBadge status={o.payment_status} t={t} />
-              </div>
-            </Link>
+            <OrderListRow
+              key={o.id}
+              href={`/app/orders/${o.id}`}
+              title={o.customer_name || o.title || o.slug}
+              amountToman={o.fiat_amount_toman}
+              tomanLabel={t.checkout.toman}
+              status={o.payment_status}
+              t={t}
+              meta={
+                o.fulfillment_status && o.fulfillment_status !== "UNFULFILLED"
+                  ? fulfillmentLabel(o.fulfillment_status, t)
+                  : undefined
+              }
+            />
           ))}
         </div>
       )}
 
-      {!loading && !orders.length && (
+      {!loading && !orders.length && !error && (
         <EmptyState
           title={filter === "attention" ? t.orders.filterAttention : t.orders.empty}
           action={

@@ -14,6 +14,7 @@ import {
   detectInitialLocale,
   dirFor,
   isLocale,
+  localeCookie,
   persistLocale,
   type Locale,
 } from "./config";
@@ -32,6 +33,10 @@ type Ctx = {
 const LocaleContext = createContext<Ctx | null>(null);
 
 function bootLocale(): Locale {
+  if (typeof window !== "undefined") {
+    const stored = window.localStorage.getItem(localeCookie);
+    if (isLocale(stored)) return stored;
+  }
   if (typeof document !== "undefined") {
     const fromDom = document.documentElement.dataset.locale;
     if (isLocale(fromDom)) return fromDom;

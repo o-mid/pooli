@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { NewPaymentButton } from "@/components/NewPaymentButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { OrderListRow } from "@/components/ui/OrderListRow";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { SkeletonRows, SkeletonStats } from "@/components/ui/Skeleton";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 import { useT } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
 import { fulfillmentLabel } from "@/lib/fulfillment";
@@ -14,7 +15,6 @@ import { fulfillmentLabel } from "@/lib/fulfillment";
 type Home = {
   today_paid_orders: number;
   today_toman_volume: number;
-  today_usdt_received: string;
   pending_payments: number;
   needs_attention: number;
   attention_items?: Array<{
@@ -35,14 +35,6 @@ type Home = {
     fulfillment_status?: string;
     customer_name?: string;
   }>;
-  analytics?: {
-    gmv_toman_7d: number;
-    paid_orders_7d: number;
-    average_order_value_7d: number;
-    network_mix_30d?: Record<string, number>;
-    recent_customers?: Array<{ id: string; full_name: string; lifetime_paid_toman: number }>;
-    checkout_conversion: null;
-  };
 };
 
 function greeting(t: ReturnType<typeof useT>): string {
@@ -74,7 +66,9 @@ export default function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const me = await api<{ merchant: { onboarding_completed?: boolean } }>("/api/v1/me");
+        const me = await api<{
+          merchant: { onboarding_completed?: boolean; display_name?: string; name?: string };
+        }>("/api/v1/me");
         if (cancelled) return;
         if (!me.merchant?.onboarding_completed) {
           router.replace("/app/onboarding");
@@ -118,106 +112,46 @@ export default function HomePage() {
   const attention = data?.needs_attention || 0;
   const attentionItems = data?.attention_items || [];
   const loading = !data;
+  const title = greeting(t);
 
   return (
     <div className="rise page-stack">
-      <PageHeader title={greeting(t)} subtitle={t.home.title} />
-
-      <Link className="btn btn-primary" href="/app/create">
-        + {t.home.newOrder}
-      </Link>
+      <PageHeader title={title} />
 
       {loading ? (
-        <SkeletonStats />
+        <SkeletonRows count={2} />
       ) : (
-        <div className="stat-grid">
-          <div className="stat">
-            <div className="label">{t.home.paidToday}</div>
-            <div className="value tabular">{data.today_paid_orders}</div>
+        <div className="home-today">
+          <div className="home-today-amount tabular">
+            {data.today_toman_volume.toLocaleString()} {t.checkout.toman}
           </div>
-          <div className="stat">
-            <div className="label">{t.home.tomanVolume}</div>
-            <div className="value tabular">{data.today_toman_volume.toLocaleString()}</div>
+          <div className="home-today-meta">
+            {data.today_paid_orders === 0
+              ? t.home.paidTodayNone
+              : `${data.today_paid_orders} ${t.home.paidToday}`}
           </div>
-          <div className="stat">
-            <div className="label">{t.home.usdtReceived}</div>
-            <div className="value tabular">{data.today_usdt_received}</div>
-          </div>
-          <div className="stat">
-            <div className="label">{t.home.pending}</div>
-            <div className="value tabular">{data.pending_payments}</div>
-          </div>
-          <Link
-            href="/app/orders?filter=attention"
-            className={`stat wide${attention > 0 ? " attention" : ""}`}
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <div className="label">{t.home.attention}</div>
-            <div className="value tabular">{attention}</div>
-            {attention > 0 ? (
-              <div className="muted" style={{ marginTop: "0.35rem", fontSize: "var(--text-caption)" }}>
-                {t.home.viewAttention}
-              </div>
-            ) : null}
-          </Link>
         </div>
       )}
 
-      {!loading && attentionItems.length > 0 ? (
+      <NewPaymentButton />
+
+      {!loading && attention > 0 && attentionItems.length > 0 ? (
         <section className="section">
           <h2 className="section-title">{t.home.attention}</h2>
           <div className="list-group">
             {attentionItems.slice(0, 5).map((o) => (
-              <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
-                <div className="list-row-body">
-                  <div className="list-row-title">{o.title || "—"}</div>
-                  <div className="list-row-meta tabular">
-                    {o.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
-                  </div>
-                  <div className="list-row-meta">
-                    {o.reason === "PAID_UNFULFILLED" ? t.home.awaitingFulfillment : o.reason}
-                  </div>
-                </div>
-                <div className="list-row-trailing">
-                  <StatusBadge status={o.payment_status} t={t} />
-                </div>
-              </Link>
+              <OrderListRow
+                key={o.id}
+                href={`/app/orders/${o.id}`}
+                title={o.title}
+                amountToman={o.fiat_amount_toman}
+                tomanLabel={t.checkout.toman}
+                status={o.payment_status}
+                t={t}
+                meta={o.reason === "PAID_UNFULFILLED" ? t.home.awaitingFulfillment : undefined}
+              />
             ))}
           </div>
-        </section>
-      ) : null}
-
-      {!loading && data?.analytics ? (
-        <section className="section">
-          <h2 className="section-title">{t.home.analytics}</h2>
-          <div className="stat-grid">
-            <div className="stat">
-              <div className="label">{t.home.gmv7d}</div>
-              <div className="value tabular">{data.analytics.gmv_toman_7d.toLocaleString()}</div>
-            </div>
-            <div className="stat">
-              <div className="label">{t.home.paid7d}</div>
-              <div className="value tabular">{data.analytics.paid_orders_7d}</div>
-            </div>
-            <div className="stat">
-              <div className="label">{t.home.aov7d}</div>
-              <div className="value tabular">{data.analytics.average_order_value_7d.toLocaleString()}</div>
-            </div>
-          </div>
-          {data.analytics.recent_customers && data.analytics.recent_customers.length > 0 ? (
-            <div className="list-group" style={{ marginTop: "0.75rem" }}>
-              {data.analytics.recent_customers.map((c) => (
-                <Link key={c.id} href={`/app/customers/${c.id}`} className="list-row">
-                  <div className="list-row-body">
-                    <div className="list-row-title">{c.full_name || "—"}</div>
-                    <div className="list-row-meta tabular">
-                      {c.lifetime_paid_toman.toLocaleString()} {t.checkout.toman}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : null}
         </section>
       ) : null}
 
@@ -228,20 +162,20 @@ export default function HomePage() {
         ) : recent.length > 0 ? (
           <div className="list-group">
             {recent.map((o) => (
-              <Link key={o.id} href={`/app/orders/${o.id}`} className="list-row">
-                <div className="list-row-body">
-                  <div className="list-row-title">{o.customer_name || o.title || o.slug}</div>
-                  <div className="list-row-meta tabular">
-                    {o.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
-                  </div>
-                  {o.fulfillment_status && o.fulfillment_status !== "UNFULFILLED" ? (
-                    <div className="list-row-meta">{fulfillmentLabel(o.fulfillment_status, t)}</div>
-                  ) : null}
-                </div>
-                <div className="list-row-trailing">
-                  <StatusBadge status={o.payment_status || o.status} t={t} />
-                </div>
-              </Link>
+              <OrderListRow
+                key={o.id}
+                href={`/app/orders/${o.id}`}
+                title={o.customer_name || o.title || o.slug}
+                amountToman={o.fiat_amount_toman}
+                tomanLabel={t.checkout.toman}
+                status={o.payment_status || o.status}
+                t={t}
+                meta={
+                  o.fulfillment_status && o.fulfillment_status !== "UNFULFILLED"
+                    ? fulfillmentLabel(o.fulfillment_status, t)
+                    : undefined
+                }
+              />
             ))}
           </div>
         ) : (

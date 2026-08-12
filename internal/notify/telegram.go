@@ -153,7 +153,7 @@ func (t *Telegram) SendTest(ctx context.Context, merchantID, locale string) erro
 	}
 	text := "Pooli test ✓\nTelegram notifications are working."
 	if locale == "fa" {
-		text = "تست پولیی ✓\nاعلان‌های تلگرام فعال است."
+		text = "تست پولی ✓\nاعلان‌های تلگرام فعال است."
 	}
 	return t.postMessage(ctx, chatID, text)
 }

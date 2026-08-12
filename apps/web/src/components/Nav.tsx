@@ -21,13 +21,6 @@ function IconOrders() {
     </svg>
   );
 }
-function IconNew() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden>
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
 function IconCustomers() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
@@ -51,6 +44,8 @@ export function Nav() {
   const path = usePathname();
   const t = useT();
 
+  if (path.startsWith("/app/onboarding")) return null;
+
   const items = [
     { href: "/app", label: t.nav.home, Icon: IconHome, match: (p: string) => p === "/app" },
     {
@@ -59,7 +54,6 @@ export function Nav() {
       Icon: IconOrders,
       match: (p: string) => p.startsWith("/app/orders"),
     },
-    { href: "/app/create", label: t.nav.new, Icon: IconNew, match: (p: string) => p === "/app/create" },
     {
       href: "/app/customers",
       label: t.nav.customers,
@@ -70,7 +64,8 @@ export function Nav() {
       href: "/app/settings",
       label: t.nav.settings,
       Icon: IconSettings,
-      match: (p: string) => p.startsWith("/app/settings") || p === "/app/wallets",
+      match: (p: string) =>
+        p.startsWith("/app/settings") || p === "/app/wallets" || p.startsWith("/app/links"),
     },
   ];
 

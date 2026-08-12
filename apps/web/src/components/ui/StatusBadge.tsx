@@ -3,5 +3,10 @@ import type { Messages } from "@/i18n/messages/en";
 
 export function StatusBadge({ status, t }: { status: string; t: Messages }) {
   const tone = status.toLowerCase();
-  return <span className={`status-badge ${tone}`}>{orderStatusLabel(status, t)}</span>;
+  const paid = status === "PAID";
+  return (
+    <span className={`status-plain ${tone}`}>
+      {paid ? t.orders.paidCheck : orderStatusLabel(status, t)}
+    </span>
+  );
 }
