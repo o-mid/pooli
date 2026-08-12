@@ -28,7 +28,7 @@ docs/hostinger-cutover.md
 docs/ops-reliability-runbook.md
 
 # Brand source kit (large); runtime assets live under apps/web/public/brand/
-brand/
+/brand/
 apps/web/public/fonts/
 apps/web/public/brand/logo-fa-brand.svg
 apps/web/public/brand/logo-fa-on-dark.svg
