@@ -1,6 +1,6 @@
 # Transactional email (Resend)
 
-Human/business mail stays on Hostinger:
+Human/business mail stays on your domain mailbox:
 
 - `support@pooli.shop` — customer support, merchant support, human replies
 
@@ -9,7 +9,7 @@ Automated Pooli mail uses Resend only:
 - From: `Pooli <notifications@notify.pooli.shop>`
 - Reply-To: `support@pooli.shop`
 
-Do **not** change `pooli.shop` MX / Hostinger SPF-DKIM for the root mailbox.
+Do **not** change root-domain MX / SPF-DKIM for the human support mailbox.
 Do **not** enable Resend receiving for support mail.
 Do **not** commit `RESEND_API_KEY`.
 
@@ -43,7 +43,7 @@ EMAIL_PROVIDER=fake
 
 1. Confirm Resend domain `notify.pooli.shop` status is **Verified** (not pending).
 2. Generate a **new** API key in Resend (revoke any previously exposed key).
-3. On the VPS (`/opt/pooli` env), set:
+3. On the server (`deploy/hostinger/.env`, gitignored), set:
 
 ```
 EMAIL_ENABLED=true

@@ -19,6 +19,14 @@ deploy/hostinger/.env
 # Cursor IDE local config (never publish to GitHub)
 .cursor/
 
+# Operator-only production scripts (keep locally, not in public OSS repo)
+scripts/deploy-hostinger.sh
+scripts/hostinger-readonly-audit.sh
+
+# Private ops notes (optional local copies)
+docs/hostinger-cutover.md
+docs/ops-reliability-runbook.md
+
 # Brand source kit (large); runtime assets live under apps/web/public/brand/
 brand/
 apps/web/public/fonts/

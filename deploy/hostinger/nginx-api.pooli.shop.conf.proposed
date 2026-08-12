@@ -1,6 +1,5 @@
-# Reference nginx vhost for api.pooli.shop (as installed on Hostinger).
-# Destination: /etc/nginx/sites-available/api.pooli.shop
-# Do NOT edit kasramadihi.com.
+# Reference nginx vhost for the API (example: api.pooli.shop).
+# Copy to /etc/nginx/sites-available/ and adjust server_name.
 #
 # Certbot manages the listen 443 ssl blocks and HTTP→HTTPS redirects.
 # After first install of the HTTP-only skeleton, run:

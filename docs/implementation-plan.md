@@ -17,4 +17,4 @@ See ADRs in `docs/decisions/`.
 
 - Unique-amount matching is sufficient for V1 social-commerce volumes.
 - Mock rate provider is acceptable for local demo/CI; Nobitex/Wallex for production (mock forbidden when `APP_ENV=production`).
-- Production deployment target is Hostinger VPS (`deploy/hostinger/`). Railway references are historical only.
+- Production deployment: Docker Compose stack under `deploy/hostinger/`. Railway references are historical only.

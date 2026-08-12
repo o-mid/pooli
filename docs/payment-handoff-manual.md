@@ -7,7 +7,7 @@ Record only what was actually tested. Do not mark unperformed cases as passed.
 - Production: https://pooli.shop
 - Local: checkout `/p/[slug]`
 - EVM WalletConnect requires `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` at **web build time** (Next.js public env). Missing id → QR/copy fallbacks only; no WC SDK init.
-- Production origin / WalletConnect allowlist: `https://pooli.shop` (see `docs/hostinger-cutover.md`)
+- Production origin / WalletConnect allowlist: your site URL (see `docs/self-hosting.md`)
 
 ## Matrix (fill during real-device runs)
 

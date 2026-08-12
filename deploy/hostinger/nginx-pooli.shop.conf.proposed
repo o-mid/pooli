@@ -1,14 +1,11 @@
-# Reference nginx vhost for pooli.shop (as installed on Hostinger).
-# Destination: /etc/nginx/sites-available/pooli.shop
-# Do NOT edit kasramadihi.com.
+# Reference nginx vhost for the web app (example: pooli.shop).
+# Copy to /etc/nginx/sites-available/ and adjust server_name + static root.
 #
 # Also install deploy/hostinger/nginx-pooli-upgrade-map.conf as
 # /etc/nginx/conf.d/pooli-upgrade-map.conf (once).
 #
 # Static error page: deploy/hostinger/static/pooli-unavailable.html
-# on VPS at /opt/pooli/deploy/hostinger/static/pooli-unavailable.html
-#
-# Certbot manages the listen 443 ssl blocks and HTTP→HTTPS redirects.
+# Set `root` below to the directory containing pooli-unavailable.html on your host.
 
 server {
     server_name pooli.shop www.pooli.shop;
@@ -17,7 +14,7 @@ server {
 
     location = /pooli-unavailable.html {
         internal;
-        root /opt/pooli/deploy/hostinger/static;
+        root /srv/pooli/deploy/hostinger/static;
         default_type text/html;
     }
 

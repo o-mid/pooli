@@ -1,6 +1,6 @@
 # External services setup (Rates + Telegram)
 
-Do **not** commit secrets. Install them only on the host (Hostinger env, systemd, etc.).
+Do **not** commit secrets. Install them only in your server environment file (`deploy/hostinger/.env`, gitignored).
 
 ## Security: rotate leaked Telegram token
 
@@ -38,9 +38,7 @@ Behavior:
 4. On Nobitex failure/invalid → Wallex `USDTTMN.lastPrice`
 5. Both fail → **no financial quote** (fail closed; never silent mock)
 
-Apply the vars manually on Hostinger, then restart API. See [`hostinger-cutover.md`](./hostinger-cutover.md) and run `scripts/hostinger-readonly-audit.sh` after SSH works.
-
-After deploy, confirm via `GET https://api.pooli.shop/api/v1/ops/status` that `config.rate_provider` is `nobitex` (never `mock`).
+Apply the vars on your server, then restart API and worker. Confirm via `GET /api/v1/ops/status` that `config.rate_provider` is `nobitex` (never `mock` in production).
 
 ## Telegram merchant bot (@PooliShopbot)
 

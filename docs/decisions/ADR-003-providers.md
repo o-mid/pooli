@@ -8,6 +8,6 @@
 | EVM/BSC | JSON-RPC `eth_getLogs` via configurable RPC URL |
 | Rates | Nobitex primary, Wallex fallback, Mock for local/CI only (forbidden in production) |
 | Notifications | Telegram Bot API + transactional email via Resend (`notify.pooli.shop`) |
-| Deploy | Hostinger VPS via Docker Compose (`deploy/hostinger/`) — Railway is obsolete |
+| Deploy | Docker Compose (`deploy/hostinger/`) — Railway is obsolete |
 
 Adapters hide provider specifics behind `ChainAdapter` and `RateProvider`.

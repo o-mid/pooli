@@ -10,7 +10,7 @@ Pooli is a non-custodial USDT payment/order product for social-commerce sellers.
 - Shared Go packages under `internal/`
 - PostgreSQL is the source of truth
 - Realtime uses in-process SSE hubs (not Redis). `REDIS_URL` remains in env/compose for possible future jobs but is unused by the Go services today
-- Production deploy: Docker Compose on Hostinger VPS (`deploy/hostinger/`), nginx TLS for `pooli.shop` + `api.pooli.shop`
+- Production deploy: Docker Compose (`deploy/hostinger/`) behind nginx TLS for web + API hosts
 
 ## Money model
 
