@@ -11,6 +11,7 @@ The live source of visual tokens is [`apps/web/src/app/globals.css`](../apps/web
 | Voice | [principles/writing-principles.md](principles/writing-principles.md) |
 | Brand | [brand/brand-book.md](brand/brand-book.md) |
 | Navigation | [product/information-architecture.md](product/information-architecture.md) |
+| Frontend agents | [product/frontend.md](product/frontend.md) |
 | Persian | [content/fa-writing-guide.md](content/fa-writing-guide.md) |
 | English | [content/en-writing-guide.md](content/en-writing-guide.md) |
 

@@ -21,7 +21,7 @@ export function EmptyState({
   title?: string;
 }) {
   return (
-    <div className="empty-state list-group">
+    <div className="empty-state">
       <EmptyIcon />
       {title ? <h3 className="empty-state-title">{title}</h3> : null}
       <div className="empty-state-body">{children}</div>

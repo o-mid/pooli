@@ -18,4 +18,4 @@ Source: [`apps/web/src/app/globals.css`](../../apps/web/src/app/globals.css) `:r
 | Danger | `--danger` | `#C62828` | 198, 40, 40 |
 | Info | `--info` | `#0B6E99` | 11, 110, 153 |
 
-Do not invent a second palette in marketing files. Map social templates to these tokens.
+Dark: `[data-theme="dark"]` in the same file. Do not invert the light palette.

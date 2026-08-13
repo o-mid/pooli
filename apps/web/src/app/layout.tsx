@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { InstallPromptCapture } from "@/components/InstallSheet";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
@@ -41,9 +42,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F8F6B",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0F8F6B" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E1512" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 const localeBoot = `
@@ -62,6 +67,18 @@ const localeBoot = `
     document.documentElement.lang = loc;
     document.documentElement.dir = loc === "fa" ? "rtl" : "ltr";
     document.documentElement.dataset.locale = loc;
+    var theme = "";
+    try { theme = localStorage.getItem("pooli_theme") || ""; } catch (e) {}
+    if (theme !== "light" && theme !== "dark" && theme !== "system") {
+      var tm = document.cookie.match(/(?:^|; )pooli_theme=([^;]*)/);
+      theme = tm ? decodeURIComponent(tm[1]) : "system";
+    }
+    var resolved = theme;
+    if (theme !== "light" && theme !== "dark") {
+      resolved = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.style.colorScheme = resolved;
   } catch (e) {}
 })();
 `;
@@ -74,11 +91,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <LocaleProvider>
-          <ToastProvider>
-            <ServiceWorkerRegister />
-            <InstallPromptCapture />
-            {children}
-          </ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ServiceWorkerRegister />
+              <InstallPromptCapture />
+              {children}
+            </ToastProvider>
+          </ThemeProvider>
         </LocaleProvider>
       </body>
     </html>

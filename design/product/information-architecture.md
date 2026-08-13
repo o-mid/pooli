@@ -24,6 +24,9 @@ Settings child pages:
 - App & language
 - Account (logout / admin)
 
-Onboarding: store name → payout address → Ready. No notification step.
+Onboarding: store name → payout address → first payment. No ceremonial ready step.
+
+Dark theme: `[data-theme="dark"]` tokens in `globals.css`. Appearance lives under Settings.
+
 
 One commerce object: order/payment by context. `payment_intent` stays internal.

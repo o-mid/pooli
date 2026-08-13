@@ -21,7 +21,9 @@ Skeletons for lists (`SkeletonRows`). No decorative spinners.
 ## Payment
 
 Waiting → Detected → Confirming → Paid ✓  
-Technical confirmations and hashes stay behind **Payment details**.
+`PaymentState` maps backend statuses plus local `OPENING_WALLET` / offline.  
+Technical confirmations and hashes stay behind **Payment details**. Exceptions never show as Waiting.
+
 
 ## Reduced motion
 

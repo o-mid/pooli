@@ -14,6 +14,9 @@ Keep a small set. Do not grow `packages/ui`.
 | New payment | `components/NewPaymentButton.tsx` |
 | Tab bar | `components/Nav.tsx` |
 | Buyer payment details | `components/checkout/PaymentDetailsDisclosure.tsx` |
+| Payment state | `components/payments/PaymentState.tsx` |
+| Sheet | `components/ui/Sheet.tsx` |
+| Alert dialog | `components/ui/AlertDialog.tsx` |
 
 Spacing: `--space-1` … `--space-12` (8pt grid).  
 Radius: 8 / 12 / 16 / 22 / pill. Prefer 12–16 in lists; don’t pill everything.  
