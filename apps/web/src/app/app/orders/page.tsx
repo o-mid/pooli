@@ -9,7 +9,7 @@ import { OrderListRow } from "@/components/ui/OrderListRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { useT } from "@/i18n/LocaleProvider";
-import { api } from "@/lib/api";
+import { api, openSSE } from "@/lib/api";
 import { fulfillmentLabel } from "@/lib/fulfillment";
 
 type Order = {
@@ -50,6 +50,19 @@ function OrdersContent() {
     }, 200);
     return () => clearTimeout(handle);
   }, [filter, q, t.common.error]);
+
+  useEffect(() => {
+    const es = openSSE("/api/v1/merchant/events", () => {
+      const params = new URLSearchParams();
+      if (filter === "attention") params.set("filter", "attention");
+      if (q.trim()) params.set("q", q.trim());
+      const qs = params.toString();
+      api<{ orders: Order[] }>(`/api/v1/orders${qs ? `?${qs}` : ""}`)
+        .then((d) => setOrders(d.orders))
+        .catch(() => undefined);
+    });
+    return () => es.close();
+  }, [filter, q]);
 
   function setFilter(next: "all" | "attention") {
     const params = new URLSearchParams();
@@ -94,9 +107,14 @@ function OrdersContent() {
       ) : null}
 
       {error ? (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
+        <div className="page-stack">
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
+            {t.common.retry}
+          </button>
+        </div>
       ) : null}
 
       {loading && <SkeletonRows count={5} />}

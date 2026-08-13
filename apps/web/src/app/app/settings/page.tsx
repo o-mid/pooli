@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
@@ -15,6 +16,7 @@ export default function SettingsPage() {
   const t = useT();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   useEffect(() => {
     api<Me>("/api/v1/me")
@@ -23,7 +25,6 @@ export default function SettingsPage() {
   }, []);
 
   async function logout() {
-    if (!window.confirm(t.logout)) return;
     await api("/api/v1/auth/logout", { method: "POST" });
     router.push("/login");
   }
@@ -59,13 +60,36 @@ export default function SettingsPage() {
               </div>
             </a>
           ) : null}
-          <button type="button" className="list-row" onClick={logout}>
+          <button type="button" className="list-row" onClick={() => setConfirmLogout(true)}>
             <div className="list-row-body">
               <div className="list-row-title">{t.logout}</div>
             </div>
           </button>
         </div>
       </section>
+      <section className="section">
+        <h2 className="section-title">{t.settings.about}</h2>
+        <div className="list-group">
+          <div className="list-row" style={{ cursor: "default" }}>
+            <div className="list-row-body">
+              <div className="list-row-title">{t.settings.version}</div>
+            </div>
+            <div className="list-row-trailing tabular">0.1.0</div>
+          </div>
+        </div>
+      </section>
+      <AlertDialog
+        open={confirmLogout}
+        title={t.settings.logoutConfirm}
+        confirmLabel={t.logout}
+        cancelLabel={t.common.cancel}
+        destructive
+        onConfirm={() => {
+          setConfirmLogout(false);
+          void logout();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </div>
   );
 }

@@ -18,13 +18,13 @@ type Customer = {
   last_order_at?: string;
 };
 
-function relativeDay(iso?: string, locale = "en"): string {
+function relativeDay(iso: string | undefined, t: ReturnType<typeof useT>): string {
   if (!iso) return "—";
   const ms = Date.now() - new Date(iso).getTime();
   const days = Math.floor(ms / 86400000);
-  if (days <= 0) return locale === "fa" ? "امروز" : "today";
-  if (days === 1) return locale === "fa" ? "دیروز" : "yesterday";
-  return locale === "fa" ? `${days} روز پیش` : `${days} days ago`;
+  if (days <= 0) return t.customers.today;
+  if (days === 1) return t.customers.yesterday;
+  return t.customers.daysAgo.replace("{n}", String(days));
 }
 
 export default function CustomersPage() {
@@ -92,7 +92,7 @@ export default function CustomersPage() {
                   {c.order_count} {t.customers.orders} · {c.lifetime_paid_toman.toLocaleString()} {t.checkout.toman}
                 </div>
                 <div className="list-row-meta">
-                  {t.customers.lastOrder}: {relativeDay(c.last_order_at)}
+                  {t.customers.lastOrder}: {relativeDay(c.last_order_at, t)}
                 </div>
               </div>
             </Link>

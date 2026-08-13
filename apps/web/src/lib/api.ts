@@ -62,7 +62,7 @@ export function openSSE(path: string, onEvent: (type: string, data: unknown) => 
       onEvent(type, ev.data);
     }
   };
-  ["payment.seen", "payment.confirming", "payment.paid", "payment.needs_review"].forEach((t) => {
+  ["payment.seen", "payment.confirming", "payment.paid", "payment.needs_review", "payment.expired"].forEach((t) => {
     es.addEventListener(t, handler(t) as EventListener);
   });
   es.onmessage = (ev) => handler("message")(ev);

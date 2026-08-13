@@ -1,5 +1,7 @@
 "use client";
 
+import { exceptionKind } from "@/lib/payment-handoff/exceptions";
+import { PaymentState } from "@/components/payments/PaymentState";
 import { useT } from "@/i18n/LocaleProvider";
 
 export type ProgressStatus =
@@ -36,9 +38,6 @@ export function PaymentProgress({
   status,
   confirmations,
   requiredConfirmations,
-  network,
-  txHash,
-  explorerUrl,
   compact = false,
 }: {
   status: ProgressStatus;
@@ -50,6 +49,16 @@ export function PaymentProgress({
   compact?: boolean;
 }) {
   const t = useT();
+  const ex = exceptionKind(status);
+  if (ex) {
+    return (
+      <PaymentState
+        intentStatus={status}
+        confirmations={confirmations}
+        requiredConfirmations={requiredConfirmations}
+      />
+    );
+  }
   const active = stageIndex(status);
   const labels = {
     requested: t.checkout.progress.requested,
@@ -60,9 +69,9 @@ export function PaymentProgress({
 
   const confText =
     typeof confirmations === "number" && typeof requiredConfirmations === "number"
-      ? `${network ? `${t.checkout.progress.confirming} · ${network.toUpperCase()} · ` : ""}${t.checkout.progress.confirmations
+      ? t.checkout.progress.confirmations
           .replace("{current}", String(confirmations))
-          .replace("{required}", String(requiredConfirmations))}`
+          .replace("{required}", String(requiredConfirmations))
       : null;
 
   return (
@@ -90,20 +99,6 @@ export function PaymentProgress({
       </ol>
       {confText && (status === "SEEN" || status === "CONFIRMING") && (
         <p className="progress-meta tabular">{confText}</p>
-      )}
-      {txHash && (
-        <p className="progress-meta mono-ltr">
-          {explorerUrl ? (
-            <a href={explorerUrl} target="_blank" rel="noreferrer">
-              {t.checkout.viewTx}
-            </a>
-          ) : (
-            <span>{txHash.slice(0, 10)}…{txHash.slice(-6)}</span>
-          )}
-        </p>
-      )}
-      {(status === "NEEDS_REVIEW" || status === "UNDERPAID" || status === "OVERPAID") && (
-        <p className="progress-warn">{t.orders.status[status as keyof typeof t.orders.status] || status}</p>
       )}
     </section>
   );

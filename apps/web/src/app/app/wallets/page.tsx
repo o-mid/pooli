@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -42,6 +43,7 @@ export default function WalletsPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loading, setLoading] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [archiveId, setArchiveId] = useState<string | null>(null);
 
   async function load() {
     const d = await api<{ wallets: Wallet[] }>("/api/v1/wallets");
@@ -113,7 +115,6 @@ export default function WalletsPage() {
   }
 
   async function archive(id: string) {
-    if (!window.confirm(t.wallets.archive)) return;
     setLoading(true);
     try {
       await api(`/api/v1/wallets/${id}`, { method: "DELETE" });
@@ -122,6 +123,7 @@ export default function WalletsPage() {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
       setLoading(false);
+      setArchiveId(null);
     }
   }
 
@@ -208,7 +210,7 @@ export default function WalletsPage() {
               <div key={w.id} className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
                 <div className="list-row-body" style={{ gap: "var(--space-2)" }}>
                   <div className="list-row-title">
-                    {networkLabel(w.network, t.wallets.tron, t.wallets.bsc)}
+                    {t.wallets.receiving} · {networkLabel(w.network, t.wallets.tron, t.wallets.bsc)} · USDT
                     {w.is_default && w.is_active ? ` · ${t.wallets.default}` : ""}
                   </div>
                   <div className="list-row-meta mono-ltr short-addr">{shortenAddress(w.address)}</div>
@@ -249,7 +251,7 @@ export default function WalletsPage() {
                           </button>
                         )}
                         {w.is_active && (
-                          <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => archive(w.id)}>
+                          <button type="button" className="btn btn-tertiary" style={{ width: "auto", minHeight: "var(--control-height-sm)" }} disabled={loading} onClick={() => setArchiveId(w.id)}>
                             {t.wallets.archive}
                           </button>
                         )}
@@ -264,6 +266,27 @@ export default function WalletsPage() {
       ) : (
         !draft && <EmptyState title={t.wallets.title}>{t.wallets.empty}</EmptyState>
       )}
+      <AlertDialog
+        open={Boolean(archiveId)}
+        title={t.wallets.archiveConfirm}
+        body={
+          <>
+            <p style={{ margin: 0 }}>{t.wallets.archiveConfirmBody}</p>
+            {archiveId && (wallets.find((w) => w.id === archiveId)?.active_payment_intents || 0) > 0 ? (
+              <p style={{ margin: "var(--space-2) 0 0" }}>
+                {t.wallets.activeIntents}: {wallets.find((w) => w.id === archiveId)?.active_payment_intents}
+              </p>
+            ) : null}
+          </>
+        }
+        confirmLabel={t.wallets.archive}
+        cancelLabel={t.common.cancel}
+        destructive
+        onConfirm={() => {
+          if (archiveId) void archive(archiveId);
+        }}
+        onCancel={() => setArchiveId(null)}
+      />
     </div>
   );
 }

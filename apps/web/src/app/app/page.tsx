@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NewPaymentButton } from "@/components/NewPaymentButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorRetry } from "@/components/ui/ErrorRetry";
 import { OrderListRow } from "@/components/ui/OrderListRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonRows } from "@/components/ui/Skeleton";
@@ -50,6 +51,7 @@ export default function HomePage() {
   const [data, setData] = useState<Home | null>(null);
   const [error, setError] = useState("");
   const [gate, setGate] = useState(true);
+  const [displayName, setDisplayName] = useState("");
 
   async function load() {
     try {
@@ -74,6 +76,7 @@ export default function HomePage() {
           router.replace("/app/onboarding");
           return;
         }
+        setDisplayName(me.merchant?.display_name || me.merchant?.name || "");
         setGate(false);
         await load();
         if (cancelled) return;
@@ -94,17 +97,20 @@ export default function HomePage() {
   }, []);
 
   if (gate) {
-    return <p className="muted">{t.common.loading}</p>;
+    return <SkeletonRows count={4} />;
   }
 
   if (error && !data) {
     return (
-      <div className="rise page-stack">
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-        <Link href="/login">{t.login}</Link>
-      </div>
+      <ErrorRetry
+        message={error}
+        retryLabel={t.common.retry}
+        onRetry={() => {
+          setError("");
+          setGate(true);
+          window.location.reload();
+        }}
+      />
     );
   }
 
@@ -112,7 +118,8 @@ export default function HomePage() {
   const attention = data?.needs_attention || 0;
   const attentionItems = data?.attention_items || [];
   const loading = !data;
-  const title = greeting(t);
+  const greet = greeting(t);
+  const title = displayName ? t.home.greetingNamed.replace("{greeting}", greet).replace("{name}", displayName) : greet;
 
   return (
     <div className="rise page-stack">
@@ -128,7 +135,7 @@ export default function HomePage() {
           <div className="home-today-meta">
             {data.today_paid_orders === 0
               ? t.home.paidTodayNone
-              : `${data.today_paid_orders} ${t.home.paidToday}`}
+              : t.home.paidCount.replace("{n}", String(data.today_paid_orders))}
           </div>
         </div>
       )}

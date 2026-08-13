@@ -120,9 +120,9 @@ function CreateOrderForm() {
     return (
       <div className="rise page-stack">
         <PageHeader title={t.create.created} />
-        <div className="card-panel" style={{ textAlign: "center" }}>
+        <div>
           {result.fiat_amount_toman ? (
-            <p className="tabular" style={{ fontSize: "var(--text-title2)", margin: 0, fontWeight: 700 }}>
+            <p className="tabular home-today-amount" style={{ margin: 0 }}>
               {result.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
             </p>
           ) : null}
@@ -174,7 +174,7 @@ function CreateOrderForm() {
           ) : null}
         </div>
         <button type="button" className="btn btn-tertiary btn-block" onClick={() => router.push(`/app/orders/${result.id}`)}>
-          {t.common.back}
+          {t.create.viewOrder}
         </button>
       </div>
     );
@@ -188,10 +188,10 @@ function CreateOrderForm() {
           {t.create.forCustomer} <strong>{customerName}</strong>
         </p>
       ) : null}
-      <form className="card-panel" onSubmit={onSubmit}>
+      <form className="form-stack" onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor="amount">{t.create.howMuch}</label>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <div className="row-split">
             <input
               ref={amountRef}
               id="amount"
@@ -199,15 +199,12 @@ function CreateOrderForm() {
               inputMode="numeric"
               placeholder="3,800,000"
               required
-              className="tabular"
+              className="tabular amount-input"
               value={amount}
               onChange={(e) => setAmount(formatTomanInput(e.target.value))}
               autoComplete="off"
-              style={{ flex: 1, fontSize: "var(--text-title2)", fontWeight: 700 }}
             />
-            <span className="muted" style={{ flexShrink: 0 }}>
-              {t.checkout.toman}
-            </span>
+            <span className="muted">{t.checkout.toman}</span>
           </div>
         </div>
         <div className="field">
@@ -266,10 +263,10 @@ function CreateOrderForm() {
           </p>
         )}
         <button className="btn btn-primary" disabled={loading || !amountValid}>
-          {loading ? t.common.loading : customerId ? t.create.createShare : t.create.create}
+          {loading ? t.create.creating : customerId ? t.create.createShare : t.create.create}
         </button>
       </form>
-      <Link className="quiet-link" href="/app/links" style={{ alignSelf: "center" }}>
+      <Link className="quiet-link" href="/app/links">
         {t.create.reusableInstead}
       </Link>
     </div>

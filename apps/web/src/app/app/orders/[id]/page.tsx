@@ -3,13 +3,13 @@
 import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { PaymentState } from "@/components/payments/PaymentState";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { ReceiptCard } from "@/components/receipt/ReceiptCard";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
 import { BackLink } from "@/components/ui/BackLink";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { useT, useLocale } from "@/i18n/LocaleProvider";
 import { api, openSSE } from "@/lib/api";
@@ -176,7 +176,7 @@ export default function OrderDetailPage() {
       <BackLink href="/app/orders" />
       <PageHeader title={order.title || t.checkout.orderRef} />
 
-      <div className="card-panel">
+      <div>
         {displayStatus === "PAID" ? (
           <strong style={{ fontSize: "var(--text-title3)" }}>
             {(order.field_values?.find((f) => f.key === "full_name")?.value || "").trim()
@@ -184,7 +184,7 @@ export default function OrderDetailPage() {
               : t.orders.paidCheck}
           </strong>
         ) : (
-          <StatusBadge status={displayStatus} t={t} />
+          <PaymentState intentStatus={displayStatus} />
         )}
 
         {order.field_values?.find((f) => f.key === "full_name")?.value && displayStatus !== "PAID" ? (
@@ -230,7 +230,7 @@ export default function OrderDetailPage() {
           </p>
           <div className="qr-card" style={{ marginTop: "var(--space-3)", border: 0, padding: 0 }}>
             <div className="qr-frame">
-              <QRCodeSVG value={order.checkout_url} size={140} bgColor="#ffffff" fgColor="#0b1f1a" />
+              <QRCodeSVG value={order.checkout_url} size={140} bgColor="#ffffff" fgColor="#0b1f1a" marginSize={4} />
             </div>
           </div>
         </details>

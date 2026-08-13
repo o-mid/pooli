@@ -17,7 +17,7 @@ type Onboarding = {
   };
 };
 
-const TOTAL = 3;
+const TOTAL = 2;
 
 function validateAddress(network: string, address: string): boolean {
   const trimmed = address.trim();
@@ -138,7 +138,6 @@ export default function OnboardingPage() {
           setLoading(false);
           return;
         }
-      } else if (step === 2) {
         await api("/api/v1/merchant/onboarding/complete", { method: "POST", body: "{}" });
         router.push("/app/create");
         return;
@@ -233,21 +232,8 @@ export default function OnboardingPage() {
         </section>
       )}
 
-      {step === 2 && (
-        <section className="stack-form ready-card">
-          <h2>{t.onboarding.readyTitle}</h2>
-          <p>{t.onboarding.readyBody}</p>
-          {data.merchant.slug ? (
-            <p className="muted">
-              {data.public_store_url_prefix}
-              {data.merchant.slug}
-            </p>
-          ) : null}
-        </section>
-      )}
-
       <div className="onboarding-actions">
-        {step > 0 && step < 2 ? (
+        {step > 0 ? (
           <button type="button" className="btn-ghost" onClick={() => setStep((s) => s - 1)} disabled={loading}>
             {t.onboarding.back}
           </button>
@@ -255,7 +241,7 @@ export default function OnboardingPage() {
           <span />
         )}
         <button type="button" className="btn-primary" onClick={() => onNext()} disabled={loading}>
-          {step === 2 ? t.onboarding.createPayment : t.onboarding.next}
+          {step === 1 ? t.onboarding.createPayment : t.onboarding.next}
         </button>
       </div>
     </div>

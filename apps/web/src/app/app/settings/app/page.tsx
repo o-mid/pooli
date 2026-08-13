@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { requestInstallSheet } from "@/components/InstallSheet";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { useTheme } from "@/components/ThemeProvider";
 import { BackLink } from "@/components/ui/BackLink";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useT } from "@/i18n/LocaleProvider";
 import { isStandaloneDisplay } from "@/lib/pwa";
+import type { Theme } from "@/lib/theme";
 
 export default function AppLanguageSettingsPage() {
   const t = useT();
+  const { theme, setTheme } = useTheme();
   const [standalone, setStandalone] = useState(false);
 
   useEffect(() => {
@@ -27,6 +30,23 @@ export default function AppLanguageSettingsPage() {
           </div>
           <div className="list-row-trailing">
             <LanguageSwitch />
+          </div>
+        </div>
+        <div className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
+          <div className="list-row-body">
+            <div className="list-row-title">{t.settings.theme}</div>
+          </div>
+          <div className="theme-seg" role="group" aria-label={t.settings.theme}>
+            {(["system", "light", "dark"] as Theme[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={theme === value}
+                onClick={() => setTheme(value)}
+              >
+                {value === "system" ? t.settings.themeSystem : value === "light" ? t.settings.themeLight : t.settings.themeDark}
+              </button>
+            ))}
           </div>
         </div>
         {!standalone ? (
