@@ -9,10 +9,12 @@ export function PaymentDetailsDisclosure({
   option,
   onCopyAddress,
   onCopyAmount,
+  networkWarning,
 }: {
   option: PaymentOption;
   onCopyAddress: () => void;
   onCopyAmount: () => void;
+  networkWarning?: string;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -50,12 +52,13 @@ export function PaymentDetailsDisclosure({
           <div>
             <dt>{t.checkout.exactAmount}</dt>
             <dd className="mono-ltr tabular">
-              {exactPayableAmount(option)}
-              <button type="button" className="btn btn-secondary" style={{ marginTop: "var(--space-2)" }} onClick={onCopyAmount}>
-                {t.common.copy}
+              {exactPayableAmount(option)} {asset}
+              <button type="button" className="btn btn-secondary" onClick={onCopyAmount}>
+                {t.checkout.copyAmount}
               </button>
             </dd>
           </div>
+          {networkWarning ? <p className="field-hint">{networkWarning}</p> : null}
         </dl>
       ) : null}
     </div>

@@ -24,15 +24,29 @@ export function networkLabel(network: string): string {
 export function buildPaymentDetailsText(opts: {
   storeName?: string;
   option: PaymentOption;
+  labels?: {
+    heading?: string;
+    merchant?: string;
+    amount?: string;
+    network?: string;
+    address?: string;
+  };
 }): string {
   const amount = exactPayableAmount(opts.option);
   const asset = assetSymbol(opts.option);
+  const L = {
+    heading: opts.labels?.heading || "Pooli Payment",
+    merchant: opts.labels?.merchant || "Merchant",
+    amount: opts.labels?.amount || "Amount",
+    network: opts.labels?.network || "Network",
+    address: opts.labels?.address || "Address",
+  };
   const lines = [
-    "Pooli Payment",
-    opts.storeName ? `Merchant: ${opts.storeName}` : null,
-    `Amount: ${amount} ${asset}`,
-    `Network: ${networkLabel(opts.option.network)}`,
-    `Address: ${fullDestinationAddress(opts.option)}`,
+    L.heading,
+    opts.storeName ? `${L.merchant}: ${opts.storeName}` : null,
+    `${L.amount}: ${amount} ${asset}`,
+    `${L.network}: ${networkLabel(opts.option.network)}`,
+    `${L.address}: ${fullDestinationAddress(opts.option)}`,
   ].filter(Boolean);
   return lines.join("\n");
 }

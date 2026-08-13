@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { PaymentProgress } from "@/components/PaymentProgress";
+import { PaymentState } from "@/components/payments/PaymentState";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
 import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/i18n/LocaleProvider";
@@ -34,8 +34,8 @@ import { WalletPickerSheet } from "./WalletPickerSheet";
 export type PaySheetMatched = {
   tx_hash?: string;
   explorer_url?: string;
-  confirmations?: number;
-  required_confirmations?: number;
+  confirmations?: number | null;
+  required_confirmations?: number | null;
 };
 
 export type PaySheetReceipt = {
@@ -138,7 +138,19 @@ export function PooliPaySheet({
 
   async function onCopyDetails() {
     if (!option) return;
-    const ok = await copyText(buildPaymentDetailsText({ storeName, option }));
+    const ok = await copyText(
+      buildPaymentDetailsText({
+        storeName,
+        option,
+        labels: {
+          heading: t.checkout.copyHeading,
+          merchant: t.checkout.copyMerchant,
+          amount: t.checkout.copyAmountLine,
+          network: t.checkout.copyNetworkLine,
+          address: t.checkout.copyAddressLine,
+        },
+      }),
+    );
     if (ok) {
       showToast(t.checkout.detailsCopied);
       track("payment_details_copied", { network: option.network });
@@ -189,15 +201,13 @@ export function PooliPaySheet({
   function primaryCtaLabel(): string {
     if (!resolvedPlan) return t.checkout.payWithWallet;
     if (resolvedPlan.primary.id === "tronlink") return t.checkout.payWithTronlink;
-    if (resolvedPlan.primary.id === "walletconnect" || resolvedPlan.primary.id === "trust") {
-      return t.checkout.payWithWallet;
-    }
     return t.checkout.payWithWallet;
   }
 
   if (paid) {
     return (
       <div className="page-stack">
+        <PaymentState intentStatus="PAID" />
         <ReceiptCard
           storeName={storeName}
           title={title}
@@ -215,32 +225,21 @@ export function PooliPaySheet({
             success_message: receipt?.success_message,
           }}
         />
-        <p className="muted" style={{ textAlign: "center" }}>
-          {t.checkout.successSellerNotify}
+        <p className="muted" style={{ textAlign: "center", margin: 0 }}>
+          {t.checkout.closePage}
         </p>
-        <div>
-          <h2 className="section-title" style={{ paddingInline: 0 }}>
-            {t.checkout.orderStatus}
-          </h2>
-          <ul className="order-status-list">
-            <li>✓ {t.checkout.paymentReceived}</li>
-            <li>✓ {t.checkout.orderConfirmed}</li>
-            {fulfillmentStatus === "SHIPPED" || fulfillmentStatus === "DELIVERED" ? (
-              <li>✓ {t.checkout.orderShipped}</li>
-            ) : (
-              <li className="muted">◷ {t.fulfillment.PROCESSING}</li>
-            )}
-          </ul>
-          {trackingNumber ? (
-            <div style={{ marginTop: "var(--space-3)" }}>
-              <div className="muted">{t.checkout.trackingCode}</div>
-              <div className="mono-ltr" style={{ fontWeight: 600 }}>
-                {shippingProvider ? `${shippingProvider} · ` : ""}
-                {trackingNumber}
-              </div>
+        {trackingNumber ? (
+          <div>
+            <div className="muted">{t.checkout.trackingCode}</div>
+            <div className="mono-ltr" style={{ fontWeight: 600 }}>
+              {shippingProvider ? `${shippingProvider} · ` : ""}
+              {trackingNumber}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
+        {fulfillmentStatus === "SHIPPED" || fulfillmentStatus === "DELIVERED" ? (
+          <p className="muted">✓ {t.checkout.orderShipped}</p>
+        ) : null}
       </div>
     );
   }
@@ -257,102 +256,97 @@ export function PooliPaySheet({
   }
 
   if (ex === "EXPIRED" || canRefresh) {
-    return (
-      <PaymentException
-        kind="EXPIRED"
-        onRefresh={onRefreshQuote}
-        refreshing={refreshingQuote}
-      />
-    );
+    return <PaymentException kind="EXPIRED" onRefresh={onRefreshQuote} refreshing={refreshingQuote} />;
   }
 
   if (!option || !resolvedPlan) return null;
 
   const amountPrimary = `${exactPayableAmount(option)} ${asset}`;
+  const awaiting = !moneyDetected(intentStatus);
 
   return (
     <section className="section">
-      <div className="alert alert-warning" role="alert">
-        {t.checkout.wrongNetwork}
-      </div>
-
-      <div className="card-panel">
-        <p className="section-title" style={{ paddingInline: 0 }}>
-          {t.checkout.exactAmount}
-        </p>
-        <AmountDisplay
-          primary={amountPrimary}
-          secondary={`${asset} · ${networkLabel(option.network)} · ${fiatAmountToman.toLocaleString()} ${t.checkout.toman}`}
-        />
-        <button
-          type="button"
-          className="linkish"
-          style={{ marginTop: "var(--space-2)" }}
-          onClick={() => setShowWhyExact((v) => !v)}
-        >
-          {t.checkout.whyExactAmount}
-        </button>
-        {showWhyExact ? (
-          <p className="field-hint" style={{ marginTop: "var(--space-2)" }}>
-            {t.checkout.exactHint}
-          </p>
-        ) : null}
-        <p className="muted tabular pulse" style={{ margin: "var(--space-3) 0 0" }}>
+      <AmountDisplay
+        primary={amountPrimary}
+        secondary={`${asset} · ${networkLabel(option.network)} · ${fiatAmountToman.toLocaleString()} ${t.checkout.toman}`}
+      />
+      <button type="button" className="linkish" onClick={() => setShowWhyExact((v) => !v)}>
+        {t.checkout.whyExactAmount}
+      </button>
+      {showWhyExact ? <p className="field-hint">{t.checkout.exactHint}</p> : null}
+      {awaiting && countdown && countdown !== "—" ? (
+        <p className="muted tabular" style={{ margin: 0 }}>
           {t.checkout.quoteExpires}: {countdown}
         </p>
+      ) : null}
 
-        {checkingPayment ? (
-          <p className="alert alert-success" role="status" aria-live="polite" style={{ marginTop: "var(--space-3)" }}>
-            {t.checkout.checkingPayment}
+      <PaymentState
+        intentStatus={intentStatus}
+        openingWallet={busyPay}
+        confirmations={matched?.confirmations}
+        requiredConfirmations={matched?.required_confirmations}
+      />
+
+      {checkingPayment && !moneyDetected(intentStatus) ? (
+        <p className="muted" role="status" aria-live="polite">
+          {t.checkout.checkingPayment}
+        </p>
+      ) : null}
+
+      {(showQr || resolvedPlan.qrPrimary) && (
+        <div className="qr-card">
+          <p className="section-title" style={{ paddingInline: 0, textAlign: "center" }}>
+            {t.checkout.scanWithWallet}
           </p>
-        ) : null}
-
-        {moneyDetected(intentStatus) && intentStatus !== "PAID" ? (
-          <p className="muted" style={{ marginTop: "var(--space-3)" }} aria-live="polite">
-            {t.checkout.canLeave}
-          </p>
-        ) : null}
-
-        {(showQr || resolvedPlan.qrPrimary) && (
-          <div className="qr-card" style={{ marginTop: "var(--space-4)" }}>
-            {resolvedPlan.qrPrimary ? (
-              <p className="section-title" style={{ paddingInline: 0, textAlign: "center" }}>
-                {t.checkout.scanWithWallet}
-              </p>
-            ) : null}
-            <div className="qr-frame">
-              <QRCodeSVG
-                value={resolvedPlan.qrPayload}
-                size={170}
-                bgColor="#ffffff"
-                fgColor="#0b1f1a"
-                level="H"
-                marginSize={2}
-              />
-            </div>
-            {resolvedPlan.qrPrimary ? (
-              <p className="muted tabular" style={{ textAlign: "center", marginTop: "var(--space-3)" }}>
-                {amountPrimary}
-                <br />
-                {networkLabel(option.network)}
-                <br />
-                {t.checkout.waitingPayment}
-              </p>
-            ) : null}
+          <div className="qr-frame">
+            <QRCodeSVG
+              value={resolvedPlan.qrPayload}
+              size={200}
+              bgColor="#ffffff"
+              fgColor="#0b1f1a"
+              level="M"
+              marginSize={4}
+            />
           </div>
-        )}
+        </div>
+      )}
 
-        <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
-          {resolvedPlan.showPayWithWallet ? (
+      {handoffTrouble || env.isInAppBrowser ? (
+        <div className="cta-stack">
+          <p style={{ margin: 0, fontWeight: 600 }}>{t.checkout.iabTitle}</p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => openInExternalBrowser(typeof window !== "undefined" ? window.location.href : "")}
+          >
+            {t.checkout.openInBrowser}
+          </button>
+        </div>
+      ) : null}
+
+      <PaymentDetailsDisclosure
+        option={option}
+        onCopyAddress={onCopyAddress}
+        onCopyAmount={onCopyAmount}
+        networkWarning={t.checkout.wrongNetwork}
+      />
+
+      <div className="sticky-cta">
+        {resolvedPlan.showPayWithWallet ? (
+          <div className="cta-stack">
             <button type="button" className="btn btn-primary" disabled={busyPay} onClick={() => pay()}>
-              {busyPay ? t.common.loading : primaryCtaLabel()}
+              {busyPay ? t.checkout.openingWallet : primaryCtaLabel()}
             </button>
-          ) : null}
-          {resolvedPlan.showPayWithWallet ? (
             <button type="button" className="linkish" onClick={() => setPickerOpen(true)}>
               {t.checkout.changeWallet}
             </button>
-          ) : null}
+          </div>
+        ) : (
+          <button type="button" className="btn btn-primary" onClick={onCopyDetails}>
+            {t.checkout.copyPaymentDetails}
+          </button>
+        )}
+        <div className="cta-stack" style={{ marginTop: "var(--space-2)" }}>
           {!showQr ? (
             <button
               type="button"
@@ -365,66 +359,13 @@ export function PooliPaySheet({
               {t.checkout.showQr}
             </button>
           ) : null}
-          <button type="button" className="btn btn-secondary" onClick={onCopyDetails}>
-            {t.checkout.copyPaymentDetails}
-          </button>
+          {resolvedPlan.showPayWithWallet ? (
+            <button type="button" className="btn btn-secondary" onClick={onCopyDetails}>
+              {t.checkout.copyPaymentDetails}
+            </button>
+          ) : null}
         </div>
-
-        {handoffTrouble || env.isInAppBrowser ? (
-          <div className="card-panel" style={{ marginTop: "var(--space-4)", padding: "var(--space-3)" }}>
-            <p style={{ margin: 0, fontWeight: 600 }}>{t.checkout.iabTitle}</p>
-            <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => openInExternalBrowser(typeof window !== "undefined" ? window.location.href : "")}
-              >
-                {t.checkout.openInBrowser}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setShowQr(true);
-                  track("qr_opened", { network: option.network });
-                }}
-              >
-                {t.checkout.showQr}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={onCopyDetails}>
-                {t.checkout.copyPaymentDetails}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        <div style={{ marginTop: "var(--space-4)" }}>
-          <PaymentDetailsDisclosure option={option} onCopyAddress={onCopyAddress} onCopyAmount={onCopyAmount} />
-        </div>
-
-        <PaymentProgress
-          status={intentStatus || "AWAITING_PAYMENT"}
-          network={option.network}
-          confirmations={matched?.confirmations}
-          requiredConfirmations={matched?.required_confirmations}
-          txHash={matched?.tx_hash}
-          explorerUrl={matched?.explorer_url}
-        />
       </div>
-
-      {resolvedPlan.showPayWithWallet ? (
-        <div className="sticky-cta">
-          <button type="button" className="btn btn-primary" disabled={busyPay} onClick={() => pay()}>
-            {busyPay ? t.common.loading : primaryCtaLabel()}
-          </button>
-        </div>
-      ) : (
-        <div className="sticky-cta">
-          <button type="button" className="btn btn-secondary" onClick={onCopyDetails}>
-            {t.checkout.copyPaymentDetails}
-          </button>
-        </div>
-      )}
 
       <WalletPickerSheet
         open={pickerOpen}
@@ -440,7 +381,6 @@ export function PooliPaySheet({
           void pay(id);
         }}
       />
-
     </section>
   );
 }

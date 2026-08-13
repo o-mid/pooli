@@ -107,6 +107,7 @@ export default function CheckoutClient() {
   const selectedRef = useRef<PaymentOption | null>(null);
   const sseRef = useRef<EventSource | null>(null);
   const prevStatus = useRef<string | undefined>();
+  const autoSelectRef = useRef(false);
   selectedRef.current = selected;
 
   function resolveStep(data: Pay): Step {
@@ -287,6 +288,22 @@ export default function CheckoutClient() {
     }
   }
 
+  useEffect(() => {
+    if (!pay || autoSelectRef.current) return;
+    if (step !== "network") return;
+    const st = pay.payment_intent?.status;
+    if (st === "PAID" || moneyDetected(st)) return;
+    const nets = (pay.enabled_networks || ["tron"]).filter((n): n is "tron" | "bsc" => n === "tron" || n === "bsc");
+    const pref = getPreferredNetwork();
+    let pick: "tron" | "bsc" | null = null;
+    if (nets.length === 1) pick = nets[0];
+    else if (pref && nets.includes(pref as "tron" | "bsc")) pick = pref as "tron" | "bsc";
+    if (!pick) return;
+    autoSelectRef.current = true;
+    void chooseNetwork(pick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pay, step]);
+
   async function refreshQuote() {
     setRefreshingQuote(true);
     setError("");
@@ -315,7 +332,7 @@ export default function CheckoutClient() {
         <Skeleton height="8rem" width="100%" />
         {error ? (
           <p className="field-error" role="alert">
-            {error}
+            {error.includes("not") || error.includes("404") ? t.checkout.notFound : error}
           </p>
         ) : null}
       </main>
@@ -323,31 +340,18 @@ export default function CheckoutClient() {
   }
 
   const storeInitial = (pay.store_name || "S").slice(0, 1).toUpperCase();
-  const needsDetails = pay.fields.length > 0;
   const onPayStep = step === "pay" || intentStatus === "PAID" || moneyDetected(intentStatus);
   const preferredNet = getPreferredNetwork();
-  const journeySteps: Array<{ key: Step; label: string }> = [
-    ...(needsDetails ? [{ key: "details" as const, label: t.checkout.customerInfo }] : []),
-    { key: "network", label: t.checkout.selectNetwork },
-    { key: "pay", label: t.checkout.exactAmount },
-  ];
-  const activeJourney =
-    intentStatus === "PAID"
-      ? journeySteps.length - 1
-      : Math.max(
-          0,
-          journeySteps.findIndex((s) => s.key === step),
-        );
-
   const accentClass = pay.checkout_accent ? ` checkout-accent-${pay.checkout_accent}` : "";
   const receiptWithMessage = pay.receipt
     ? { ...pay.receipt, success_message: pay.receipt.success_message || pay.success_message }
     : pay.receipt;
+  const payKicker = t.checkout.payStore.replace("{name}", pay.store_name);
 
   return (
     <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}${accentClass}`}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
+      <header className="checkout-header">
+        <div className="row-split" style={{ minWidth: 0 }}>
           <div className="merchant-avatar">
             {pay.store_logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -357,63 +361,27 @@ export default function CheckoutClient() {
             )}
           </div>
           <div style={{ minWidth: 0 }}>
-            <strong style={{ fontSize: "var(--text-headline)" }}>{pay.store_name}</strong>
-            <p className="muted" style={{ margin: 0, fontSize: "var(--text-footnote)" }}>
-              {t.checkout.poweredBy}
-            </p>
+            <h1 className="page-title" style={{ fontSize: "var(--text-title3)" }}>
+              {payKicker}
+            </h1>
+            {pay.title ? <p className="page-subtitle">{pay.title}</p> : null}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexShrink: 0 }}>
+        <div className="row-split" style={{ flexShrink: 0 }}>
           <LanguageSwitch />
           <BrandMark variant="mark" size={24} localeHint={locale} />
         </div>
       </header>
 
-      {pay.trust ? (
-        <div className="trust-row" aria-label="trust">
-          {pay.trust.email_verified ? <span>✓ {t.trust.emailVerified}</span> : null}
-          {pay.trust.phone_verified ? <span>✓ {t.trust.phoneVerified}</span> : null}
-          {pay.trust.wallet_configured ? <span>✓ {t.trust.walletConfigured}</span> : null}
-        </div>
+      {!onPayStep ? (
+        <AmountDisplay primary={`${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
       ) : null}
 
-      <div>
-        <h1 className="page-title" style={{ fontSize: "var(--text-title2)" }}>
-          {pay.title || t.checkout.orderRef}
-        </h1>
-        {pay.description ? <p className="page-subtitle">{pay.description}</p> : null}
-      </div>
-
-      <div>
-        <p className="section-title" style={{ paddingInline: 0 }}>
-          {t.checkout.amount}
-        </p>
-        <AmountDisplay primary={`${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
-      </div>
-
-      {!onPayStep && (
-        <ol className="progress-steps" aria-label={t.checkout.continue}>
-          {journeySteps.map((s, i) => {
-            const done = i < activeJourney;
-            const current = i === activeJourney;
-            return (
-              <li
-                key={s.key}
-                className={`${done ? "done" : ""} ${current ? "current" : ""} ${!done && !current ? "upcoming" : ""}`}
-              >
-                <span className="dot" aria-hidden />
-                <span className="label">{s.label}</span>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-
       {step === "details" && (
-        <form className="card-panel" onSubmit={submitDetails}>
+        <form className="form-stack" onSubmit={submitDetails}>
           <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.checkout.customerInfo}</h2>
           {pay.fields.map((f) => (
-            <div className="field" key={f.key} style={{ marginTop: "var(--space-3)" }}>
+            <div className="field" key={f.key}>
               <label htmlFor={f.key}>
                 {checkoutFieldLabel(f.key, t, f.label)}
                 {f.required ? " *" : ""}
@@ -432,7 +400,13 @@ export default function CheckoutClient() {
                   ))}
                 </select>
               ) : (
-                <input id={f.key} name={f.key} type={f.type === "email" ? "email" : "text"} required={f.required} />
+                <input
+                  id={f.key}
+                  name={f.key}
+                  type={f.type === "email" ? "email" : f.type === "tel" ? "tel" : "text"}
+                  required={f.required}
+                  autoComplete={f.key === "full_name" ? "name" : f.key === "phone" ? "tel" : f.key === "email" ? "email" : "off"}
+                />
               )}
             </div>
           ))}
@@ -452,7 +426,7 @@ export default function CheckoutClient() {
             {(pay?.enabled_networks || ["tron"]).includes("tron") ? (
               <button type="button" className="recommended" onClick={() => chooseNetwork("tron")}>
                 <span>
-                  <strong>USDT · TRON</strong>
+                  <strong>{t.checkout.networkTron}</strong>
                   <span className="network-hint">
                     {preferredNet === "tron" ? t.checkout.previouslyUsed : t.checkout.networkTronHint}
                   </span>
@@ -463,7 +437,7 @@ export default function CheckoutClient() {
             {(pay?.enabled_networks || []).includes("bsc") ? (
               <button type="button" onClick={() => chooseNetwork("bsc")}>
                 <span>
-                  <strong>USDT · BNB Chain</strong>
+                  <strong>{t.checkout.networkBsc}</strong>
                   <span className="network-hint">
                     {preferredNet === "bsc" ? t.checkout.previouslyUsed : t.checkout.networkBscHint}
                   </span>
@@ -480,13 +454,8 @@ export default function CheckoutClient() {
         </section>
       )}
 
-      {(step === "pay" || intentStatus === "PAID" || moneyDetected(intentStatus)) && (
+      {onPayStep && (
         <>
-          {checkingPayment && intentStatus === "SEEN" ? (
-            <p className="alert alert-success" role="status" aria-live="polite">
-              {t.checkout.paymentDetected}
-            </p>
-          ) : null}
           <PooliPaySheet
             storeName={pay.store_name}
             title={pay.title}
