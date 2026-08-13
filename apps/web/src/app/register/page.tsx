@@ -150,7 +150,7 @@ export default function RegisterPage() {
       ) : null}
 
       {mode === "email" ? (
-        <form className="card-panel" method="post" onSubmit={onEmailSubmit}>
+        <form className="form-stack" method="post" onSubmit={onEmailSubmit}>
           <div className="field">
             <label htmlFor="name">{t.name}</label>
             <input id="name" name="name" required />
@@ -184,7 +184,7 @@ export default function RegisterPage() {
           </button>
         </form>
       ) : phoneStep === "details" ? (
-        <form className="card-panel" onSubmit={sendPhoneOtp}>
+        <form className="form-stack" onSubmit={sendPhoneOtp}>
           <div className="field">
             <label htmlFor="phone-name">{t.name}</label>
             <input id="phone-name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -223,7 +223,7 @@ export default function RegisterPage() {
           </button>
         </form>
       ) : (
-        <form className="card-panel" onSubmit={verifyPhoneRegister}>
+        <form className="form-stack" onSubmit={verifyPhoneRegister}>
           <div className="field">
             <label htmlFor="otp">{t.otpCode}</label>
             <input

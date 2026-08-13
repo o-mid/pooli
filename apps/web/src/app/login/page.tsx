@@ -140,7 +140,7 @@ export default function LoginPage() {
       ) : null}
 
       {mode === "email" ? (
-        <form className="card-panel" method="post" onSubmit={onEmailSubmit}>
+        <form className="form-stack" method="post" onSubmit={onEmailSubmit}>
           <div className="field">
             <label htmlFor="email">{t.email}</label>
             <input id="email" name="email" type="email" required autoComplete="email" />
@@ -166,7 +166,7 @@ export default function LoginPage() {
           </button>
         </form>
       ) : phoneStep === "phone" ? (
-        <form className="card-panel" onSubmit={sendOtp}>
+        <form className="form-stack" onSubmit={sendOtp}>
           <div className="field">
             <label htmlFor="phone">{t.phone}</label>
             <input
@@ -193,7 +193,7 @@ export default function LoginPage() {
           </button>
         </form>
       ) : (
-        <form className="card-panel" onSubmit={verifyOtp}>
+        <form className="form-stack" onSubmit={verifyOtp}>
           <div className="field">
             <label htmlFor="otp">{t.otpCode}</label>
             <input
