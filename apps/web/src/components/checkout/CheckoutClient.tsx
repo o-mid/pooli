@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
+import { InstagramInAppBanner } from "@/components/InstagramInAppBanner";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { PooliPaySheet } from "@/components/checkout/PooliPaySheet";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
@@ -94,8 +95,17 @@ function hydrateOption(intent?: PaymentIntent | null): PaymentOption | null {
   );
 }
 
-export default function CheckoutClient() {
+type CheckoutChrome = "web" | "telegram";
+
+export default function CheckoutClient({
+  slug: slugProp,
+  chrome = "web",
+}: {
+  slug?: string;
+  chrome?: CheckoutChrome;
+}) {
   const params = useParams<{ slug: string }>();
+  const slug = slugProp || params.slug;
   const t = useT();
   const { locale } = useLocale();
   const [pay, setPay] = useState<Pay | null>(null);
@@ -120,7 +130,7 @@ export default function CheckoutClient() {
   }
 
   async function load() {
-    const d = await api<Pay>(`/api/v1/public/pay/${params.slug}`);
+    const d = await api<Pay>(`/api/v1/public/pay/${slug}`);
     setPay(d);
     const st = d.payment_intent?.status;
     if (selectedRef.current) {
@@ -160,12 +170,12 @@ export default function CheckoutClient() {
       })
       .catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.slug]);
+  }, [slug]);
 
   function connectSSE() {
     if (!pay?.payment_intent?.id) return;
     sseRef.current?.close();
-    const es = openSSE(`/api/v1/public/pay/${params.slug}/events`, () => {
+    const es = openSSE(`/api/v1/public/pay/${slug}/events`, () => {
       load().catch(() => undefined);
     });
     es.onerror = () => {
@@ -181,7 +191,7 @@ export default function CheckoutClient() {
       sseRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pay?.payment_intent?.id, params.slug]);
+  }, [pay?.payment_intent?.id, slug]);
 
   const countdown = useCountdown(selected?.expires_at || pay?.payment_intent?.expires_at);
   const intentStatus = pay?.payment_intent?.status || pay?.status;
@@ -249,7 +259,7 @@ export default function CheckoutClient() {
       document.removeEventListener("visibilitychange", onVis);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pay?.payment_intent?.id, params.slug]);
+  }, [pay?.payment_intent?.id, slug]);
 
   async function submitDetails(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -260,7 +270,7 @@ export default function CheckoutClient() {
       values[f.key] = String(fd.get(f.key) || "");
     });
     try {
-      await api(`/api/v1/public/pay/${params.slug}/customer-details`, {
+      await api(`/api/v1/public/pay/${slug}/customer-details`, {
         method: "POST",
         body: JSON.stringify({ values }),
       });
@@ -274,7 +284,7 @@ export default function CheckoutClient() {
   async function chooseNetwork(n: "tron" | "bsc") {
     setError("");
     try {
-      const res = await api<{ selected_option: PaymentOption }>(`/api/v1/public/pay/${params.slug}/select-network`, {
+      const res = await api<{ selected_option: PaymentOption }>(`/api/v1/public/pay/${slug}/select-network`, {
         method: "POST",
         body: JSON.stringify({ network: n }),
       });
@@ -304,11 +314,51 @@ export default function CheckoutClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pay, step]);
 
+  useEffect(() => {
+    if (chrome !== "telegram") return;
+    const tw = window.Telegram?.WebApp;
+    if (!tw) return;
+    tw.ready();
+    tw.expand();
+    const bg = tw.themeParams?.bg_color;
+    const text = tw.themeParams?.text_color;
+    if (bg) document.documentElement.style.setProperty("--tg-theme-bg-color", bg);
+    if (text) document.documentElement.style.setProperty("--tg-theme-text-color", text);
+    const btn = tw.MainButton;
+    const onPay = () => {
+      const nets = (pay?.enabled_networks || ["tron"]).filter((n): n is "tron" | "bsc" => n === "tron" || n === "bsc");
+      const pref = getPreferredNetwork();
+      const pick = (pref && nets.includes(pref as "tron" | "bsc") ? pref : nets[0]) as "tron" | "bsc" | undefined;
+      if (pick) void chooseNetwork(pick);
+    };
+    const onPaid = () => {
+      setCheckingPayment(true);
+      void load().finally(() => setCheckingPayment(false));
+    };
+    if (step === "network" && intentStatus !== "PAID") {
+      btn.setText(t.checkout.pay);
+      btn.show();
+      btn.onClick(onPay);
+    } else if (step === "pay" && intentStatus !== "PAID" && !moneyDetected(intentStatus)) {
+      btn.setText(t.checkout.ivePaid);
+      btn.show();
+      btn.onClick(onPaid);
+    } else {
+      btn.hide();
+    }
+    return () => {
+      btn.offClick(onPay);
+      btn.offClick(onPaid);
+      btn.hide();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chrome, step, intentStatus]);
+
   async function refreshQuote() {
     setRefreshingQuote(true);
     setError("");
     try {
-      const d = await api<Pay>(`/api/v1/public/pay/${params.slug}/refresh-quote`, { method: "POST", body: "{}" });
+      const d = await api<Pay>(`/api/v1/public/pay/${slug}/refresh-quote`, { method: "POST", body: "{}" });
       setPay(d);
       const opts = activeOptions(d.payment_intent);
       const net = selected?.network || getPreferredNetwork() || opts[0]?.network;
@@ -326,6 +376,7 @@ export default function CheckoutClient() {
   if (!pay) {
     return (
       <main className="shell rise page-stack">
+        {chrome !== "telegram" ? <InstagramInAppBanner /> : null}
         <Skeleton height="2.5rem" width="60%" />
         <Skeleton height="1rem" width="40%" />
         <Skeleton height="4.5rem" width="100%" />
@@ -348,8 +399,9 @@ export default function CheckoutClient() {
     : pay.receipt;
   const payKicker = t.checkout.payStore.replace("{name}", pay.store_name);
 
-  return (
+    return (
     <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}${accentClass}`}>
+      {chrome !== "telegram" ? <InstagramInAppBanner /> : null}
       <header className="checkout-header">
         <div className="row-split" style={{ minWidth: 0 }}>
           <div className="merchant-avatar">

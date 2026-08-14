@@ -24,8 +24,10 @@ function CreateOrderForm() {
   const search = useSearchParams();
   const customerId = search.get("customer_id") || "";
   const customerName = search.get("customer_name") || "";
+  const fromIg = search.get("from") === "ig";
   const t = useT();
   const { showToast } = useToast();
+  const [gate, setGate] = useState(true);
   const amountRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -41,8 +43,29 @@ function CreateOrderForm() {
   const [result, setResult] = useState<Result | null>(null);
 
   useEffect(() => {
-    amountRef.current?.focus();
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await api<{ merchant?: { onboarding_completed?: boolean } }>("/api/v1/me");
+        if (cancelled) return;
+        if (!me.merchant?.onboarding_completed) {
+          router.replace("/app/onboarding");
+          return;
+        }
+        setGate(false);
+      } catch {
+        if (cancelled) return;
+        router.replace("/login");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!gate) amountRef.current?.focus();
+  }, [gate]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,6 +99,12 @@ function CreateOrderForm() {
         title: title.trim() || res.title,
         fiat_amount_toman: value,
       });
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast(t.common.copied);
+      } catch {
+        // clipboard may be blocked
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
@@ -133,14 +162,12 @@ function CreateOrderForm() {
             {t.create.shareHint}
           </p>
           <div className="cta-stack" style={{ marginTop: "var(--space-4)" }}>
-            <button className="btn btn-primary" onClick={shareLink}>
+            <button className="btn btn-primary" onClick={copyLink}>
+              {t.create.pasteInChat}
+            </button>
+            <button className="btn btn-secondary" onClick={shareLink}>
               {canShare ? t.create.share : t.create.copyLink}
             </button>
-            {!canShare ? null : (
-              <button className="btn btn-secondary" onClick={copyLink}>
-                {t.create.copyLink}
-              </button>
-            )}
           </div>
           <button
             type="button"
@@ -163,6 +190,9 @@ function CreateOrderForm() {
                   {t.create.shareWhatsApp}
                 </a>
               </div>
+              <button className="btn btn-tertiary" type="button" onClick={copyLink}>
+                {t.create.shareInstagram}
+              </button>
               {showQR ? (
                 <div className="qr-card">
                   <div className="qr-frame">
@@ -180,9 +210,14 @@ function CreateOrderForm() {
     );
   }
 
+  if (gate) {
+    return <div className="rise page-stack muted">…</div>;
+  }
+
   return (
     <div className="rise page-stack">
       <PageHeader title={t.create.title} />
+      {fromIg ? <p className="muted">{t.create.fromIgHint}</p> : null}
       {customerName ? (
         <p className="muted" style={{ margin: 0 }}>
           {t.create.forCustomer} <strong>{customerName}</strong>

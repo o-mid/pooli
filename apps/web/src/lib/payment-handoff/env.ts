@@ -42,7 +42,11 @@ export function openInExternalBrowser(url: string): boolean {
       return true;
     }
     if (env.isIOS) {
-      // No reliable universal escape from IG/TG on iOS; open same URL in a new context if allowed.
+      if (env.inAppKind === "instagram" || /fban|fbav|fb_iab/i.test(ua)) {
+        const safari = target.replace(/^https:\/\//i, "x-safari-https://");
+        window.location.href = safari;
+        return true;
+      }
       window.open(target, "_blank", "noopener,noreferrer");
       return true;
     }

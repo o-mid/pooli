@@ -2,7 +2,7 @@
   "name": "Pooli",
   "short_name": "Pooli",
   "description": "Turn a DM order into a checkout link. Get paid in USDT.",
-  "start_url": "/app",
+  "start_url": "/app/create",
   "display": "standalone",
   "background_color": "#F4F7F5",
   "theme_color": "#0F8F6B",

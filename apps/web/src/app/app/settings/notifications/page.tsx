@@ -13,6 +13,12 @@ type Me = {
   };
 };
 
+type IGStatus = {
+  configured?: boolean;
+  connected?: boolean;
+  ig_username?: string;
+};
+
 type NotifyPrefs = {
   email_enabled?: boolean;
   email_destination?: string;
@@ -32,6 +38,13 @@ export default function NotificationsSettingsPage() {
   const [tgError, setTgError] = useState("");
   const [tgBusy, setTgBusy] = useState(false);
   const [tgDeepLink, setTgDeepLink] = useState("");
+  const [igConfigured, setIgConfigured] = useState(false);
+  const [igConnected, setIgConnected] = useState(false);
+  const [igUsername, setIgUsername] = useState("");
+  const [igCode, setIgCode] = useState("");
+  const [igBusy, setIgBusy] = useState(false);
+  const [igMsg, setIgMsg] = useState("");
+  const [igError, setIgError] = useState("");
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [emailDestination, setEmailDestination] = useState("");
   const [emailPayment, setEmailPayment] = useState(true);
@@ -52,6 +65,13 @@ export default function NotificationsSettingsPage() {
       .then((data) => {
         setMe(data);
         applyTelegram(data);
+      })
+      .catch(() => undefined);
+    api<IGStatus>("/api/v1/integrations/instagram/status")
+      .then((st) => {
+        setIgConfigured(Boolean(st.configured));
+        setIgConnected(Boolean(st.connected));
+        setIgUsername(st.ig_username || "");
       })
       .catch(() => undefined);
     api<NotifyPrefs>("/api/v1/merchant/notification-prefs")
@@ -150,6 +170,40 @@ export default function NotificationsSettingsPage() {
     }
   }
 
+  async function requestIgCode() {
+    setIgBusy(true);
+    setIgError("");
+    setIgMsg("");
+    try {
+      const res = await api<{ code: string }>("/api/v1/integrations/instagram/bind-code", {
+        method: "POST",
+        body: "{}",
+      });
+      setIgCode(res.code || "");
+    } catch (err) {
+      setIgError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setIgBusy(false);
+    }
+  }
+
+  async function disconnectInstagram() {
+    setIgBusy(true);
+    setIgError("");
+    setIgMsg("");
+    try {
+      await api("/api/v1/integrations/instagram/disconnect", { method: "POST", body: "{}" });
+      setIgConnected(false);
+      setIgUsername("");
+      setIgCode("");
+      setIgMsg(t.settings.instagramDisconnected);
+    } catch (err) {
+      setIgError(err instanceof Error ? err.message : t.common.error);
+    } finally {
+      setIgBusy(false);
+    }
+  }
+
   async function sendTelegramTest() {
     setTgBusy(true);
     setTgError("");
@@ -210,6 +264,51 @@ export default function NotificationsSettingsPage() {
           </p>
         ) : null}
         {tgMsg ? <p className="ok" style={{ marginTop: "var(--space-3)" }}>{tgMsg}</p> : null}
+
+        <h2 style={{ margin: "var(--space-6) 0 0", fontSize: "var(--text-headline)" }}>{t.settings.instagram}</h2>
+        {!igConfigured ? (
+          <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+            {t.settings.instagramNotConfigured}
+          </p>
+        ) : igConnected ? (
+          <>
+            <p style={{ margin: "var(--space-2) 0 0", fontWeight: 650 }}>{t.settings.instagramConnected}</p>
+            {igUsername ? (
+              <p className="muted mono-ltr" style={{ margin: "var(--space-1) 0 0" }}>
+                @{igUsername}
+              </p>
+            ) : null}
+            <button type="button" className="btn btn-tertiary" style={{ marginTop: "var(--space-4)" }} disabled={igBusy} onClick={disconnectInstagram}>
+              {t.settings.disconnectInstagram}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+              {t.settings.instagramHint}
+            </p>
+            <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+              {t.settings.instagramTestersOnly}
+            </p>
+            <p className="muted" style={{ margin: "var(--space-2) 0 0" }}>
+              {t.settings.instagramConnectHint}
+            </p>
+            <button type="button" className="btn btn-primary" style={{ marginTop: "var(--space-4)" }} disabled={igBusy} onClick={requestIgCode}>
+              {igBusy ? t.common.loading : t.settings.instagramGetCode}
+            </button>
+            {igCode ? (
+              <p className="mono-ltr" style={{ margin: "var(--space-3) 0 0", fontWeight: 650 }}>
+                {igCode}
+              </p>
+            ) : null}
+          </>
+        )}
+        {igError ? (
+          <p className="field-error" role="alert" style={{ marginTop: "var(--space-3)" }}>
+            {igError}
+          </p>
+        ) : null}
+        {igMsg ? <p className="ok" style={{ marginTop: "var(--space-3)" }}>{igMsg}</p> : null}
 
         <h2 style={{ margin: "var(--space-6) 0 0", fontSize: "var(--text-headline)" }}>{t.settings.email}</h2>
         {!emailEnabled ? (

@@ -394,6 +394,18 @@ a.list-row {
   color: var(--warning);
 }
 
+.ig-inapp-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
 .alert-danger {
   background: var(--danger-soft);
   border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);

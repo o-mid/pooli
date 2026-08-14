@@ -1,5 +1,5 @@
-const CACHE = "pooli-shell-v6";
-const STATIC = ["/", "/app", "/manifest.webmanifest", "/brand/logo-color.svg", "/brand/mark.svg"];
+const CACHE = "pooli-shell-v7";
+const STATIC = ["/", "/app", "/app/create", "/manifest.webmanifest", "/brand/logo-color.svg", "/brand/mark.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(STATIC)).then(() => self.skipWaiting()));

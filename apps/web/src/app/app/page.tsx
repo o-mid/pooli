@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 import { NewPaymentButton } from "@/components/NewPaymentButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorRetry } from "@/components/ui/ErrorRetry";
@@ -36,6 +37,12 @@ type Home = {
     fulfillment_status?: string;
     customer_name?: string;
   }>;
+  payment_link?: {
+    slug: string;
+    title?: string;
+    fiat_amount_toman?: number;
+    url: string;
+  };
 };
 
 function greeting(t: ReturnType<typeof useT>): string {
@@ -47,6 +54,7 @@ function greeting(t: ReturnType<typeof useT>): string {
 
 export default function HomePage() {
   const t = useT();
+  const { showToast } = useToast();
   const router = useRouter();
   const [data, setData] = useState<Home | null>(null);
   const [error, setError] = useState("");
@@ -141,6 +149,38 @@ export default function HomePage() {
       )}
 
       <NewPaymentButton />
+
+      {!loading && data?.payment_link ? (
+        <section className="section">
+          <h2 className="section-title">{t.home.standingLink}</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            {data.payment_link.title || data.payment_link.slug}
+          </p>
+          <div className="cta-stack" style={{ marginTop: "var(--space-3)" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={async () => {
+                await navigator.clipboard.writeText(data.payment_link!.url);
+                showToast(t.common.copied);
+              }}
+            >
+              {t.home.copyStandingLink}
+            </button>
+            <button
+              type="button"
+              className="btn btn-tertiary"
+              onClick={async () => {
+                const text = `${data.payment_link!.title || ""}\n${t.create.completeOrder}\n${data.payment_link!.url}`.trim();
+                await navigator.clipboard.writeText(text);
+                showToast(t.common.copied);
+              }}
+            >
+              {t.home.pasteInstagram}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {!loading && attention > 0 && attentionItems.length > 0 ? (
         <section className="section">

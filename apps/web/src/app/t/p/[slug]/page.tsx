@@ -8,7 +8,6 @@ type Preview = {
   store_name?: string;
   title?: string;
   store_logo_url?: string;
-  brand?: string;
 };
 
 async function fetchPreview(slug: string): Promise<Preview | null> {
@@ -31,7 +30,6 @@ export async function generateMetadata({
   const preview = await fetchPreview(params.slug);
   const store = preview?.store_name || "Pooli";
   const title = preview?.title ? `${preview.title} · ${store}` : `${store} · Pooli`;
-  // Privacy: no amount, no customer PII in Open Graph.
   const description = `Checkout with ${store} on Pooli`;
   const images = preview?.store_logo_url
     ? [{ url: preview.store_logo_url.startsWith("http") ? preview.store_logo_url : `${SITE}${preview.store_logo_url}` }]
@@ -44,7 +42,7 @@ export async function generateMetadata({
       title,
       description,
       type: "website",
-      url: `${SITE}/p/${params.slug}`,
+      url: `${SITE}/t/p/${params.slug}`,
       siteName: "Pooli",
       images,
     },
@@ -57,6 +55,6 @@ export async function generateMetadata({
   };
 }
 
-export default function PublicCheckoutPage() {
-  return <CheckoutClient />;
+export default function TelegramCheckoutPage({ params }: { params: { slug: string } }) {
+  return <CheckoutClient slug={params.slug} chrome="telegram" />;
 }
