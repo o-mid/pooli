@@ -58,6 +58,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run lint --workspace=@pooli/web
+      - run: npm run test --workspace=@pooli/web
       - run: npm run build --workspace=@pooli/web
         env:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:8080

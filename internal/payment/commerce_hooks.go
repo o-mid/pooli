@@ -37,6 +37,12 @@ func RecordPaymentTimeline(ctx context.Context, pool *pgxpool.Pool, merchantID, 
 		title = "Overpaid"
 	case "payment.needs_review":
 		title = "Needs review"
+	case "payment.late":
+		title = "Paid late"
+	case "payment.duplicate":
+		title = "Extra payment detected"
+	case "payment.unmatched_ambiguous":
+		title = "Needs attention"
 	}
 	meta := payload
 	if meta == nil {

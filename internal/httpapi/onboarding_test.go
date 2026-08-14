@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pooli-shop/pooli/internal/auth"
@@ -128,12 +129,12 @@ func TestAdminOperationalStatusAudit(t *testing.T) {
 	// Promote admin by registering then flipping is_admin in DB.
 	c := registerMerchant(t, h, "admin-onb@example.com", "Admin Shop")
 	pool := srv.Pool
-	_, err := pool.Exec(t.Context(), `UPDATE users SET is_admin=true WHERE email=$1`, "admin-onb@example.com")
+	_, err := pool.Exec(context.Background(), `UPDATE users SET is_admin=true WHERE email=$1`, "admin-onb@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var merchantID string
-	_ = pool.QueryRow(t.Context(), `
+	_ = pool.QueryRow(context.Background(), `
 		SELECT m.id::text FROM merchants m
 		JOIN merchant_users mu ON mu.merchant_id=m.id
 		JOIN users u ON u.id=mu.user_id
@@ -150,7 +151,7 @@ func TestAdminOperationalStatusAudit(t *testing.T) {
 		t.Fatalf("unexpected %#v", out)
 	}
 	var action string
-	_ = pool.QueryRow(t.Context(), `
+	_ = pool.QueryRow(context.Background(), `
 		SELECT action FROM audit_events WHERE entity_type='merchant' AND entity_id=$1
 		ORDER BY created_at DESC LIMIT 1`, merchantID).Scan(&action)
 	if action != "set_operational_status" {

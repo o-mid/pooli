@@ -423,6 +423,10 @@ export const fa: Messages = {
     timeline: "خط زمانی پرداخت",
     deliveries: "ارسال اعلان‌ها",
     ops: "وضعیت عملیات",
+    actionNeedsReview: "نیاز به بررسی",
+    actionAcknowledge: "ثبت استثنا",
+    actionNote: "فقط یادداشت",
+    retry: "تلاش دوباره",
   },
   store: {
     payThisBusiness: "پرداخت به این فروشگاه",

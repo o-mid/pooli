@@ -26,11 +26,11 @@ tidy:
 
 test:
 	go test $$(go list ./... | grep -v /node_modules/)
-	npm run test --workspace=@pooli/web || true
+	npm run test --workspace=@pooli/web
 
 lint:
 	go vet $$(go list ./... | grep -v /node_modules/)
-	npm run lint --workspace=@pooli/web || true
+	npm run lint --workspace=@pooli/web
 
 # Simulate a payment for a payment option (requires API + ENABLE_CHAIN_SIMULATOR=true)
 simulate-pay:

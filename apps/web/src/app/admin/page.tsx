@@ -88,11 +88,11 @@ export default function AdminPage() {
         <section className="section card-panel">
           <h2 className="section-title">{t.admin.ops}</h2>
           <p className="muted mono-ltr">
-            ok={String(ops.ok)} worker={String(ops.worker?.ok)} alerts={(ops.alerts || []).join(", ") || "—"}
+            ok={String(ops.ok)} worker={String(ops.worker?.ok)} sha={ops.git_sha || "—"}
           </p>
           <p className="muted">
-            stuck={ops.payments?.stuck_confirming ?? 0} review={ops.payments?.needs_review ?? 0} notify_fail_24h=
-            {ops.notifications?.failed_24h ?? 0}
+            alerts={(ops.alerts || []).join(", ") || "—"} · stuck={ops.payments?.stuck_confirming ?? 0} · review=
+            {ops.payments?.needs_review ?? 0} · notify_fail_24h={ops.notifications?.failed_24h ?? 0}
           </p>
         </section>
       ) : null}
@@ -104,7 +104,13 @@ export default function AdminPage() {
           {t.admin.search}
         </button>
       </form>
-      {searchResult ? <Section title={t.admin.search} rows={[searchResult]} /> : null}
+      {searchResult ? (
+        <>
+          <RecordList title={t.admin.search} rows={searchResult.merchants || []} primary="name" secondary="slug" />
+          <RecordList title={t.admin.intents} rows={searchResult.payment_intents || []} primary="status" secondary="id" />
+          <RecordList title={t.nav.orders} rows={searchResult.orders || []} primary="title" secondary="slug" />
+        </>
+      ) : null}
 
       <form className="card-panel" onSubmit={resolve}>
         <h2 style={{ margin: 0, fontSize: "var(--text-title3)" }}>{t.admin.resolve}</h2>
@@ -116,9 +122,9 @@ export default function AdminPage() {
         <div className="field">
           <label htmlFor="action">{t.admin.action}</label>
           <select id="action" name="action" defaultValue="needs_review">
-            <option value="needs_review">Needs review</option>
-            <option value="acknowledge_exception">Acknowledge exception</option>
-            <option value="note">Audit note only</option>
+            <option value="needs_review">{t.admin.actionNeedsReview}</option>
+            <option value="acknowledge_exception">{t.admin.actionAcknowledge}</option>
+            <option value="note">{t.admin.actionNote}</option>
           </select>
         </div>
         <div className="field">
@@ -155,27 +161,81 @@ export default function AdminPage() {
       {timeline ? (
         <section className="section">
           <h2 className="section-title">{t.admin.timeline}</h2>
-          <pre className="card-panel mono-ltr" style={{ whiteSpace: "pre-wrap", fontSize: "0.75rem" }}>
-            {JSON.stringify(timeline, null, 2)}
-          </pre>
+          <div className="list-group">
+            {(timeline.timeline || []).map((ev: any, i: number) => (
+              <div key={ev.id || i} className="list-row">
+                <div className="list-row-body">
+                  <div className="list-row-title">{ev.event_type || ev.kind || "event"}</div>
+                  <div className="list-row-meta">{ev.title || ev.status || ev.channel || ""}</div>
+                  <div className="list-row-meta muted">{ev.created_at || ev.at || ""}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       ) : null}
 
-      <Section title={t.admin.intents} rows={intents} />
-      <Section title={t.admin.deliveries} rows={deliveries} />
+      <RecordList title={t.admin.intents} rows={intents} primary="status" secondary="id" />
+      <section className="section">
+        <h2 className="section-title">{t.admin.deliveries}</h2>
+        <div className="list-group">
+          {deliveries.slice(0, 30).map((row) => (
+            <div key={row.id} className="list-row">
+              <div className="list-row-body">
+                <div className="list-row-title">
+                  {row.status} · {row.channel}
+                </div>
+                <div className="list-row-meta mono-ltr">{row.event_key || row.id}</div>
+              </div>
+              {row.status === "failed" || row.status === "pending" ? (
+                <button
+                  type="button"
+                  className="btn btn-tertiary"
+                  onClick={async () => {
+                    try {
+                      await api(`/api/v1/admin/notification-deliveries/${row.id}/retry`, { method: "POST" });
+                      showToast(t.admin.resolved);
+                      await load();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : t.common.error);
+                    }
+                  }}
+                >
+                  {t.admin.retry}
+                </button>
+              ) : null}
+            </div>
+          ))}
+          {!deliveries.length && <p className="muted">—</p>}
+        </div>
+      </section>
     </main>
   );
 }
 
-function Section({ title, rows }: { title: string; rows: any[] }) {
+function RecordList({
+  title,
+  rows,
+  primary,
+  secondary,
+}: {
+  title: string;
+  rows: any[];
+  primary: string;
+  secondary: string;
+}) {
   return (
     <section className="section">
       <h2 className="section-title">{title}</h2>
-      <div style={{ display: "grid", gap: "var(--space-2)" }}>
+      <div className="list-group">
         {rows.slice(0, 30).map((row, idx) => (
-          <pre key={idx} className="card-panel mono-ltr" style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "0.75rem" }}>
-            {JSON.stringify(row, null, 2)}
-          </pre>
+          <div key={row.id || idx} className="list-row">
+            <div className="list-row-body">
+              <div className="list-row-title">{row[primary] || row.status || row.exception_label || "—"}</div>
+              <div className="list-row-meta mono-ltr">{row[secondary] || row.id || ""}</div>
+              {row.event_key ? <div className="list-row-meta mono-ltr">{row.event_key}</div> : null}
+            </div>
+          </div>
         ))}
         {!rows.length && <p className="muted">—</p>}
       </div>

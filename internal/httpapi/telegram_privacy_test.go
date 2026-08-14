@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +13,7 @@ func TestMeDoesNotExposeTelegramChatID(t *testing.T) {
 	h := srv.Router()
 	c := registerMerchant(t, h, "tgpriv@example.com", "TG Priv")
 	var mid string
-	err := srv.Pool.QueryRow(t.Context(), `
+	err := srv.Pool.QueryRow(context.Background(), `
 		SELECT m.id::text FROM merchants m
 		JOIN merchant_users mu ON mu.merchant_id=m.id
 		JOIN users u ON u.id=mu.user_id
@@ -20,7 +21,7 @@ func TestMeDoesNotExposeTelegramChatID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = srv.Pool.Exec(t.Context(), `
+	_, err = srv.Pool.Exec(context.Background(), `
 		INSERT INTO telegram_connections (merchant_id, chat_id, username, enabled, connected_at)
 		VALUES ($1::uuid, '123456789', 'seller_user', true, now())`, mid)
 	if err != nil {

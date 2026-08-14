@@ -40,6 +40,14 @@ Behavior:
 
 Apply the vars on your server, then restart API and worker. Confirm via `GET /api/v1/ops/status` that `config.rate_provider` is `nobitex` (never `mock` in production).
 
+### Nobitex DNS / Wallex-only
+
+`api.nobitex.ir` currently does not resolve from public resolvers (Cloudflare, Google, Quad9) or from the production host. That is a Nobitex/DNS issue, not a local stub-resolver misconfig.
+
+Production stays `RATE_PROVIDER=nobitex` with `RATE_FALLBACK_PROVIDER=wallex`. Quotes come from Wallex (`last_quote_source=wallex` on `/api/v1/ops/status`). Do not switch the primary to `wallex` unless Nobitex stays dark for a long stretch — the fail-closed fallback is the intended path.
+
+Do not add a hardcoded `/etc/hosts` entry for Nobitex. Re-check `dig +short api.nobitex.ir A` occasionally; when it resolves again, new quotes will prefer Nobitex automatically.
+
 ## Telegram merchant bot (@PooliShopbot)
 
 ### Env

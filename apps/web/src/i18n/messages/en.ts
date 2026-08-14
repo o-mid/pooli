@@ -421,6 +421,10 @@ export const en = {
     timeline: "Payment timeline",
     deliveries: "Notification deliveries",
     ops: "Ops status",
+    actionNeedsReview: "Needs review",
+    actionAcknowledge: "Acknowledge exception",
+    actionNote: "Audit note only",
+    retry: "Retry",
   },
   store: {
     payThisBusiness: "Pay this business",

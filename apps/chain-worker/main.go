@@ -16,6 +16,7 @@ import (
 	"github.com/pooli-shop/pooli/internal/notify"
 	"github.com/pooli-shop/pooli/internal/ops"
 	"github.com/pooli-shop/pooli/internal/payment"
+	"github.com/pooli-shop/pooli/internal/rate"
 )
 
 func main() {
@@ -35,6 +36,21 @@ func main() {
 		log.Fatal(err)
 	}
 	defer pool.Close()
+
+	rates, err := rate.BuildProviderOpts(rate.Options{
+		Name:         cfg.RateProvider,
+		FallbackName: cfg.RateFallbackProvider,
+		MockRate:     cfg.MockUSDTTmnRate,
+		AppEnv:       cfg.AppEnv,
+		Policy:       cfg.RatePolicy,
+		CacheTTL:     cfg.RateCache,
+		MaxAge:       cfg.RateMaxAge,
+		StaleAfter:   cfg.RateStale,
+		Timeout:      cfg.RateProviderTimeout,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	tg := &notify.Telegram{
 		Pool: pool, Token: cfg.TelegramBotToken, Enabled: cfg.TelegramEnabled,
@@ -80,6 +96,8 @@ func main() {
 	_ = ops.Beat(ctx, pool, ops.ChainWorkerName, map[string]any{
 		"tron_network": cfg.TronNetwork, "bsc_watcher": cfg.EnableBSCWatcher, "started": true,
 	})
+	lastRateRefresh := time.Time{}
+	refreshRates(ctx, pool, rates, &lastRateRefresh)
 
 	for {
 		select {
@@ -97,6 +115,7 @@ func main() {
 				}
 			}
 			expireIntents(ctx, pool)
+			refreshRates(ctx, pool, rates, &lastRateRefresh)
 			if err := ops.Beat(ctx, pool, ops.ChainWorkerName, map[string]any{
 				"tron_network": cfg.TronNetwork,
 				"bsc_watcher":  cfg.EnableBSCWatcher,
@@ -107,6 +126,26 @@ func main() {
 			}
 		}
 	}
+}
+
+func refreshRates(ctx context.Context, pool *pgxpool.Pool, rates rate.Provider, last *time.Time) {
+	if rates == nil || last == nil {
+		return
+	}
+	if !last.IsZero() && time.Since(*last) < 2*time.Minute {
+		return
+	}
+	q, err := rates.FetchUSDTTmn(ctx)
+	if err != nil {
+		log.Printf("rate refresh: %v", err)
+		return
+	}
+	if err := rate.PersistQuote(ctx, pool, q); err != nil {
+		log.Printf("rate persist: %v", err)
+		return
+	}
+	*last = time.Now().UTC()
+	log.Printf("rate refresh ok source=%s", q.Source)
 }
 
 func pollNetwork(ctx context.Context, pool *pgxpool.Pool, matcher *payment.Matcher, ad chain.Adapter) error {

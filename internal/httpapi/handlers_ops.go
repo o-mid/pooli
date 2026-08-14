@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/pooli-shop/pooli/internal/buildinfo"
@@ -12,13 +11,7 @@ import (
 // handleOpsStatus returns non-secret operational status for uptime monitors.
 // Safe to expose publicly: enums/bools/ages only — never tokens or keys.
 func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
-	sha := s.Cfg.GitSHA
-	if sha == "" {
-		sha = os.Getenv("GIT_SHA")
-	}
-	if sha == "" {
-		sha = buildinfo.GitSHA
-	}
+	sha := buildinfo.ResolveGitSHA(s.Cfg.GitSHA)
 	version := sha
 	if len(version) > 12 {
 		version = version[:12]

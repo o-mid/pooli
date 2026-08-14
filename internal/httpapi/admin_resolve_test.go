@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"context"
 	"testing"
 )
 
@@ -8,7 +9,7 @@ func TestAdminCannotMarkPaidWithoutChain(t *testing.T) {
 	srv, _ := newTestServer(t)
 	h := srv.Router()
 	c := registerMerchant(t, h, "admin-resolve@example.com", "Admin Resolve")
-	_, err := srv.Pool.Exec(t.Context(), `UPDATE users SET is_admin=true WHERE email=$1`, "admin-resolve@example.com")
+	_, err := srv.Pool.Exec(context.Background(), `UPDATE users SET is_admin=true WHERE email=$1`, "admin-resolve@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestAdminCannotMarkPaidWithoutChain(t *testing.T) {
 		t.Fatalf("needs_review %d %#v", code, ok)
 	}
 	var status string
-	_ = srv.Pool.QueryRow(t.Context(), `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentID).Scan(&status)
+	_ = srv.Pool.QueryRow(context.Background(), `SELECT status FROM payment_intents WHERE id=$1::uuid`, intentID).Scan(&status)
 	if status != "NEEDS_REVIEW" {
 		t.Fatalf("status=%s", status)
 	}

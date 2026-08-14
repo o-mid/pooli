@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"context"
 	"testing"
 )
 
@@ -30,11 +31,11 @@ func TestCustomerNotesTagsIsolation(t *testing.T) {
 	c1 := registerMerchant(t, h, "crm1@example.com", "CRM One")
 	pool := srv.Pool
 	var mid, cid string
-	_ = pool.QueryRow(t.Context(), `
+	_ = pool.QueryRow(context.Background(), `
 		SELECT m.id::text FROM merchants m
 		JOIN merchant_users mu ON mu.merchant_id=m.id
 		JOIN users u ON u.id=mu.user_id WHERE u.email=$1`, "crm1@example.com").Scan(&mid)
-	_ = pool.QueryRow(t.Context(), `
+	_ = pool.QueryRow(context.Background(), `
 		INSERT INTO customers (merchant_id, full_name, phone_e164, email)
 		VALUES ($1::uuid, 'Sara', '+989121111111', 'sara@example.com') RETURNING id::text`, mid).Scan(&cid)
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pooli-shop/pooli/internal/domain"
+	"github.com/pooli-shop/pooli/internal/rate"
 )
 
 var errStaleRate = errors.New("We can't get the current USDT rate right now. Please try again shortly.")
@@ -412,17 +413,7 @@ func fmtErr(err error) string {
 }
 
 func rateQuoteMetadataJSON(q domain.RateQuote) string {
-	b, err := json.Marshal(map[string]any{
-		"policy":           q.Policy,
-		"source_pair":      q.SourcePair,
-		"source_currency":  q.SourceCurrency,
-		"display_currency": q.DisplayCurrency,
-		"provider":         q.Source,
-	})
-	if err != nil {
-		return "{}"
-	}
-	return string(b)
+	return rate.QuoteMetadataJSON(q)
 }
 
 // optionAssetMeta returns configured asset identity for checkout handoff.
