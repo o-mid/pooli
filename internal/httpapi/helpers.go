@@ -16,6 +16,9 @@ import (
 
 var errStaleRate = errors.New("We can't get the current USDT rate right now. Please try again shortly.")
 var errNoWallets = errors.New("add at least one active wallet before creating a payment link")
+var errMerchantSuspended = errors.New("this store is suspended")
+var errAmountRequired = errors.New("amount required")
+var errCustomerNotFound = errors.New("customer not found")
 
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
 
@@ -69,7 +72,7 @@ func (s *Server) loadOrderForMerchant(ctx context.Context, merchantID, orderID s
 		"id": id, "slug": slug, "title": title, "description": desc, "merchant_reference": ref,
 		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status, "created_at": created,
 		"checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
-		"fields": fields, "field_values": values, "payment_intent": intent,
+		"fields":       fields, "field_values": values, "payment_intent": intent,
 		"customer_id": customerID, "fulfillment_status": fulfill,
 		"shipping_provider": shipProvider, "tracking_number": tracking,
 		"shipped_at": shippedAt, "delivered_at": deliveredAt, "fulfillment_note": fulfillNote,
@@ -158,11 +161,11 @@ func (s *Server) loadPaymentIntent(ctx context.Context, intentID string) (map[st
 		asset, decimals := s.optionAssetMeta(network)
 		options = append(options, map[string]any{
 			"id": oid, "network": network, "chain_id": chainID, "token_contract": token,
-			"destination_address": dest,
-			"base_usdt_amount": domain.FormatUSDTBaseUnits(baseAmt),
-			"pay_usdt_amount": domain.FormatUSDTBaseUnits(payAmt),
+			"destination_address":        dest,
+			"base_usdt_amount":           domain.FormatUSDTBaseUnits(baseAmt),
+			"pay_usdt_amount":            domain.FormatUSDTBaseUnits(payAmt),
 			"pay_usdt_amount_base_units": payAmt,
-			"asset": asset, "token_decimals": decimals,
+			"asset":                      asset, "token_decimals": decimals,
 			"quote_rate": quoteRate, "expires_at": optExpires, "status": optStatus,
 			"payment_uri": handoff,
 		})

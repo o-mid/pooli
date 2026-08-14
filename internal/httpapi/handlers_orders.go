@@ -114,7 +114,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 
 	analytics := s.loadHomeAnalytics(r.Context(), mid)
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"today_paid_orders":   paidCount,
 		"today_toman_volume":  tomanVol,
 		"today_usdt_received": domain.FormatUSDTBaseUnits(usdtBase),
@@ -123,7 +123,22 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		"attention_items":     attentionItems,
 		"recent_orders":       recent,
 		"analytics":           analytics,
-	})
+	}
+	var linkSlug, linkTitle string
+	var linkAmount int64
+	err = s.Pool.QueryRow(r.Context(), `
+		SELECT slug, title, fiat_amount_toman FROM payment_links
+		WHERE merchant_id=$1::uuid AND active=true
+		ORDER BY created_at ASC LIMIT 1`, mid).Scan(&linkSlug, &linkTitle, &linkAmount)
+	if err == nil && linkSlug != "" {
+		resp["payment_link"] = map[string]any{
+			"slug":              linkSlug,
+			"title":             linkTitle,
+			"fiat_amount_toman": linkAmount,
+			"url":               strings.TrimRight(s.Cfg.PublicBaseURL, "/") + "/link/" + linkSlug,
+		}
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // loadHomeAnalytics returns only metrics that can be computed from existing rows.
@@ -265,119 +280,52 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	if req.FiatAmountToman <= 0 {
-		writeErr(w, http.StatusBadRequest, "amount required")
-		return
-	}
-
-	defaults, err := s.loadCheckoutDefaults(r.Context(), mid)
-	if err != nil {
-		defaults = defaultCheckoutDefaults()
-	}
-	if len(req.Fields) == 0 {
-		req.Fields = fieldDefsFromDefaults(defaults)
-	}
-	if len(req.Networks) == 0 {
-		req.Networks = defaults.EnabledNetworks
-	} else {
-		req.Networks = normalizeEnabledNetworks(req.Networks, defaults.EnabledNetworks)
-	}
-	req.Networks = s.filterCheckoutNetworks(req.Networks)
-	expiresMinutes := req.ExpiresInMinutes
-	if expiresMinutes <= 0 {
-		expiresMinutes = defaults.DefaultExpiryMinutes
-	}
-
-	slug, err := randomSlug(8)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	var expiresAt *time.Time
-	if expiresMinutes > 0 {
-		t := time.Now().UTC().Add(time.Duration(expiresMinutes) * time.Minute)
-		expiresAt = &t
-	}
-
-	var customerID *string
-	if req.CustomerID != "" {
-		var exists string
-		err = s.Pool.QueryRow(r.Context(), `
-			SELECT id::text FROM customers WHERE id=$1::uuid AND merchant_id=$2::uuid`,
-			req.CustomerID, mid).Scan(&exists)
-		if err != nil {
-			writeErr(w, http.StatusBadRequest, "customer not found")
-			return
-		}
-		customerID = &exists
-	}
-
-	qty := req.ItemQuantity
-	if qty <= 0 {
-		qty = 1
-	}
-	if qty > 10000 {
-		qty = 10000
-	}
-	successMsg := strings.TrimSpace(req.SuccessMessage)
-	if successMsg == "" {
-		successMsg = defaults.SuccessMessage
-	}
-
-	var orderID string
-	err = payment.WithTx(r.Context(), s.Pool, func(tx pgx.Tx) error {
-		err := tx.QueryRow(r.Context(), `
-			INSERT INTO orders (
-				merchant_id, slug, title, description, merchant_reference,
-				fiat_amount_toman, fiat_currency, status, expires_at, customer_id, fulfillment_status,
-				item_quantity, internal_note, success_message, image_path
-			) VALUES ($1::uuid,$2,$3,$4,$5,$6,'TMN','CREATED',$7,$8::uuid,'UNFULFILLED',$9,$10,$11,$12)
-			RETURNING id::text`,
-			mid, slug, req.Title, req.Description, req.MerchantReference, req.FiatAmountToman, expiresAt, customerID,
-			qty, strings.TrimSpace(req.InternalNote), successMsg, strings.TrimSpace(req.ImagePath)).Scan(&orderID)
-		if err != nil {
-			return err
-		}
-		for i, f := range req.Fields {
-			opts := "[]"
-			if len(f.Options) > 0 {
-				b, _ := jsonMarshal(f.Options)
-				opts = string(b)
-			}
-			_, err = tx.Exec(r.Context(), `
-				INSERT INTO order_field_definitions (order_id, field_key, label, field_type, required, options_json, sort_order)
-				VALUES ($1::uuid,$2,$3,$4,$5,$6::jsonb,$7)`, orderID, f.Key, f.Label, f.Type, f.Required, opts, i)
-			if err != nil {
-				return err
-			}
-		}
-		return s.appendTimeline(r.Context(), tx, orderID, mid, "order.created", "system", "Order created", req.Title, "merchant", map[string]any{
-			"fiat_amount_toman": req.FiatAmountToman,
-		})
-	})
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
 	createIntent := true
 	if req.CreateIntent != nil {
 		createIntent = *req.CreateIntent
 	}
-	resp := map[string]any{
-		"id":           orderID,
-		"slug":         slug,
-		"title":        req.Title,
-		"fiat_amount_toman": req.FiatAmountToman,
-		"checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
-	}
-	if createIntent {
-		intent, err := s.createPaymentIntentForOrder(r.Context(), mid, orderID, req.Networks)
-		if err != nil {
-			writeErr(w, http.StatusBadRequest, err.Error())
+	created, err := s.createOrderWithIntent(r.Context(), CreateOrderInput{
+		MerchantID:        mid,
+		FiatAmountToman:   req.FiatAmountToman,
+		Title:             req.Title,
+		Description:       req.Description,
+		MerchantReference: req.MerchantReference,
+		ExpiresInMinutes:  req.ExpiresInMinutes,
+		Fields:            req.Fields,
+		Networks:          req.Networks,
+		CustomerID:        req.CustomerID,
+		CreateIntent:      createIntent,
+		ItemQuantity:      req.ItemQuantity,
+		InternalNote:      req.InternalNote,
+		SuccessMessage:    req.SuccessMessage,
+		ImagePath:         req.ImagePath,
+		Source:            orderSourcePWA,
+	})
+	if err != nil {
+		if err == errAmountRequired {
+			writeErr(w, http.StatusBadRequest, "amount required")
 			return
 		}
-		resp["payment_intent"] = intent
+		if err == errMerchantSuspended {
+			writeErr(w, http.StatusForbidden, err.Error())
+			return
+		}
+		if err == errCustomerNotFound {
+			writeErr(w, http.StatusBadRequest, "customer not found")
+			return
+		}
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	resp := map[string]any{
+		"id":                created.ID,
+		"slug":              created.Slug,
+		"title":             created.Title,
+		"fiat_amount_toman": created.FiatAmount,
+		"checkout_url":      created.CheckoutURL,
+	}
+	if created.PaymentIntent != nil {
+		resp["payment_intent"] = created.PaymentIntent
 	}
 	writeJSON(w, http.StatusCreated, resp)
 }

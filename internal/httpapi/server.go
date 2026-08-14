@@ -14,6 +14,7 @@ import (
 	"github.com/pooli-shop/pooli/internal/auth"
 	"github.com/pooli-shop/pooli/internal/chain"
 	"github.com/pooli-shop/pooli/internal/config"
+	"github.com/pooli-shop/pooli/internal/instagram"
 	"github.com/pooli-shop/pooli/internal/notify"
 	"github.com/pooli-shop/pooli/internal/otp"
 	"github.com/pooli-shop/pooli/internal/payment"
@@ -22,19 +23,22 @@ import (
 )
 
 type Server struct {
-	Cfg      config.Config
-	Pool     *pgxpool.Pool
-	Auth     *auth.Service
-	OTP      *otp.Service
-	Rates    rate.Provider
-	Hub      *sse.Hub
-	Matcher  *payment.Matcher
-	Telegram *notify.Telegram
-	Email    *notify.Email
-	EVM      chain.Adapter
-	Tron     chain.Adapter
+	Cfg       config.Config
+	Pool      *pgxpool.Pool
+	Auth      *auth.Service
+	OTP       *otp.Service
+	Rates     rate.Provider
+	Hub       *sse.Hub
+	Matcher   *payment.Matcher
+	Telegram  *notify.Telegram
+	Email     *notify.Email
+	EVM       chain.Adapter
+	Tron      chain.Adapter
+	Instagram *instagram.Client
 
 	refreshQuoteLimit *slidingWindowLimiter
+	igMsgLimit        *slidingWindowLimiter
+	igCreateLimit     *slidingWindowLimiter
 }
 
 func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *sse.Hub, matcher *payment.Matcher, tg *notify.Telegram, mail *notify.Email, evm, tron chain.Adapter) *Server {
@@ -43,8 +47,11 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool, rates rate.Provider, hub *
 		Auth:  &auth.Service{Pool: pool, AdminEmails: cfg.AdminEmails},
 		OTP:   otp.NewService(pool, otp.MockProvider{}, cfg.AppEnv),
 		Rates: rates, Hub: hub, Matcher: matcher, Telegram: tg, Email: mail, EVM: evm, Tron: tron,
+		Instagram: instagram.NewClient(cfg),
 		// Public refresh-quote: 8 attempts / slug / 10 minutes (abuse guard).
 		refreshQuoteLimit: newSlidingWindowLimiter(10*time.Minute, 8),
+		igMsgLimit:        newSlidingWindowLimiter(time.Minute, 10),
+		igCreateLimit:     newSlidingWindowLimiter(time.Hour, 20),
 	}
 }
 
@@ -120,6 +127,9 @@ func (s *Server) Router() http.Handler {
 			r.Post("/telegram/connect-link", s.handleTelegramConnectLink)
 			r.Post("/telegram/disconnect", s.handleTelegramDisconnect)
 			r.Post("/telegram/test", s.handleTelegramTest)
+			r.Post("/integrations/instagram/bind-code", s.handleInstagramBindCode)
+			r.Get("/integrations/instagram/status", s.handleInstagramStatus)
+			r.Post("/integrations/instagram/disconnect", s.handleInstagramDisconnect)
 			r.Get("/merchant/notification-prefs", s.handleGetNotificationPrefs)
 			r.Patch("/merchant/notification-prefs", s.handlePatchNotificationPrefs)
 
@@ -135,6 +145,7 @@ func (s *Server) Router() http.Handler {
 				r.Get("/admin/exceptions", s.handleAdminExceptions)
 				r.Get("/admin/notification-deliveries", s.handleAdminNotificationDeliveries)
 				r.Post("/admin/notification-deliveries/{id}/retry", s.handleAdminRetryDelivery)
+				r.Post("/admin/instagram/ice-breakers", s.handleAdminInstagramIceBreakers)
 			})
 		})
 
@@ -153,6 +164,8 @@ func (s *Server) Router() http.Handler {
 		r.Post("/public/links/{slug}/start", s.handlePublicPaymentLinkStart)
 
 		r.Post("/integrations/telegram/webhook", s.handleTelegramWebhook)
+		r.Get("/integrations/instagram/webhook", s.handleInstagramWebhookVerify)
+		r.Post("/integrations/instagram/webhook", s.handleInstagramWebhook)
 
 		if s.Cfg.EnableChainSimulator {
 			r.Post("/internal/simulate/chain-event", s.handleSimulateChainEvent)
