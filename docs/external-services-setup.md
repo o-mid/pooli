@@ -102,6 +102,18 @@ Notifications (idempotent):
 
 Telegram failures never change payment status.
 
+### Telegram Mini App
+
+See [telegram-miniapp.md](./telegram-miniapp.md). Menu button → `https://pooli.shop/t/app`. Buyer checkout wrapper: `https://pooli.shop/t/p/{slug}`. Keep the webhook secret header.
+
+## Instagram seller composer (@pooli)
+
+See [instagram-setup.md](./instagram-setup.md). Feature-flagged (`INSTAGRAM_ENABLED=false` until Meta credentials are on the VPS). Webhook:
+
+`https://pooli.shop/api/v1/integrations/instagram/webhook`
+
+`@pooli` never DMs the buyer. No Facebook Page required (Instagram Login). No per-message fee.
+
 ## Transactional email (Resend)
 
 See [email-resend-setup.md](./email-resend-setup.md).
