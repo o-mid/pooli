@@ -56,7 +56,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {t.common.offline}
           </div>
         )}
-        <div className="page-stack">{children}</div>
+        <div className="app-body">{children}</div>
       </main>
       <Nav />
       <InstallSheet />

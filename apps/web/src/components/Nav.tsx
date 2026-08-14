@@ -72,7 +72,12 @@ export function Nav() {
   return (
     <nav className="nav" aria-label={t.common.mainNav}>
       {items.map((item) => (
-        <Link key={item.href} href={item.href} className={item.match(path) ? "active" : ""}>
+        <Link
+          key={item.href}
+          href={item.href}
+          className={item.match(path) ? "active" : ""}
+          aria-current={item.match(path) ? "page" : undefined}
+        >
           <item.Icon />
           <span>{item.label}</span>
         </Link>

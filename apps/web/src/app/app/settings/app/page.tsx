@@ -32,7 +32,7 @@ export default function AppLanguageSettingsPage() {
             <LanguageSwitch />
           </div>
         </div>
-        <div className="list-row" style={{ cursor: "default", alignItems: "flex-start" }}>
+        <div className="list-row list-row-controls" style={{ cursor: "default" }}>
           <div className="list-row-body">
             <div className="list-row-title">{t.settings.theme}</div>
           </div>

@@ -24,7 +24,7 @@ export default function LandingPage() {
 
   return (
     <main className="hero-landing rise">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <header className="auth-topbar">
         <BrandMark localeHint={locale} size={36} />
         <LanguageSwitch />
       </header>

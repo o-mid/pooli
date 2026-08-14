@@ -72,37 +72,46 @@ function OrdersContent() {
     router.replace(qs ? `/app/orders?${qs}` : "/app/orders");
   }
 
+  const showSearch = (!loading && orders.length >= 5) || Boolean(q.trim());
+  const showFilters =
+    filter === "attention" ||
+    (!loading && orders.some((o) => o.payment_status !== "AWAITING_PAYMENT" && o.payment_status !== "CREATED"));
+
   return (
     <div className="rise page-stack">
       <PageHeader title={t.orders.title} trailing={<NewPaymentButton compact />} />
 
-      {(!loading && orders.length >= 5) || q.trim() ? (
-        <div className="field" style={{ margin: 0 }}>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t.orders.searchPlaceholder}
-            autoComplete="off"
-          />
-        </div>
-      ) : null}
+      {showSearch || showFilters ? (
+        <div className="page-toolbar">
+          {showSearch ? (
+            <div className="field" style={{ margin: 0 }}>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t.orders.searchPlaceholder}
+                autoComplete="off"
+              />
+            </div>
+          ) : null}
 
-      {filter === "attention" || (!loading && orders.some((o) => o.payment_status !== "AWAITING_PAYMENT" && o.payment_status !== "CREATED")) ? (
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className={`filter-chip${filter === "all" ? " active" : ""}`}
-            onClick={() => setFilter("all")}
-          >
-            {t.orders.filterAll}
-          </button>
-          <button
-            type="button"
-            className={`filter-chip${filter === "attention" ? " active" : ""}`}
-            onClick={() => setFilter("attention")}
-          >
-            {t.orders.filterAttention}
-          </button>
+          {showFilters ? (
+            <div className="filter-row">
+              <button
+                type="button"
+                className={`filter-chip${filter === "all" ? " active" : ""}`}
+                onClick={() => setFilter("all")}
+              >
+                {t.orders.filterAll}
+              </button>
+              <button
+                type="button"
+                className={`filter-chip${filter === "attention" ? " active" : ""}`}
+                onClick={() => setFilter("attention")}
+              >
+                {t.orders.filterAttention}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

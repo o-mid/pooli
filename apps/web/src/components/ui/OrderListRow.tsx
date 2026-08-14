@@ -19,10 +19,12 @@ export function OrderListRow({
   t: Messages;
   meta?: string;
 }) {
+  const label = title || "—";
+  const looksLikeId = /^[0-9a-f]{6,}$/i.test(label);
   return (
     <Link href={href} className="list-row">
       <div className="list-row-body">
-        <div className="list-row-title">{title || "—"}</div>
+        <div className={looksLikeId ? "list-row-title mono-ltr" : "list-row-title"}>{label}</div>
         <div className="list-row-meta tabular">
           {amountToman.toLocaleString()} {tomanLabel}
         </div>

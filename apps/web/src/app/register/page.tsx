@@ -123,7 +123,7 @@ export default function RegisterPage() {
 
   return (
     <main className="shell rise page-stack">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <header className="auth-topbar">
         <BrandMark localeHint={locale} size={28} />
         <LanguageSwitch />
       </header>
