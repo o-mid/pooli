@@ -201,8 +201,29 @@ func (t *Telegram) sendWithRetry(ctx context.Context, merchantID, eventKey, chat
 	return lastErr
 }
 
+// CheckoutWebAppMarkup adds a Mini App button for /t/p/{slug}. Keep the /p/{slug} text link in the message body.
+func CheckoutWebAppMarkup(publicBase, slug string) map[string]any {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return nil
+	}
+	url := strings.TrimRight(publicBase, "/") + "/t/p/" + slug
+	return map[string]any{
+		"inline_keyboard": [][]map[string]any{{
+			{"text": "Open Pooli", "web_app": map[string]string{"url": url}},
+		}},
+	}
+}
+
 func (t *Telegram) postMessage(ctx context.Context, chatID, text string) error {
+	return t.postMessageMarkup(ctx, chatID, text, nil)
+}
+
+func (t *Telegram) postMessageMarkup(ctx context.Context, chatID, text string, markup map[string]any) error {
 	payload := map[string]any{"chat_id": chatID, "text": text, "disable_web_page_preview": true}
+	if markup != nil {
+		payload["reply_markup"] = markup
+	}
 	b, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.apiURL("sendMessage"), bytes.NewReader(b))
 	if err != nil {

@@ -62,7 +62,7 @@ func (s *Server) Router() http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{s.Cfg.WebOrigin, "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Telegram-Init-Data"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -164,6 +164,7 @@ func (s *Server) Router() http.Handler {
 		r.Post("/public/links/{slug}/start", s.handlePublicPaymentLinkStart)
 
 		r.Post("/integrations/telegram/webhook", s.handleTelegramWebhook)
+		r.Post("/integrations/telegram/miniapp/orders", s.handleTelegramMiniappCreateOrder)
 		r.Get("/integrations/instagram/webhook", s.handleInstagramWebhookVerify)
 		r.Post("/integrations/instagram/webhook", s.handleInstagramWebhook)
 
