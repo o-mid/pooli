@@ -20,9 +20,11 @@ const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4
 
 const (
 	defaultEVMCursorOverlap = 32
-	defaultEVMMaxBlockSpan  = 2000
-	defaultEVMAddrBatch     = 40
-	defaultEVMColdLookback  = 200
+	// Chainstack Developer / other non-archive full nodes treat eth_getLogs
+	// beyond ~128 blocks as archive. Stay inside a 64-block window.
+	defaultEVMMaxBlockSpan = 64
+	defaultEVMAddrBatch    = 40
+	defaultEVMColdLookback = 64
 )
 
 type EVMAdapter struct {
@@ -108,10 +110,12 @@ func (a *EVMAdapter) ObserveTransfers(ctx context.Context, watchedAddresses []st
 		}
 	} else {
 		from = highWater
-		if a.CursorOverlap > 0 && from > a.CursorOverlap {
-			from -= a.CursorOverlap
-		} else {
-			from = 0
+		if a.CursorOverlap > 0 {
+			if from > a.CursorOverlap {
+				from -= a.CursorOverlap
+			} else {
+				from = 0
+			}
 		}
 	}
 	to := head
@@ -446,6 +450,7 @@ func (a *EVMAdapter) rpc(ctx context.Context, method string, params []any) (any,
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "PooliChainWorker/1.0")
 	resp, err := a.HTTP.Do(req)
 	if err != nil {
 		return nil, err

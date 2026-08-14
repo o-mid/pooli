@@ -71,7 +71,7 @@ Keep secrets out of git. Prefer a paid/authenticated RPC for production; public 
 | **Ankr** | Free/paid tiers; verify log query limits for indexing |
 | Alternatives | QuickNode, NodeReal — also fine if `eth_getLogs` is reliable |
 
-Avoid anonymous public dataseeds for money movement. Paginate log ranges (Pooli already caps span ≤2000 blocks with 32-block overlap).
+Avoid anonymous public dataseeds for money movement. Paginate log ranges (Pooli caps span ≤64 blocks with 32-block overlap so non-archive RPCs such as Chainstack Developer accept `eth_getLogs`).
 
 Local development may keep:
 
@@ -98,7 +98,7 @@ Provider switch: change `BSC_RPC_URL` only — no code change.
 
 - Durable cursor in `watcher_cursors` for `network='bsc'`
 - Value = next block number (decimal string), not a tx hash
-- Each poll uses bounded span (≤2000 blocks) with **32-block overlap**
+- Each poll uses bounded span (≤64 blocks) with **32-block overlap**
 - Idempotency via unique `event_id = bsc:{txHash}:{logIndex}`
 - Worker restart resumes from cursor; overlap + dedupe covers races
 

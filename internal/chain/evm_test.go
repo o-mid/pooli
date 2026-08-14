@@ -154,14 +154,52 @@ func TestEVMAdapterCursorOverlapReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	ad.CursorOverlap = 32
-	ad.MaxBlockSpan = 2000
+	ad.MaxBlockSpan = 64
 	_, next, err := ad.ObserveTransfers(context.Background(), []string{"0x1111111111111111111111111111111111111111"}, testUSDT, "150")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// high water 150 with overlap 32 → from 118
+	// high water 150 with overlap 32 → from 118; span 64 → to 182
 	if fromBlock != "0x76" { // 118
 		t.Fatalf("fromBlock=%s want 0x76", fromBlock)
+	}
+	if next != "183" {
+		t.Fatalf("next=%s", next)
+	}
+}
+
+func TestEVMAdapterColdLookbackStaysInsideNonArchiveWindow(t *testing.T) {
+	var fromBlock string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Method string `json:"method"`
+			Params []any  `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		switch req.Method {
+		case "eth_chainId":
+			writeRPC(w, "0x38")
+		case "eth_blockNumber":
+			writeRPC(w, "0xc8") // 200
+		case "eth_getLogs":
+			m := req.Params[0].(map[string]any)
+			fromBlock = m["fromBlock"].(string)
+			writeRPC(w, []any{})
+		default:
+			writeRPC(w, nil)
+		}
+	}))
+	defer srv.Close()
+	ad, err := NewEVMAdapter(srv.URL, "bsc", 56, testUSDT, 18, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, next, err := ad.ObserveTransfers(context.Background(), []string{"0x1111111111111111111111111111111111111111"}, testUSDT, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fromBlock != "0x88" { // 200 - 64
+		t.Fatalf("fromBlock=%s want 0x88", fromBlock)
 	}
 	if next != "201" {
 		t.Fatalf("next=%s", next)
