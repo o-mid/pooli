@@ -141,7 +141,7 @@ On-frame only. Do not type a second caption over it.
 بعدش باید بگردی پیداش کنی.
 ```
 
-Optional, only if stories feel empty without a tap: **X-21** — `هنوز رسید چک می‌کنی؟` — skip if Day 1 already used a FA pain tweet.
+Optional, only if stories feel empty without a tap: **X-31** — `هنوز رسید چک می‌کنی؟` — skip if Day 1 already used a FA pain tweet.
 
 ---
 
@@ -161,7 +161,7 @@ Optional, only if stories feel empty without a tap: **X-21** — `هنوز رس�
 
 Cover = Paid ✓ end state. No voiceover that names TRON / USDT.
 
-### X — X-05
+### X — X-33
 
 - **Topic:** screenshot ≠ status
 - **Hook:** A screenshot is not a status.

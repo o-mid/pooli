@@ -6,7 +6,7 @@ Native. One beat. Not a LinkedIn stump.
 
 | Kept | Rejected |
 |------|----------|
-| 32 | 6 |
+| 33 | 6 |
 
 Default visual: none. Attach only when it earns it.
 
@@ -225,6 +225,12 @@ We have a link.
 
 Old: card, screenshot, “did you get it?”
 New: link, Paid ✓
+
+## X-33
+- Audience: sellers · Goal: pair with the receipt→Paid reel · Topic: screenshot ≠ status
+- Lang: EN · Status: ready
+
+A screenshot is not a status.
 
 ---
 
