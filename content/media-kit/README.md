@@ -49,6 +49,7 @@ Pooli is checkout for people who sell in DMs. A seller creates a payment in toma
 - App icon 512
 - One labeled product composite (create, checkout, Paid ✓)
 - Brand book PDF (optional, from `design/brand/`)
+- Logo sheet artboard: `.local-brand-studio/media-kit/logo-sheet.html` (paper, mark + lockups)
 
 ## Photo
 

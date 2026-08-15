@@ -97,17 +97,17 @@ Early square 1080×1080 templates stay in `rejected/early-square-html/`.
 
 ## Render status
 
-Recorded when this inventory shipped. Re-run the script to refresh PNGs.
+Chrome headless, 2026-08-15. Exact `--window-size` (do not center-crop short banners with `sips -c`).
 
-| Artboard | HTML | PNG |
-|----------|------|-----|
-| LinkedIn company | yes | see studio after render |
-| LinkedIn personal | yes | see studio after render |
-| X header | yes | see studio after render |
-| Architecture | yes + SVG | see studio after render |
-| Before/after 16:9 | yes | see studio after render |
-| Hero 16:9 | yes | see studio after render |
-| Logo sheet | yes | see studio after render |
-| Check-draw 16:9 | yes | static PNG (end state unless `#play`) |
+| Artboard | HTML | PNG | Pixels |
+|----------|------|-----|--------|
+| LinkedIn company | yes | yes | 1128×191 |
+| LinkedIn personal | yes | yes | 1584×396 |
+| X header | yes | yes | 1500×500 |
+| Architecture | yes + SVG | yes | 1920×1080 |
+| Before/after 16:9 | yes | yes | 1920×1080 |
+| Hero 16:9 | yes | yes | 1920×1080 |
+| Logo sheet | yes | yes | 1920×1080 |
+| Check-draw 16:9 | yes | yes (end state) | 1920×1080 |
 
 Existing IG / story / reel / composition PNGs were already rendered; this pass does not re-mint them.
