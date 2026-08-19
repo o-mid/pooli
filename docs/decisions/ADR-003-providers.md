@@ -1,5 +1,7 @@
 # ADR-003: External providers
 
+> **Partially superseded:** Checkout rate providers (Nobitex/Wallex) — see [ADR-009](./ADR-009-pricing-global.md) and [ADR-012](./ADR-012-supersede-rate-providers.md).
+
 ## Decision
 
 | Concern | Provider |
