@@ -19,8 +19,9 @@ const (
 // CreateOrderInput is the shared merchant order + intent path used by PWA,
 // Instagram DM confirm, and Telegram Mini App.
 type CreateOrderInput struct {
-	MerchantID        string
-	FiatAmountToman   int64
+	MerchantID          string
+	AmountUsdtBaseUnits int64
+	FiatAmountToman     int64 // deprecated: legacy TMN alias
 	Title             string
 	Description       string
 	MerchantReference string
@@ -38,18 +39,24 @@ type CreateOrderInput struct {
 
 // CreatedOrder is the shared create result (checkout_url is always /p/{slug}).
 type CreatedOrder struct {
-	ID            string
-	Slug          string
-	Title         string
-	FiatAmount    int64
-	CheckoutURL   string
-	PaymentIntent map[string]any
+	ID                  string
+	Slug                string
+	Title               string
+	AmountUsdtBaseUnits int64
+	FiatCurrency        string
+	FiatAmount          int64 // deprecated mirror for legacy clients
+	CheckoutURL         string
+	PaymentIntent       map[string]any
 }
 
 func (s *Server) createOrderWithIntent(ctx context.Context, in CreateOrderInput) (CreatedOrder, error) {
 	var out CreatedOrder
-	if in.FiatAmountToman <= 0 {
+	usdtNative := in.AmountUsdtBaseUnits > 0
+	if !usdtNative && in.FiatAmountToman <= 0 {
 		return out, errAmountRequired
+	}
+	if usdtNative && in.FiatAmountToman > 0 {
+		in.FiatAmountToman = 0
 	}
 	source := strings.TrimSpace(in.Source)
 	if source == "" {
@@ -118,16 +125,26 @@ func (s *Server) createOrderWithIntent(ctx context.Context, in CreateOrderInput)
 		successMsg = defaults.SuccessMessage
 	}
 
+	fiatCur := "USDT"
+	var fiatToman *int64
+	var usdtBase *int64
+	if usdtNative {
+		usdtBase = &in.AmountUsdtBaseUnits
+	} else {
+		fiatCur = "TMN"
+		fiatToman = &in.FiatAmountToman
+	}
+
 	var orderID string
 	err = payment.WithTx(ctx, s.Pool, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
 			INSERT INTO orders (
 				merchant_id, slug, title, description, merchant_reference,
-				fiat_amount_toman, fiat_currency, status, expires_at, customer_id, fulfillment_status,
+				fiat_amount_toman, fiat_currency, amount_usdt_base_units, status, expires_at, customer_id, fulfillment_status,
 				item_quantity, internal_note, success_message, image_path, source
-			) VALUES ($1::uuid,$2,$3,$4,$5,$6,'TMN','CREATED',$7,$8::uuid,'UNFULFILLED',$9,$10,$11,$12,$13)
+			) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,'CREATED',$9,$10::uuid,'UNFULFILLED',$11,$12,$13,$14,$15)
 			RETURNING id::text`,
-			in.MerchantID, slug, in.Title, in.Description, in.MerchantReference, in.FiatAmountToman, expiresAt, customerID,
+			in.MerchantID, slug, in.Title, in.Description, in.MerchantReference, fiatToman, fiatCur, usdtBase, expiresAt, customerID,
 			qty, strings.TrimSpace(in.InternalNote), successMsg, strings.TrimSpace(in.ImagePath), source).Scan(&orderID)
 		if err != nil {
 			return err
@@ -145,21 +162,29 @@ func (s *Server) createOrderWithIntent(ctx context.Context, in CreateOrderInput)
 				return err
 			}
 		}
-		return s.appendTimeline(ctx, tx, orderID, in.MerchantID, "order.created", "system", "Order created", in.Title, "merchant", map[string]any{
-			"fiat_amount_toman": in.FiatAmountToman,
-			"source":            source,
-		})
+		meta := map[string]any{"source": source, "fiat_currency": fiatCur}
+		if usdtNative {
+			meta["amount_usdt_base_units"] = in.AmountUsdtBaseUnits
+		} else {
+			meta["fiat_amount_toman"] = in.FiatAmountToman
+		}
+		return s.appendTimeline(ctx, tx, orderID, in.MerchantID, "order.created", "system", "Order created", in.Title, "merchant", meta)
 	})
 	if err != nil {
 		return out, err
 	}
 
 	out = CreatedOrder{
-		ID:          orderID,
-		Slug:        slug,
-		Title:       in.Title,
-		FiatAmount:  in.FiatAmountToman,
-		CheckoutURL: strings.TrimRight(s.Cfg.PublicBaseURL, "/") + "/p/" + slug,
+		ID:                  orderID,
+		Slug:                slug,
+		Title:               in.Title,
+		AmountUsdtBaseUnits: in.AmountUsdtBaseUnits,
+		FiatCurrency:        fiatCur,
+		FiatAmount:          in.FiatAmountToman,
+		CheckoutURL:         strings.TrimRight(s.Cfg.PublicBaseURL, "/") + "/p/" + slug,
+	}
+	if usdtNative {
+		out.FiatAmount = 0
 	}
 	if in.CreateIntent {
 		intent, err := s.createPaymentIntentForOrder(ctx, in.MerchantID, orderID, networks)

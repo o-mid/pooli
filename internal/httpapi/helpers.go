@@ -40,17 +40,19 @@ func defaultCheckoutFields() []domain.FieldDef {
 }
 
 func (s *Server) loadOrderForMerchant(ctx context.Context, merchantID, orderID string) (map[string]any, error) {
-	var id, slug, title, desc, ref, status, fulfill, shipProvider, tracking, fulfillNote string
-	var amount int64
+	var id, slug, title, desc, ref, status, fulfill, shipProvider, tracking, fulfillNote, fiatCur string
+	var amount *int64
+	var usdtBase int64
 	var created time.Time
 	var customerID *string
 	var shippedAt, deliveredAt *time.Time
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id::text, slug, title, description, merchant_reference, fiat_amount_toman, status, created_at,
+		SELECT id::text, slug, title, description, merchant_reference, fiat_amount_toman,
+		       COALESCE(amount_usdt_base_units, 0), COALESCE(NULLIF(fiat_currency,''), 'TMN'), status, created_at,
 		       customer_id::text, fulfillment_status, shipping_provider, tracking_number,
 		       shipped_at, delivered_at, fulfillment_note
 		FROM orders WHERE id=$1::uuid AND merchant_id=$2::uuid`, orderID, merchantID).
-		Scan(&id, &slug, &title, &desc, &ref, &amount, &status, &created,
+		Scan(&id, &slug, &title, &desc, &ref, &amount, &usdtBase, &fiatCur, &status, &created,
 			&customerID, &fulfill, &shipProvider, &tracking, &shippedAt, &deliveredAt, &fulfillNote)
 	if err != nil {
 		return nil, err
@@ -70,13 +72,16 @@ func (s *Server) loadOrderForMerchant(ctx context.Context, merchantID, orderID s
 	receipt := s.buildReceipt(ctx, id, intent)
 	out := map[string]any{
 		"id": id, "slug": slug, "title": title, "description": desc, "merchant_reference": ref,
-		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status, "created_at": created,
+		"amount_usdt_base_units": usdtBase, "fiat_currency": fiatCur, "status": status, "created_at": created,
 		"checkout_url": s.Cfg.PublicBaseURL + "/p/" + slug,
 		"fields":       fields, "field_values": values, "payment_intent": intent,
 		"customer_id": customerID, "fulfillment_status": fulfill,
 		"shipping_provider": shipProvider, "tracking_number": tracking,
 		"shipped_at": shippedAt, "delivered_at": deliveredAt, "fulfillment_note": fulfillNote,
 		"timeline": timeline, "receipt": receipt,
+	}
+	if amount != nil && *amount > 0 {
+		out["fiat_amount_toman"] = *amount
 	}
 	return out, nil
 }
@@ -211,15 +216,17 @@ func (s *Server) loadPaymentIntent(ctx context.Context, intentID string) (map[st
 }
 
 func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]any, error) {
-	var orderID, merchantID, title, desc, storeName, logoPath, status, fulfill, shipProvider, tracking string
-	var amount int64
+	var orderID, merchantID, title, desc, storeName, logoPath, status, fulfill, shipProvider, tracking, fiatCur string
+	var amount *int64
+	var usdtBase int64
 	var support string
 	var emailVerified, phoneVerified bool
 	var walletConfigured bool
 	var operationalStatus string
 	var shippedAt *time.Time
 	err := s.Pool.QueryRow(ctx, `
-		SELECT o.id::text, o.merchant_id::text, o.title, o.description, o.fiat_amount_toman, o.status,
+		SELECT o.id::text, o.merchant_id::text, o.title, o.description, o.fiat_amount_toman,
+		       COALESCE(o.amount_usdt_base_units, 0), COALESCE(NULLIF(o.fiat_currency,''), 'TMN'), o.status,
 		       COALESCE(NULLIF(m.display_name,''), m.name), COALESCE(m.logo_path,''), COALESCE(m.support_contact,''),
 		       o.fulfillment_status, o.shipping_provider, o.tracking_number, o.shipped_at,
 		       EXISTS (
@@ -239,7 +246,7 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		       m.operational_status
 		FROM orders o JOIN merchants m ON m.id = o.merchant_id
 		WHERE o.slug=$1`, slug).Scan(
-		&orderID, &merchantID, &title, &desc, &amount, &status, &storeName, &logoPath, &support,
+		&orderID, &merchantID, &title, &desc, &amount, &usdtBase, &fiatCur, &status, &storeName, &logoPath, &support,
 		&fulfill, &shipProvider, &tracking, &shippedAt,
 		&emailVerified, &phoneVerified, &walletConfigured, &operationalStatus,
 	)
@@ -275,9 +282,9 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 	if orderSuccess == "" {
 		orderSuccess = defaults.SuccessMessage
 	}
-	return map[string]any{
+	pub := map[string]any{
 		"slug": slug, "store_name": storeName, "store_logo_url": logoURL, "title": title, "description": desc,
-		"fiat_amount_toman": amount, "fiat_currency": "TMN", "status": status,
+		"amount_usdt_base_units": usdtBase, "fiat_currency": fiatCur, "status": status,
 		"fields": fields, "field_values": publicValues, "payment_intent": intent,
 		"customer_submitted": len(values) > 0,
 		"fulfillment_status": fulfill, "shipping_provider": shipProvider,
@@ -296,7 +303,11 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		"preview": map[string]any{
 			"store_name": storeName, "title": title, "store_logo_url": logoURL,
 		},
-	}, nil
+	}
+	if amount != nil && *amount > 0 {
+		pub["fiat_amount_toman"] = *amount
+	}
+	return pub, nil
 }
 
 func (s *Server) buildReceipt(ctx context.Context, orderID string, intent map[string]any) map[string]any {

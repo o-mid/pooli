@@ -31,8 +31,9 @@ func (s *Server) handleTelegramMiniappCreateOrder(w http.ResponseWriter, r *http
 	}
 
 	var req struct {
-		FiatAmountToman int64  `json:"fiat_amount_toman"`
-		Title           string `json:"title"`
+		AmountUsdtBaseUnits int64  `json:"amount_usdt_base_units"`
+		FiatAmountToman     int64  `json:"fiat_amount_toman"`
+		Title               string `json:"title"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid json")
@@ -40,8 +41,9 @@ func (s *Server) handleTelegramMiniappCreateOrder(w http.ResponseWriter, r *http
 	}
 	title := strings.TrimSpace(req.Title)
 	created, err := s.createOrderWithIntent(r.Context(), CreateOrderInput{
-		MerchantID:      merchantID,
-		FiatAmountToman: req.FiatAmountToman,
+		MerchantID:          merchantID,
+		AmountUsdtBaseUnits: req.AmountUsdtBaseUnits,
+		FiatAmountToman:     req.FiatAmountToman,
 		Title:           title,
 		CreateIntent:    true,
 		Source:          orderSourceTelegramMiniapp,
@@ -64,6 +66,7 @@ func (s *Server) handleTelegramMiniappCreateOrder(w http.ResponseWriter, r *http
 		"checkout_url":          base + "/p/" + created.Slug,
 		"telegram_checkout_url": base + "/t/p/" + created.Slug,
 		"id":                    created.ID,
-		"fiat_amount_toman":     created.FiatAmount,
+		"amount_usdt_base_units": created.AmountUsdtBaseUnits,
+		"fiat_currency":          created.FiatCurrency,
 	})
 }

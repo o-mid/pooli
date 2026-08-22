@@ -163,12 +163,17 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 	}
 	var orderID, merchantID, intentID, status string
 	var expiresAt time.Time
-	var toman int64
+	var money orderMoney
+	var tomanPtr *int64
 	err := s.Pool.QueryRow(r.Context(), `
-		SELECT o.id::text, o.merchant_id::text, pi.id::text, pi.status, pi.expires_at, pi.fiat_amount_toman
+		SELECT o.id::text, o.merchant_id::text, pi.id::text, pi.status, pi.expires_at,
+		       COALESCE(o.amount_usdt_base_units, 0), o.fiat_amount_toman, COALESCE(NULLIF(o.fiat_currency,''), 'TMN')
 		FROM orders o
 		JOIN payment_intents pi ON pi.order_id = o.id
-		WHERE o.slug=$1`, slug).Scan(&orderID, &merchantID, &intentID, &status, &expiresAt, &toman)
+		WHERE o.slug=$1`, slug).Scan(&orderID, &merchantID, &intentID, &status, &expiresAt, &money.UsdtBase, &tomanPtr, &money.Currency)
+	if tomanPtr != nil {
+		money.Toman = *tomanPtr
+	}
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
@@ -197,13 +202,12 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	quote, err := s.Rates.FetchUSDTTmn(r.Context())
-	if err != nil || time.Since(quote.FetchedAt) > s.Cfg.RateStale {
-		writeErr(w, http.StatusBadRequest, errStaleRate.Error())
-		return
-	}
-	baseUSDT, err := payment.ComputeBaseUSDT(toman, quote.Rate)
+	baseUSDT, quote, err := s.resolveIntentQuote(r.Context(), money)
 	if err != nil {
+		if err == errStaleRate {
+			writeErr(w, http.StatusBadRequest, errStaleRate.Error())
+			return
+		}
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -213,13 +217,19 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 		// Serialize concurrent refresh-quote: lock intent, then re-validate.
 		var lockedStatus string
 		var lockedExpires time.Time
-		var lockedToman int64
+		var lockedMoney orderMoney
+		var lockedTomanPtr *int64
 		err := tx.QueryRow(r.Context(), `
-			SELECT o.id::text, o.merchant_id::text, pi.id::text, pi.status, pi.expires_at, pi.fiat_amount_toman
+			SELECT o.id::text, o.merchant_id::text, pi.id::text, pi.status, pi.expires_at,
+			       COALESCE(o.amount_usdt_base_units, 0), o.fiat_amount_toman, COALESCE(NULLIF(o.fiat_currency,''), 'TMN')
 			FROM orders o
 			JOIN payment_intents pi ON pi.order_id = o.id
 			WHERE o.slug=$1
-			FOR UPDATE OF pi`, slug).Scan(&orderID, &merchantID, &intentID, &lockedStatus, &lockedExpires, &lockedToman)
+			FOR UPDATE OF pi`, slug).Scan(&orderID, &merchantID, &intentID, &lockedStatus, &lockedExpires,
+			&lockedMoney.UsdtBase, &lockedTomanPtr, &lockedMoney.Currency)
+		if lockedTomanPtr != nil {
+			lockedMoney.Toman = *lockedTomanPtr
+		}
 		if err != nil {
 			return err
 		}
@@ -239,8 +249,8 @@ func (s *Server) handlePublicRefreshQuote(w http.ResponseWriter, r *http.Request
 			return errQuoteNotRefreshable
 		}
 		status = lockedStatus
-		toman = lockedToman
-		baseUSDT, err = payment.ComputeBaseUSDT(toman, quote.Rate)
+		money = lockedMoney
+		baseUSDT, quote, err = s.resolveIntentQuote(r.Context(), money)
 		if err != nil {
 			return err
 		}

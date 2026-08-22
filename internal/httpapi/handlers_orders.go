@@ -262,7 +262,8 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		FiatAmountToman   int64             `json:"fiat_amount_toman"`
+		AmountUsdtBaseUnits int64             `json:"amount_usdt_base_units"`
+		FiatAmountToman     int64             `json:"fiat_amount_toman"` // deprecated
 		Title             string            `json:"title"`
 		Description       string            `json:"description"`
 		MerchantReference string            `json:"merchant_reference"`
@@ -285,8 +286,9 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		createIntent = *req.CreateIntent
 	}
 	created, err := s.createOrderWithIntent(r.Context(), CreateOrderInput{
-		MerchantID:        mid,
-		FiatAmountToman:   req.FiatAmountToman,
+		MerchantID:          mid,
+		AmountUsdtBaseUnits: req.AmountUsdtBaseUnits,
+		FiatAmountToman:     req.FiatAmountToman,
 		Title:             req.Title,
 		Description:       req.Description,
 		MerchantReference: req.MerchantReference,
@@ -318,11 +320,15 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := map[string]any{
-		"id":                created.ID,
-		"slug":              created.Slug,
-		"title":             created.Title,
-		"fiat_amount_toman": created.FiatAmount,
-		"checkout_url":      created.CheckoutURL,
+		"id":                     created.ID,
+		"slug":                   created.Slug,
+		"title":                  created.Title,
+		"amount_usdt_base_units": created.AmountUsdtBaseUnits,
+		"fiat_currency":          created.FiatCurrency,
+		"checkout_url":           created.CheckoutURL,
+	}
+	if created.FiatAmount > 0 {
+		resp["fiat_amount_toman"] = created.FiatAmount
 	}
 	if created.PaymentIntent != nil {
 		resp["payment_intent"] = created.PaymentIntent
@@ -419,6 +425,24 @@ func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, order)
 }
 
+// handleOrderProposals lists draft proposals for merchant review (gateway is source of truth).
+func (s *Server) handleOrderProposals(w http.ResponseWriter, r *http.Request) {
+	mid, err := s.merchantID(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	orderID := chi.URLParam(r, "id")
+	if _, err := s.loadOrderForMerchant(r.Context(), mid, orderID); err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"proposals":         []any{},
+		"pending_proposals": []any{},
+	})
+}
+
 func (s *Server) handleCreatePaymentIntent(w http.ResponseWriter, r *http.Request) {
 	mid, err := s.merchantID(r.Context())
 	if err != nil {
@@ -461,22 +485,19 @@ func (s *Server) createPaymentIntentForOrder(ctx context.Context, merchantID, or
 	if len(networks) == 0 {
 		networks = s.Cfg.CheckoutNetworks()
 	}
-	quote, err := s.Rates.FetchUSDTTmn(ctx)
+	money, err := s.loadOrderMoney(ctx, merchantID, orderID)
 	if err != nil {
 		return nil, err
 	}
-	if time.Since(quote.FetchedAt) > s.Cfg.RateStale {
-		return nil, errStaleRate
+	baseUSDT, quote, err := s.resolveIntentQuote(ctx, money)
+	if err != nil {
+		return nil, err
 	}
-	var toman int64
+	intentFiat, intentCur := intentFiatFromOrder(money)
 	var orderExpires *time.Time
 	err = s.Pool.QueryRow(ctx, `
-		SELECT fiat_amount_toman, expires_at FROM orders WHERE id=$1::uuid AND merchant_id=$2::uuid`,
-		orderID, merchantID).Scan(&toman, &orderExpires)
-	if err != nil {
-		return nil, err
-	}
-	baseUSDT, err := payment.ComputeBaseUSDT(toman, quote.Rate)
+		SELECT expires_at FROM orders WHERE id=$1::uuid AND merchant_id=$2::uuid`,
+		orderID, merchantID).Scan(&orderExpires)
 	if err != nil {
 		return nil, err
 	}
@@ -497,9 +518,9 @@ func (s *Server) createPaymentIntentForOrder(ctx context.Context, merchantID, or
 		}
 		err = tx.QueryRow(ctx, `
 			INSERT INTO payment_intents (merchant_id, order_id, fiat_amount_toman, fiat_currency, status, quote_id, expires_at)
-			VALUES ($1::uuid,$2::uuid,$3,'TMN',$4,$5::uuid,$6)
+			VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7)
 			ON CONFLICT (order_id) DO UPDATE SET updated_at=now()
-			RETURNING id::text`, merchantID, orderID, toman, domain.StatusAwaitingPayment, quoteID, expires).Scan(&intentID)
+			RETURNING id::text`, merchantID, orderID, intentFiat, intentCur, domain.StatusAwaitingPayment, quoteID, expires).Scan(&intentID)
 		if err != nil {
 			return err
 		}
