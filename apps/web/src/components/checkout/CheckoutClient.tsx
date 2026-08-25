@@ -18,6 +18,7 @@ import {
   type PaymentOption,
 } from "@/lib/payment-handoff";
 import { checkoutFieldLabel } from "@/lib/checkoutFields";
+import { formatUsdtFromBaseUnits } from "@/lib/usdt";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
 
 type PaymentIntent = {
@@ -38,7 +39,9 @@ type Pay = {
   store_logo_url?: string;
   title: string;
   description: string;
-  fiat_amount_toman: number;
+  fiat_amount_toman?: number;
+  amount_usdt_base_units?: number;
+  fiat_currency?: string;
   status: string;
   customer_submitted: boolean;
   fields: Array<{ key: string; label: string; type: string; required: boolean; options?: string[] }>;
@@ -398,6 +401,10 @@ export default function CheckoutClient({
     ? { ...pay.receipt, success_message: pay.receipt.success_message || pay.success_message }
     : pay.receipt;
   const payKicker = t.checkout.payStore.replace("{name}", pay.store_name);
+  const displayAmount =
+    pay.fiat_currency === "USDT" && pay.amount_usdt_base_units
+      ? `${formatUsdtFromBaseUnits(pay.amount_usdt_base_units)} ${t.checkout.usdt}`
+      : `${(pay.fiat_amount_toman ?? 0).toLocaleString()} ${t.checkout.toman}`;
 
     return (
     <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}${accentClass}`}>
@@ -426,7 +433,7 @@ export default function CheckoutClient({
       </header>
 
       {!onPayStep ? (
-        <AmountDisplay primary={`${pay.fiat_amount_toman.toLocaleString()} ${t.checkout.toman}`} />
+        <AmountDisplay primary={displayAmount} />
       ) : null}
 
       {step === "details" && (
@@ -511,7 +518,7 @@ export default function CheckoutClient({
           <PooliPaySheet
             storeName={pay.store_name}
             title={pay.title}
-            fiatAmountToman={pay.fiat_amount_toman}
+            fiatAmountToman={pay.fiat_amount_toman ?? pay.amount_usdt_base_units ?? 0}
             option={selected}
             intentStatus={intentStatus}
             matched={matched}

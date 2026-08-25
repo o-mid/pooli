@@ -9,14 +9,15 @@ import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/i18n/LocaleProvider";
 import { api } from "@/lib/api";
 import { buildShareText, sharePaymentLink, telegramShareURL, whatsappShareURL } from "@/lib/share";
-import { formatTomanInput, isValidTomanAmount, parseTomanInput } from "@/lib/toman";
+import { formatUsdtFromBaseUnits, isValidUsdtAmount, parseUsdtToBaseUnits } from "@/lib/usdt";
 
 type Result = {
   checkout_url: string;
   id: string;
   slug: string;
   title?: string;
-  fiat_amount_toman?: number;
+  amount_usdt_base_units?: number;
+  fiat_currency?: string;
 };
 
 function CreateOrderForm() {
@@ -69,13 +70,14 @@ function CreateOrderForm() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!isValidTomanAmount(amount)) return;
+    if (!isValidUsdtAmount(amount)) return;
     setLoading(true);
     setError("");
-    const value = parseTomanInput(amount);
+    const value = parseUsdtToBaseUnits(amount);
+    if (value === null) return;
     try {
       const body: Record<string, unknown> = {
-        fiat_amount_toman: value,
+        amount_usdt_base_units: value,
         title: title.trim(),
         description: "",
       };
@@ -97,7 +99,7 @@ function CreateOrderForm() {
         ...res,
         checkout_url: url,
         title: title.trim() || res.title,
-        fiat_amount_toman: value,
+        amount_usdt_base_units: value,
       });
       try {
         await navigator.clipboard.writeText(url);
@@ -122,8 +124,8 @@ function CreateOrderForm() {
     if (!result) return;
     const text = buildShareText({
       title: result.title,
-      amountToman: result.fiat_amount_toman,
-      tomanLabel: t.checkout.toman,
+      amountUsdtBase: result.amount_usdt_base_units,
+      usdtLabel: t.checkout.usdt,
       completeLabel: t.create.completeOrder,
       url: result.checkout_url,
     });
@@ -136,13 +138,13 @@ function CreateOrderForm() {
   }
 
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
-  const amountValid = isValidTomanAmount(amount);
+  const amountValid = isValidUsdtAmount(amount);
 
   if (result) {
     const shareText = buildShareText({
       title: result.title,
-      amountToman: result.fiat_amount_toman,
-      tomanLabel: t.checkout.toman,
+      amountUsdtBase: result.amount_usdt_base_units,
+      usdtLabel: t.checkout.usdt,
       completeLabel: t.create.completeOrder,
       url: result.checkout_url,
     });
@@ -150,9 +152,9 @@ function CreateOrderForm() {
       <div className="rise page-stack">
         <PageHeader title={t.create.created} />
         <div>
-          {result.fiat_amount_toman ? (
+          {result.amount_usdt_base_units ? (
             <p className="tabular home-today-amount" style={{ margin: 0 }}>
-              {result.fiat_amount_toman.toLocaleString()} {t.checkout.toman}
+              {formatUsdtFromBaseUnits(result.amount_usdt_base_units)} {t.checkout.usdt}
             </p>
           ) : null}
           {result.title ? (
@@ -232,14 +234,14 @@ function CreateOrderForm() {
               id="amount"
               name="amount"
               inputMode="numeric"
-              placeholder="3,800,000"
+              placeholder="30.00"
               required
               className="tabular amount-input"
               value={amount}
-              onChange={(e) => setAmount(formatTomanInput(e.target.value))}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
               autoComplete="off"
             />
-            <span className="muted">{t.checkout.toman}</span>
+            <span className="muted">{t.checkout.usdt}</span>
           </div>
         </div>
         <div className="field">

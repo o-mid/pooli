@@ -1,14 +1,20 @@
+import { formatUsdtFromBaseUnits } from "@/lib/usdt";
+
 /** Build concise share text for a payment link. */
 export function buildShareText(opts: {
   title?: string;
   amountToman?: number;
-  tomanLabel: string;
+  tomanLabel?: string;
+  amountUsdtBase?: number;
+  usdtLabel?: string;
   completeLabel: string;
   url: string;
 }): string {
   const lines: string[] = [];
   if (opts.title?.trim()) lines.push(opts.title.trim());
-  if (opts.amountToman && opts.amountToman > 0) {
+  if (opts.amountUsdtBase && opts.amountUsdtBase > 0 && opts.usdtLabel) {
+    lines.push(`${formatUsdtFromBaseUnits(opts.amountUsdtBase)} ${opts.usdtLabel}`);
+  } else if (opts.amountToman && opts.amountToman > 0 && opts.tomanLabel) {
     lines.push(`${opts.amountToman.toLocaleString()} ${opts.tomanLabel}`);
   }
   lines.push(opts.completeLabel);
