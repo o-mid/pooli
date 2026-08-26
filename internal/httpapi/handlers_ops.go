@@ -55,7 +55,7 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 
 	overall := true
 	if s.Cfg.AppEnv == "production" {
-		overall = workerOK && s.Cfg.RateProvider != "mock" && !s.Cfg.EnableChainSimulator
+		overall = workerOK && !s.Cfg.EnableChainSimulator
 	}
 
 	status := http.StatusOK

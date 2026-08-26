@@ -16,6 +16,7 @@ type Config struct {
 	DatabaseURL                 string
 	RedisURL                    string
 	SessionSecret               string
+	AgentGatewaySecret          string
 	AdminEmails                 map[string]bool
 	RateProvider                string
 	RateFallbackProvider        string
@@ -121,9 +122,10 @@ func Load() Config {
 		DatabaseURL:                 getenv("DATABASE_URL", "postgres://pooli:pooli@localhost:5432/pooli?sslmode=disable"),
 		RedisURL:                    getenv("REDIS_URL", "redis://localhost:6379/0"),
 		SessionSecret:               getenv("SESSION_SECRET", "dev-session-secret-change-me-32chars"),
+		AgentGatewaySecret:          getenv("AGENT_GATEWAY_SECRET", ""),
 		AdminEmails:                 admin,
 		RateProvider:                getenv("RATE_PROVIDER", "mock"),
-		RateFallbackProvider:        getenv("RATE_FALLBACK_PROVIDER", "wallex"),
+		RateFallbackProvider:        getenv("RATE_FALLBACK_PROVIDER", ""),
 		RatePolicy:                  getenv("RATE_POLICY", "best_buy"),
 		MockUSDTTmnRate:             getenv("MOCK_USDT_TMN_RATE", "126000"),
 		QuoteTTL:                    durationSeconds("QUOTE_TTL_SECONDS", 600),
