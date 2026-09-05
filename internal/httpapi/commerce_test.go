@@ -117,7 +117,7 @@ func TestCommerceDefaultsQuickPayAndCustomerIsolation(t *testing.T) {
 	}
 
 	code, order, _ := doJSON(t, h, "POST", "/api/v1/orders", map[string]any{
-		"fiat_amount_toman": 3800000, "title": "Nike Air Max",
+		"amount_usdt_base_units": int64(30_158_730), "title": "Nike Air Max",
 	}, cookieA)
 	if code != 201 {
 		t.Fatalf("create order %d %v", code, order)
