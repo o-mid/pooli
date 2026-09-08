@@ -62,7 +62,7 @@ func (s *Server) Router() http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{s.Cfg.WebOrigin, "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Telegram-Init-Data"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Telegram-Init-Data", "X-Pooli-Gateway-Secret", "X-Pooli-Merchant-Id"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -112,6 +112,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/orders", s.handleCreateOrder)
 			r.Get("/orders", s.handleListOrders)
 			r.Get("/orders/{id}", s.handleGetOrder)
+			r.Get("/orders/{id}/proposals", s.handleOrderProposals)
 			r.Get("/orders/{id}/timeline", s.handleGetOrderTimeline)
 			r.Patch("/orders/{id}/fulfillment", s.handlePatchFulfillment)
 			r.Post("/orders/{id}/payment-intent", s.handleCreatePaymentIntent)
@@ -173,6 +174,11 @@ func (s *Server) Router() http.Handler {
 			r.Post("/internal/simulate/chain-event", s.handleSimulateChainEvent)
 			r.Post("/internal/simulate/confirmations", s.handleSimulateConfirmations)
 		}
+
+		r.Route("/agent", func(r chi.Router) {
+			r.Use(s.requireAgentGateway)
+			r.Get("/merchants/{merchantId}/orders/{orderId}/snapshot", s.handleAgentOrderSnapshot)
+		})
 	})
 
 	return r
