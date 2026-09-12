@@ -1,0 +1,11 @@
+node_modules
+dist
+*.log
+diag.jsonl
+oauth-key.json
+oauth-clients.json
+oauth-refresh.json
+.env
+e2e.mjs
+run-local.sh
+src/**/*.test.ts
