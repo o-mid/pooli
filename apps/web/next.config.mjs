@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const api = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+const actionGateway = (process.env.NEXT_PUBLIC_ACTION_GATEWAY_URL || "").replace(/\/$/, "");
 
 const nextConfig = {
   output: "standalone",
@@ -16,12 +17,19 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
-    return [
+    const rules = [
       {
         source: "/api/:path*",
         destination: `${api}/api/:path*`,
       },
     ];
+    if (actionGateway) {
+      rules.push({
+        source: "/action-gateway/:path*",
+        destination: `${actionGateway}/:path*`,
+      });
+    }
+    return rules;
   },
   async headers() {
     return [

@@ -19,6 +19,10 @@ import { buildShareText, sharePaymentLink } from "@/lib/share";
 import { networkLabel } from "@/lib/address";
 import { timelineLabel } from "@/lib/timeline";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
+import { actionGatewayPublicBase } from "@/lib/action-gateway";
+import { loadPendingProposalsForOrder } from "@/lib/order-proposals";
+import { MessageProposalSheet } from "@/components/orders/MessageProposalSheet";
+import type { ProposalView } from "@/lib/action-gateway";
 
 type TimelineEvent = {
   id?: string;
@@ -77,15 +81,46 @@ export default function OrderDetailPage() {
   const [carrier, setCarrier] = useState("Iran Post");
   const [tracking, setTracking] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingProposals, setPendingProposals] = useState<ProposalView[]>([]);
+  const [activeProposal, setActiveProposal] = useState<ProposalView | null>(null);
+  const [proposalSheetOpen, setProposalSheetOpen] = useState(false);
+  const gatewayConfigured = Boolean(actionGatewayPublicBase());
 
   async function load() {
     setOrder(await api<Order>(`/api/v1/orders/${params.id}`));
+  }
+
+  async function loadProposals(orderId: string) {
+    if (!gatewayConfigured) {
+      setPendingProposals([]);
+      return;
+    }
+    let extra: string[] = [];
+    if (typeof window !== "undefined") {
+      const fromUrl = new URLSearchParams(window.location.search).get("proposal");
+      if (fromUrl) extra = [fromUrl];
+    }
+    const pending = await loadPendingProposalsForOrder(orderId, extra);
+    setPendingProposals(pending);
+    if (extra.length > 0) {
+      const focus = pending.find((p) => p.id === extra[0]) ?? pending[0] ?? null;
+      if (focus) {
+        setActiveProposal(focus);
+        setProposalSheetOpen(true);
+      }
+    }
   }
 
   useEffect(() => {
     load().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  useEffect(() => {
+    if (!order?.id) return;
+    loadProposals(order.id).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, gatewayConfigured]);
 
   useEffect(() => {
     const intentID = order?.payment_intent?.id;
@@ -175,6 +210,46 @@ export default function OrderDetailPage() {
     <div className="rise page-stack">
       <BackLink href="/app/orders" />
       <PageHeader title={order.title || t.checkout.orderRef} />
+
+      {gatewayConfigured && pendingProposals.length > 0 ? (
+        <section className="section">
+          <h2 className="section-title">{t.proposals.section}</h2>
+          <div className="list-group">
+            {pendingProposals.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="list-row"
+                onClick={() => {
+                  setActiveProposal(p);
+                  setProposalSheetOpen(true);
+                }}
+              >
+                <div className="list-row-body">
+                  <div className="list-row-title">{t.proposals.pendingRow}</div>
+                  <div className="list-row-meta">{p.body.slice(0, 72)}{p.body.length > 72 ? "…" : ""}</div>
+                </div>
+                <div className="list-row-trailing">
+                  <span className="status-badge attention">{t.proposals.review}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <MessageProposalSheet
+        open={proposalSheetOpen}
+        proposal={activeProposal}
+        orderTitle={order.title}
+        orderAmountToman={order.fiat_amount_toman}
+        tomanLabel={t.checkout.toman}
+        onClose={() => setProposalSheetOpen(false)}
+        onResolved={() => {
+          loadProposals(order.id).catch(() => undefined);
+          load().catch(() => undefined);
+        }}
+      />
 
       <div>
         {displayStatus === "PAID" ? (
