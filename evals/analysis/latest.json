@@ -1,0 +1,263 @@
+{
+  "meta": {
+    "version": 1,
+    "primary_metric": "gateway_rule_pass",
+    "minimum_cases": 30
+  },
+  "started": "2026-10-11T09:36:23.121Z",
+  "finished": "2026-10-11T09:36:23.125Z",
+  "summary": {
+    "total": 36,
+    "passed": 36,
+    "failed": 0,
+    "pass_rate": 1,
+    "byGroup": {
+      "G1": {
+        "pass": 7,
+        "total": 7
+      },
+      "G2": {
+        "pass": 5,
+        "total": 5
+      },
+      "G3": {
+        "pass": 6,
+        "total": 6
+      },
+      "G4": {
+        "pass": 5,
+        "total": 5
+      },
+      "G5": {
+        "pass": 4,
+        "total": 4
+      },
+      "G6": {
+        "pass": 3,
+        "total": 3
+      },
+      "G7": {
+        "pass": 6,
+        "total": 6
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "G1-01",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G1-02",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G1-03",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G1-04",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G1-05",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G1-06",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G1-07",
+      "group": "G1",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G2-01",
+      "group": "G2",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G2-02",
+      "group": "G2",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G2-03",
+      "group": "G2",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G2-04",
+      "group": "G2",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G2-05",
+      "group": "G2",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G3-01",
+      "group": "G3",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G3-02",
+      "group": "G3",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G3-03",
+      "group": "G3",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G3-04",
+      "group": "G3",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G3-05",
+      "group": "G3",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G3-06",
+      "group": "G3",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G4-01",
+      "group": "G4",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G4-02",
+      "group": "G4",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G4-03",
+      "group": "G4",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G4-04",
+      "group": "G4",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G4-05",
+      "group": "G4",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G5-01",
+      "group": "G5",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G5-02",
+      "group": "G5",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G5-03",
+      "group": "G5",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G5-04",
+      "group": "G5",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G6-01",
+      "group": "G6",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G6-02",
+      "group": "G6",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G6-03",
+      "group": "G6",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G7-01",
+      "group": "G7",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G7-02",
+      "group": "G7",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G7-03",
+      "group": "G7",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G7-04",
+      "group": "G7",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G7-05",
+      "group": "G7",
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "G7-06",
+      "group": "G7",
+      "pass": true,
+      "failures": []
+    }
+  ]
+}
