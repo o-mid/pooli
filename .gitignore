@@ -35,3 +35,14 @@ apps/web/public/brand/logo-fa-on-dark.svg
 
 # Local creative workspace — never commit generated marketing artifacts
 .local-brand-studio/
+
+# Pivot execution pack — local operator only (never push to GitHub)
+docs/internal/README.md
+docs/internal/implementation-master-prompt.md
+docs/internal/pivot-implementation-log.md
+docs/internal/git-commit-schedule.md
+docs/internal/decision-log.md
+
+evals/node_modules/
+evals/results/
+scripts/.commit-pivot-b-local.sh

@@ -1,4 +1,4 @@
-.PHONY: up down migrate migrate-down api worker web test lint simulate-pay tidy verify smoke-prod
+.PHONY: up down migrate migrate-down api worker web test lint simulate-pay tidy verify verify-agent evals smoke-prod
 
 up:
 	docker compose up -d
@@ -43,6 +43,12 @@ verify:
 
 verify-web:
 	npm run verify --workspace=@pooli/web
+
+evals:
+	cd evals && $(MAKE) run
+
+verify-agent: evals
+	cd apps/action-gateway && npm run build && npm test && npm run e2e:sticky
 
 smoke-prod:
 	chmod +x ./scripts/smoke-prod.sh

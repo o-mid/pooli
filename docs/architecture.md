@@ -36,6 +36,41 @@ SSE streams `payment.*` events to checkout and merchant dashboards. Clients alwa
 - `GET /healthz` — liveness
 - `GET /api/v1/ops/status` — non-secret config enums + chain-worker heartbeat + watcher cursor ages (HTTP 503 in production when rates are mock, simulator is on, or worker heartbeat is stale)
 
+## Agent action gateway
+
+Agents integrate through `apps/action-gateway` (Node MCP + HTTP confirmation). The Go API remains the source of payment truth; the gateway may read agent snapshots from the API when `POOLI_API_URL` is configured.
+
+```mermaid
+flowchart TB
+  subgraph clients [Clients]
+    MCP[MCP agent]
+    PWA[Merchant browser]
+  end
+
+  subgraph gateway [action-gateway]
+    MCPsrv["/mcp tools"]
+    Confirm["/p/:id confirm API"]
+    OAuth[OAuth AS]
+  end
+
+  subgraph core [Pooli core]
+    API[apps/api]
+    Worker[chain-worker]
+    DB[(PostgreSQL)]
+  end
+
+  MCP --> OAuth
+  MCP --> MCPsrv
+  MCPsrv -->|GET agent snapshot| API
+  PWA --> Confirm
+  Confirm --> MCPsrv
+  API --> DB
+  Worker --> DB
+  Worker -->|match PAID| API
+```
+
+MCP exposes only snapshot read, message propose, and proposal status. Confirmation and delivery paths are separate HTTP surfaces so prompt injection in the agent channel cannot approve on behalf of the merchant. See [`docs/agent-integration.md`](agent-integration.md) and [`apps/action-gateway/README.md`](../apps/action-gateway/README.md).
+
 ## Non-goals (V1)
 
 No custody, private keys, fiat settlement, swaps, or multi-token support.

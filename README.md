@@ -40,9 +40,23 @@ With `ENABLE_CHAIN_SIMULATOR=true` (default in `.env.example`):
 make simulate-pay PAYMENT_OPTION_ID=<option-uuid>
 ```
 
+## Agent safety
+
+Buyer follow-up drafts go through **propose → merchant confirm**, not direct send from the model. The MCP gateway exposes three tools (snapshot, propose, status); payment status is grounded on the Go API and drafts are linted server-side (for example, no “paid” wording while status is still `AWAITING_PAYMENT`).
+
+- Integration guide: [`docs/agent-integration.md`](docs/agent-integration.md)
+- Gateway threat model: [`apps/action-gateway/README.md`](apps/action-gateway/README.md)
+- Deterministic eval set: [`evals/dataset/cases.yaml`](evals/dataset/cases.yaml) (`make evals`)
+
+```bash
+make evals          # 30+ gateway rule cases, no LLM
+make verify-agent   # evals + gateway unit tests + sticky e2e
+```
+
 ## Docs
 
 - [Architecture](docs/architecture.md)
+- [Agent integration (MCP)](docs/agent-integration.md)
 - [Payment lifecycle](docs/payment-lifecycle.md)
 - [Local development](docs/local-development.md)
 - [Self-hosting](docs/self-hosting.md)
