@@ -315,6 +315,7 @@ export const en = {
   checkout: {
     poweredBy: "Pooli",
     amount: "Amount",
+    usdt: "USDT",
     toman: "Toman",
     payStore: "Pay {name}",
     networkTron: "USDT · TRON",

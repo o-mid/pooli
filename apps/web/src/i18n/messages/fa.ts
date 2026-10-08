@@ -316,6 +316,7 @@ export const fa: Messages = {
   checkout: {
     poweredBy: "پولی",
     amount: "مبلغ",
+    usdt: "USDT",
     toman: "تومان",
     payStore: "پرداخت به {name}",
     networkTron: "USDT · ترون",
