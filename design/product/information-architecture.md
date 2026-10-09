@@ -1,5 +1,11 @@
 # Information architecture
 
+## Public (marketing)
+
+Indexed: `/` (landing), `/about`, `/contact`, `/faq`, `/security`, `/privacy`, `/terms`. Locale via `pooli_locale` cookie (EN/FA). Imprint and `siteConfig` in `apps/web/src/lib/site.ts`.
+
+Not indexed: `/app/*`, `/login`, `/register`, `/admin`, `/p/*`, `/t/*`, `/link/*`, `/api/*`.
+
 ## Before
 
 Bottom tabs: Home · Orders · **New** · Customers · Settings  

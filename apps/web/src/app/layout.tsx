@@ -4,24 +4,39 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { InstallPromptCapture } from "@/components/InstallSheet";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { siteConfig } from "@/lib/site";
+import { defaultSiteTitle } from "@/lib/site-metadata";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Pooli",
-  description: "Turn a DM order into a checkout link. Get paid in USDT.",
-  applicationName: "Pooli",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: defaultSiteTitle("en"),
+    template: "%s — Pooli",
+  },
+  description:
+    "Turn a DM order into a checkout link. Your buyer pays USDT to your wallet. Pooli confirms on-chain.",
+  applicationName: siteConfig.name,
+  authors: [{ name: siteConfig.founder.name, url: `${siteConfig.url}/about` }],
+  creator: siteConfig.founder.name,
+  publisher: siteConfig.company.legalNameEn,
+  category: "finance",
+  formatDetection: { telephone: false, address: false, email: false },
   manifest: "/manifest.webmanifest",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://pooli.shop"),
   openGraph: {
-    title: "Pooli",
-    description: "Turn a DM order into a checkout link. Get paid in USDT.",
+    title: defaultSiteTitle("en"),
+    description:
+      "Turn a DM order into a checkout link. Your buyer pays USDT to your wallet. Pooli confirms on-chain.",
     type: "website",
+    siteName: siteConfig.name,
+    locale: "en_US",
     images: [{ url: "/brand/og-default.png", width: 1200, height: 630, alt: "Pooli" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pooli",
-    description: "Turn a DM order into a checkout link. Get paid in USDT.",
+    title: defaultSiteTitle("en"),
+    description:
+      "Turn a DM order into a checkout link. Your buyer pays USDT to your wallet. Pooli confirms on-chain.",
     images: ["/brand/og-default.png"],
   },
   icons: {

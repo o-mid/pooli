@@ -1,3 +1,5 @@
+import { marketingEn } from "./marketing-content";
+
 export const en = {
   brand: "Pooli",
   brandFa: "پولی",
@@ -529,6 +531,7 @@ export const en = {
     copyWeb: "Copy web link",
     copyTelegram: "Copy Telegram link",
   },
+  marketing: marketingEn,
 };
 
 export type Messages = typeof en;

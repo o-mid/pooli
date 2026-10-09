@@ -54,6 +54,14 @@ make simulate-pay PAYMENT_OPTION_ID=<option-uuid>
 
 Ops (when deployed): `GET /api/v1/ops/status` on your API host
 
+## Public identity
+
+Marketing pages, imprint, and machine-readable footprint read from `apps/web/src/lib/site.ts`. Optional env: `NEXT_PUBLIC_GEMI_NUMBER`, `NEXT_PUBLIC_VAT_NUMBER`, `NEXT_PUBLIC_FOUNDING_YEAR`, `NEXT_PUBLIC_SITE_BUILD_DATE` (see `.env.example`).
+
+External profiles to keep aligned manually: [LinkedIn company](https://www.linkedin.com/company/poolishop), founder LinkedIn, [GitHub repo](https://github.com/o-mid/pooli), [@PooliShopbot](https://t.me/PooliShopbot).
+
+Public routes: `/`, `/about`, `/contact`, `/faq`, `/security`, `/privacy`, `/terms`, plus `/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/humans.txt`, `/.well-known/security.txt`.
+
 ## MVP principles
 
 - Non-custodial only — never store private keys

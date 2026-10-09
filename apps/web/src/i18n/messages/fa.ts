@@ -1,4 +1,5 @@
 import type { Messages } from "./en";
+import { marketingFa } from "./marketing-content";
 
 export const fa: Messages = {
   brand: "Pooli",
@@ -531,4 +532,5 @@ export const fa: Messages = {
     copyWeb: "کپی لینک وب",
     copyTelegram: "کپی لینک تلگرام",
   },
+  marketing: marketingFa,
 };
