@@ -22,9 +22,10 @@ const (
 	defaultEVMCursorOverlap = 32
 	// Chainstack Developer / other non-archive full nodes treat eth_getLogs
 	// beyond ~128 blocks as archive. Stay inside a 64-block window.
-	defaultEVMMaxBlockSpan = 64
-	defaultEVMAddrBatch    = 40
-	defaultEVMColdLookback = 64
+	defaultEVMMaxBlockSpan   = 64
+	defaultEVMAddrBatch      = 40
+	defaultEVMColdLookback   = 64
+	defaultEVMFullNodeMaxLag = 128
 )
 
 type EVMAdapter struct {
@@ -113,6 +114,14 @@ func (a *EVMAdapter) ObserveTransfers(ctx context.Context, watchedAddresses []st
 		if a.CursorOverlap > 0 {
 			if from > a.CursorOverlap {
 				from -= a.CursorOverlap
+			} else {
+				from = 0
+			}
+		}
+		// Non-archive RPC nodes reject eth_getLogs far behind head. Skip gap and watch forward.
+		if head > from && head-from > defaultEVMFullNodeMaxLag {
+			if head > defaultEVMColdLookback {
+				from = head - defaultEVMColdLookback
 			} else {
 				from = 0
 			}

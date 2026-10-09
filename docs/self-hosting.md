@@ -46,4 +46,4 @@ ENABLE_CHAIN_SIMULATOR=true make verify   # must print VERIFY_MVP_OK
 npm run verify --workspace=@pooli/web
 ```
 
-Operator-specific deploy scripts and runbooks are kept outside this public repository.
+Hostinger helpers: [`deploy/hostinger/README.md`](../deploy/hostinger/README.md) (`deploy-web.sh`, `deploy-chain-worker.sh`).
