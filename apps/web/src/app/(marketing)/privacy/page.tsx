@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/marketing/JsonLd";
 import { PrivacyView } from "@/components/marketing/views/PrivacyView";
 import { breadcrumbGraph } from "@/lib/json-ld";
-import { pageMetadata } from "@/lib/site-metadata";
 import { marketingEn } from "@/i18n/messages/marketing-content";
+import { pageMetadata } from "@/lib/site-metadata";
+import { withLegalStatus } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "Privacy policy",
-  description: marketingEn.privacy.metaDescription,
+  description: withLegalStatus(marketingEn.privacy.metaDescription),
   path: "/privacy",
 });
 

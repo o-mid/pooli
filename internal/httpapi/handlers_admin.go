@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/pooli-shop/pooli/internal/domain"
+	"github.com/pooli-shop/pooli/internal/ops"
 	"github.com/pooli-shop/pooli/internal/payment"
 )
 
@@ -204,4 +206,31 @@ func (s *Server) handleAdminResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "action": action})
+}
+
+func (s *Server) handleAdminAckWatcherGaps(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var req struct {
+		Network string `json:"network"`
+		Reason  string `json:"reason"`
+	}
+	if err := decodeJSON(r, &req); err != nil || strings.TrimSpace(req.Reason) == "" {
+		writeErr(w, http.StatusBadRequest, "network and reason required")
+		return
+	}
+	network := strings.ToLower(strings.TrimSpace(req.Network))
+	if network != domain.NetworkTRON && network != domain.NetworkBSC {
+		writeErr(w, http.StatusBadRequest, "network unavailable")
+		return
+	}
+	n, err := ops.AcknowledgeWatcherGaps(r.Context(), s.Pool, network, u.Email)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "could not acknowledge")
+		return
+	}
+	_, _ = s.Pool.Exec(r.Context(), `
+		INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, reason, metadata_json)
+		VALUES ($1::uuid,'acknowledge_watcher_gap','watcher_gap',$2,$3,$4::jsonb)`,
+		u.ID, network, strings.TrimSpace(req.Reason), `{"acknowledged":`+strconv.Itoa(n)+`}`)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "network": network, "acknowledged": n})
 }

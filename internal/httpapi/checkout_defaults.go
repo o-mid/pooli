@@ -131,11 +131,11 @@ func normalizeEnabledNetworks(in []string, fallback []string) []string {
 	return out
 }
 
-// filterCheckoutNetworks intersects merchant-requested networks with server policy
-// (e.g. ENABLE_BSC_CHECKOUT=false hides BNB Chain until ready).
-func (s *Server) filterCheckoutNetworks(in []string) []string {
+// filterCheckoutNetworks intersects merchant-requested networks with the
+// networks that are both flagged on and healthy right now.
+func (s *Server) filterCheckoutNetworks(ctx context.Context, in []string) []string {
 	allowed := map[string]bool{}
-	for _, n := range s.Cfg.CheckoutNetworks() {
+	for _, n := range s.effectiveCheckoutNetworks(ctx) {
 		allowed[n] = true
 	}
 	var out []string
@@ -145,7 +145,7 @@ func (s *Server) filterCheckoutNetworks(in []string) []string {
 		}
 	}
 	if len(out) == 0 {
-		return s.Cfg.CheckoutNetworks()
+		return s.effectiveCheckoutNetworks(ctx)
 	}
 	return out
 }

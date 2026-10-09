@@ -121,7 +121,7 @@ func (s *Server) handlePublicSelectNetwork(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	allowed := false
-	for _, n := range s.Cfg.CheckoutNetworks() {
+	for _, n := range s.effectiveCheckoutNetworks(r.Context()) {
 		if n == req.Network {
 			allowed = true
 			break

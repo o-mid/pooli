@@ -12,6 +12,8 @@ Lightweight ops stack — no Prometheus/Grafana required for V1.
 Ops status never returns API keys. It includes:
 
 - worker heartbeat + watcher cursors
+- `checkout_networks_effective` (flag and cursor health)
+- unacknowledged `watcher_gaps`
 - rate quote age / last source
 - notification failure counts
 - stuck confirming / needs-review counts
@@ -33,6 +35,13 @@ Point a free uptime service (UptimeRobot, Healthchecks.io, or Better Stack) at:
 | `payments_stuck_confirming` | Intent in `CONFIRMING` > 30 minutes |
 | `needs_review_elevated` | >10 exception intents open |
 | `notification_failures_elevated` | >20 failed deliveries in 24h |
+| `watcher_cursor_stale` | A watcher cursor is older than `WATCHER_STALE_SECONDS` (default 600), or the cursor read failed |
+| `watcher_gap_unacknowledged` | A `watcher_gaps` row has no `acknowledged_at`. Checkout for that network stays hidden |
+| `watcher_health_unknown` | Cursor or gap query failed. BSC checkout is withheld |
+
+`checkout_networks_effective` is the list buyers can select. It drops BSC when `ENABLE_BSC_CHECKOUT` is false, when that cursor is stale, or when BSC has an open gap. TRON follows the same cursor and gap rule.
+
+A cursor snap (`BSC_ALLOW_CURSOR_SNAP`, default false) writes `watcher_gaps`. Acknowledge with `POST /api/v1/admin/watcher-gaps/acknowledge` after the gap audit. See `docs/runbooks/bsc-gap-audit.md`.
 
 ## Optional Sentry
 

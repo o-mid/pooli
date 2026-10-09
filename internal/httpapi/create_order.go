@@ -78,7 +78,7 @@ func (s *Server) createOrderWithIntent(ctx context.Context, in CreateOrderInput)
 	} else {
 		networks = normalizeEnabledNetworks(networks, defaults.EnabledNetworks)
 	}
-	networks = s.filterCheckoutNetworks(networks)
+	networks = s.filterCheckoutNetworks(ctx, networks)
 	expiresMinutes := in.ExpiresInMinutes
 	if expiresMinutes <= 0 {
 		expiresMinutes = defaults.DefaultExpiryMinutes

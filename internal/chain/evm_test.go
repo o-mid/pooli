@@ -168,7 +168,7 @@ func TestEVMAdapterCursorOverlapReplay(t *testing.T) {
 	}
 }
 
-func TestEVMAdapterSnapsStaleCursorInsideNonArchiveWindow(t *testing.T) {
+func TestEVMAdapterCatchupChunksWithoutSnap(t *testing.T) {
 	var fromBlock string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -194,16 +194,100 @@ func TestEVMAdapterSnapsStaleCursorInsideNonArchiveWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Cursor months behind head — must not request archive logs from block 10.
+	ad.CursorOverlap = 0
+	ad.MaxBlockSpan = 64
 	_, next, err := ad.ObserveTransfers(context.Background(), []string{"0x1111111111111111111111111111111111111111"}, testUSDT, "10")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fromBlock != "0x88" { // 200 - 64 cold lookback
-		t.Fatalf("fromBlock=%s want 0x88", fromBlock)
+	if fromBlock != "0xa" || next != "75" {
+		t.Fatalf("from=%s next=%s", fromBlock, next)
 	}
-	if next != "201" {
-		t.Fatalf("next=%s", next)
+}
+
+func TestEVMAdapterSnapRefusedWhenFlagOff(t *testing.T) {
+	getLogs := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Method string `json:"method"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if req.Method == "eth_getLogs" {
+			getLogs++
+		}
+		if req.Method == "eth_chainId" {
+			writeRPC(w, "0x38")
+			return
+		}
+		if req.Method == "eth_blockNumber" {
+			writeRPC(w, "0x3e8")
+			return
+		}
+		writeRPC(w, []any{})
+	}))
+	defer srv.Close()
+	ad, err := NewEVMAdapter(srv.URL, "bsc", 56, testUSDT, 18, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ad.CursorOverlap = 0
+	ad.MaxCatchupBlocks = 100
+	_, next, err := ad.ObserveTransfers(context.Background(), []string{"0x1111111111111111111111111111111111111111"}, testUSDT, "10")
+	if err != ErrCursorLagExceeded || next != "10" || getLogs != 0 {
+		t.Fatalf("err=%v next=%s logs=%d", err, next, getLogs)
+	}
+}
+
+func TestEVMAdapterSnapRefusedByGate(t *testing.T) {
+	ad, err := NewEVMAdapter("http://127.0.0.1", "bsc", 56, testUSDT, 18, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ad.CursorOverlap = 0
+	ad.MaxCatchupBlocks = 100
+	ad.AllowCursorSnap = true
+	ad.SnapGate = func(CursorGap) error { return fmt.Errorf("active options") }
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Method string `json:"method"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if req.Method == "eth_chainId" {
+			writeRPC(w, "0x38")
+			return
+		}
+		if req.Method == "eth_blockNumber" {
+			writeRPC(w, "0x3e8")
+			return
+		}
+		if req.Method == "eth_getLogs" {
+			t.Fatal("gate refusal must not fetch logs")
+		}
+		writeRPC(w, nil)
+	}))
+	defer srv.Close()
+	ad.RPCURL = srv.URL
+	_, next, err := ad.ObserveTransfers(context.Background(), []string{"0x1111111111111111111111111111111111111111"}, testUSDT, "10")
+	if err == nil || next != "10" {
+		t.Fatalf("err=%v next=%s", err, next)
+	}
+}
+
+func TestEVMAdapterChunkBoundaryAndStableEventID(t *testing.T) {
+	ad, err := NewEVMAdapter("http://127.0.0.1", "bsc", 56, testUSDT, 18, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ad.CursorOverlap = 0
+	ad.MaxBlockSpan = 64
+	ad.MaxCatchupBlocks = 500
+	from, to, snap, err := ad.PlanObserveRange(600, "100")
+	if err != nil || snap != nil || from != 100 || to != 164 {
+		t.Fatalf("chunk from=%d to=%d snap=%v err=%v", from, to, snap, err)
+	}
+	_, _, snap, err = ad.PlanObserveRange(601, "100")
+	if err != nil || snap == nil || snap.FromBlock != 100 {
+		t.Fatalf("snap=%v err=%v", snap, err)
 	}
 }
 

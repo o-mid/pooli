@@ -61,6 +61,17 @@ type Config struct {
 	// EnableBSCCheckout controls whether buyers can select BNB Chain at checkout.
 	// Keep false until WalletConnect + watcher are production-verified.
 	EnableBSCCheckout bool
+	// WatcherStale is how old a watcher cursor may be before that network is
+	// withheld from checkout. Default 600s (WATCHER_STALE_SECONDS).
+	WatcherStale time.Duration
+	// BSCMaxCatchupBlocks is the largest lag the BSC watcher will walk in
+	// chunked eth_getLogs calls. Beyond this it errors unless snap is allowed.
+	BSCMaxCatchupBlocks uint64
+	// BSCMaxLogRange is the largest eth_getLogs span in one RPC call.
+	BSCMaxLogRange uint64
+	// BSCAllowCursorSnap must stay false until a gap audit is done. When true,
+	// a lag past BSCMaxCatchupBlocks may skip blocks only after a watcher_gaps row.
+	BSCAllowCursorSnap bool
 	// OTPSMSProvider: "mock" (default) or a future real SMS provider id.
 	// Phone OTP is rejected in production while provider is mock.
 	OTPSMSProvider string
@@ -153,6 +164,10 @@ func Load() Config {
 		BSCExplorerTxURL:            getenv("BSC_EXPLORER_TX_URL", "https://bscscan.com/tx/%s"),
 		EnableBSCWatcher:            getenv("ENABLE_BSC_WATCHER", "true") == "true",
 		EnableBSCCheckout:           getenv("ENABLE_BSC_CHECKOUT", "false") == "true",
+		WatcherStale:                durationSeconds("WATCHER_STALE_SECONDS", 600),
+		BSCMaxCatchupBlocks:         getenvUint64("BSC_MAX_CATCHUP_BLOCKS", 10000),
+		BSCMaxLogRange:              getenvUint64("BSC_MAX_LOG_RANGE", 64),
+		BSCAllowCursorSnap:          getenv("BSC_ALLOW_CURSOR_SNAP", "false") == "true",
 		OTPSMSProvider:              strings.ToLower(getenv("OTP_SMS_PROVIDER", "mock")),
 		GitSHA:                      getenv("GIT_SHA", ""),
 		WorkerHeartbeatStale:        durationSeconds("WORKER_HEARTBEAT_STALE_SECONDS", 120),
@@ -312,6 +327,18 @@ func getenvInt(k string, def int) int {
 		return def
 	}
 	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
+}
+
+func getenvUint64(k string, def uint64) uint64 {
+	v := os.Getenv(k)
+	if v == "" {
+		return def
+	}
+	n, err := strconv.ParseUint(v, 10, 64)
 	if err != nil {
 		return def
 	}

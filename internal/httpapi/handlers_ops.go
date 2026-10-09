@@ -25,18 +25,32 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 	hb, hbErr := ops.LoadHeartbeat(r.Context(), s.Pool, ops.ChainWorkerName, stale)
 	workerOK := hbErr == nil && hb.OK
 
-	cursors, _ := ops.LoadWatcherCursors(r.Context(), s.Pool, 5*time.Minute)
-	cursorOK := true
-	if len(cursors) == 0 {
-		// No cursor yet may mean no wallets — not necessarily failure.
-		cursorOK = true
-	} else {
-		for _, c := range cursors {
-			if !c.OK {
-				cursorOK = false
-				break
+	cursors, cursorErr := ops.LoadWatcherCursors(r.Context(), s.Pool, s.watcherStaleAfter())
+	gaps, gapErr := ops.UnackedGapCounts(r.Context(), s.Pool)
+	if gapErr != nil {
+		gaps = map[string]int{}
+	}
+	cursors = ops.MarkCursorsUnhealthyForGaps(cursors, gaps)
+	cursorOK := cursorErr == nil
+	if cursorOK {
+		if len(cursors) == 0 {
+			// No cursor yet may mean no wallets — not necessarily failure.
+			cursorOK = true
+		} else {
+			for _, c := range cursors {
+				if !c.OK {
+					cursorOK = false
+					break
+				}
 			}
 		}
+	}
+	unackedTotal := 0
+	for _, n := range gaps {
+		unackedTotal += n
+	}
+	if unackedTotal > 0 {
+		cursorOK = false
 	}
 
 	overall := true
@@ -88,6 +102,15 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 	if failedNotify24h > 20 {
 		alerts = append(alerts, "notification_failures_elevated")
 	}
+	if !cursorOK {
+		alerts = append(alerts, "watcher_cursor_stale")
+	}
+	if unackedTotal > 0 {
+		alerts = append(alerts, "watcher_gap_unacknowledged")
+	}
+	if gapErr != nil || cursorErr != nil {
+		alerts = append(alerts, "watcher_health_unknown")
+	}
 
 	writeJSON(w, status, map[string]any{
 		"ok":      overall,
@@ -114,6 +137,8 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 			"phone_otp_enabled":      s.Cfg.PhoneOTPEnabled(),
 			"otp_sms_provider":       s.Cfg.OTPSMSProvider,
 			"checkout_networks":      s.Cfg.CheckoutNetworks(),
+			"watcher_stale_seconds":  int(s.watcherStaleAfter().Seconds()),
+			"bsc_allow_cursor_snap":  s.Cfg.BSCAllowCursorSnap,
 			"google_oauth_enabled":   s.Cfg.GoogleOAuthEnabled(),
 		},
 		"worker": map[string]any{
@@ -127,9 +152,14 @@ func (s *Server) handleOpsStatus(w http.ResponseWriter, r *http.Request) {
 			}(),
 			"stale_after_seconds": int(stale.Seconds()),
 		},
+		"checkout_networks_effective": s.effectiveCheckoutNetworks(r.Context()),
 		"watcher_cursors": map[string]any{
 			"ok":      cursorOK,
 			"cursors": cursors,
+		},
+		"watcher_gaps": map[string]any{
+			"unacknowledged": unackedTotal,
+			"by_network":     gaps,
 		},
 		"rates": map[string]any{
 			"configured_provider": s.Cfg.RateProvider,

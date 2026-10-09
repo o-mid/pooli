@@ -537,8 +537,22 @@ func (s *Server) insertPaymentOptions(
 	expires time.Time,
 	networks []string,
 ) (int, error) {
+	effective := s.effectiveCheckoutNetworks(ctx)
+	allow := map[string]bool{}
+	for _, n := range effective {
+		allow[n] = true
+	}
 	if len(networks) == 0 {
-		networks = s.Cfg.CheckoutNetworks()
+		networks = effective
+	} else {
+		filtered := make([]string, 0, len(networks))
+		for _, n := range networks {
+			n = strings.ToLower(strings.TrimSpace(n))
+			if allow[n] {
+				filtered = append(filtered, n)
+			}
+		}
+		networks = filtered
 	}
 	created := 0
 	for _, network := range networks {

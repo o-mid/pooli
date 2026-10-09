@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -22,24 +23,42 @@ const (
 	defaultEVMCursorOverlap = 32
 	// Chainstack Developer / other non-archive full nodes treat eth_getLogs
 	// beyond ~128 blocks as archive. Stay inside a 64-block window.
-	defaultEVMMaxBlockSpan   = 64
-	defaultEVMAddrBatch      = 40
-	defaultEVMColdLookback   = 64
-	defaultEVMFullNodeMaxLag = 128
+	defaultEVMMaxBlockSpan     = 64
+	defaultEVMAddrBatch        = 40
+	defaultEVMColdLookback     = 64
+	defaultEVMMaxCatchupBlocks = 10000
 )
 
+// ErrCursorLagExceeded means the cursor is too far behind to walk in chunks
+// and a snap was not allowed. The caller must not advance the cursor.
+var ErrCursorLagExceeded = errors.New("watcher cursor is too far behind to catch up")
+
+// CursorGap is a block range that would be skipped by a snap.
+// ToBlock is inclusive.
+type CursorGap struct {
+	FromBlock uint64
+	ToBlock   uint64
+	Reason    string
+}
+
+// SnapGateFunc records a gap or refuses the snap. A nil gate never snaps.
+type SnapGateFunc func(CursorGap) error
+
 type EVMAdapter struct {
-	RPCURL             string
-	NetworkName        string
-	ChainID            int64
-	TokenAllow         string
-	TokenDecimals      int
-	Confirmations      int
-	CursorOverlap      uint64
-	MaxBlockSpan       uint64
-	AddressTopicBatch  int
-	HTTP               *http.Client
-	chainIDChecked     bool
+	RPCURL            string
+	NetworkName       string
+	ChainID           int64
+	TokenAllow        string
+	TokenDecimals     int
+	Confirmations     int
+	CursorOverlap     uint64
+	MaxBlockSpan      uint64
+	MaxCatchupBlocks  uint64
+	AllowCursorSnap   bool
+	SnapGate          SnapGateFunc
+	AddressTopicBatch int
+	HTTP              *http.Client
+	chainIDChecked    bool
 }
 
 func NewEVMAdapter(rpcURL, network string, chainID int64, token string, tokenDecimals, confirmations int) (*EVMAdapter, error) {
@@ -64,6 +83,7 @@ func NewEVMAdapter(rpcURL, network string, chainID int64, token string, tokenDec
 		Confirmations:     confirmations,
 		CursorOverlap:     overlap,
 		MaxBlockSpan:      span,
+		MaxCatchupBlocks:  defaultEVMMaxCatchupBlocks,
 		AddressTopicBatch: batch,
 		HTTP:              &http.Client{Timeout: 20 * time.Second},
 	}, nil
@@ -87,6 +107,60 @@ func (a *EVMAdapter) NormalizeAddress(address string) string {
 	return strings.ToLower(strings.TrimSpace(address))
 }
 
+func (a *EVMAdapter) catchupLimit() uint64 {
+	if a.MaxCatchupBlocks == 0 {
+		return defaultEVMMaxCatchupBlocks
+	}
+	return a.MaxCatchupBlocks
+}
+
+func (a *EVMAdapter) logRange() uint64 {
+	if a.MaxBlockSpan == 0 {
+		return defaultEVMMaxBlockSpan
+	}
+	return a.MaxBlockSpan
+}
+
+// PlanObserveRange chooses the next eth_getLogs window.
+// A non-nil snap means the lag is past MaxCatchupBlocks. The caller must not
+// apply that snap unless AllowCursorSnap is set and SnapGate records the gap.
+func (a *EVMAdapter) PlanObserveRange(head uint64, fromCursor string) (from, to uint64, snap *CursorGap, err error) {
+	if fromCursor == "" {
+		if head > defaultEVMColdLookback {
+			from = head - defaultEVMColdLookback
+		}
+	} else {
+		from = parseBlockCursor(fromCursor)
+		if a.CursorOverlap > 0 {
+			if from > a.CursorOverlap {
+				from -= a.CursorOverlap
+			} else {
+				from = 0
+			}
+		}
+		if head > from && head-from > a.catchupLimit() {
+			var start uint64
+			if head > defaultEVMColdLookback {
+				start = head - defaultEVMColdLookback
+			}
+			if start > from {
+				snap = &CursorGap{
+					FromBlock: from,
+					ToBlock:   start - 1,
+					Reason:    "cursor_lag_exceeds_max_catchup",
+				}
+				from = start
+			}
+		}
+	}
+	to = head
+	span := a.logRange()
+	if span > 0 && to > from+span {
+		to = from + span
+	}
+	return from, to, snap, nil
+}
+
 func (a *EVMAdapter) ObserveTransfers(ctx context.Context, watchedAddresses []string, tokenContract string, fromCursor string) ([]domain.ChainEvent, string, error) {
 	if a.NormalizeAddress(tokenContract) != a.TokenAllow {
 		return nil, fromCursor, fmt.Errorf("token not allowlisted")
@@ -103,33 +177,17 @@ func (a *EVMAdapter) ObserveTransfers(ctx context.Context, watchedAddresses []st
 		return nil, fromCursor, err
 	}
 
-	highWater := parseBlockCursor(fromCursor)
-	var from uint64
-	if fromCursor == "" {
-		if head > defaultEVMColdLookback {
-			from = head - defaultEVMColdLookback
-		}
-	} else {
-		from = highWater
-		if a.CursorOverlap > 0 {
-			if from > a.CursorOverlap {
-				from -= a.CursorOverlap
-			} else {
-				from = 0
-			}
-		}
-		// Non-archive RPC nodes reject eth_getLogs far behind head. Skip gap and watch forward.
-		if head > from && head-from > defaultEVMFullNodeMaxLag {
-			if head > defaultEVMColdLookback {
-				from = head - defaultEVMColdLookback
-			} else {
-				from = 0
-			}
-		}
+	from, to, snap, err := a.PlanObserveRange(head, fromCursor)
+	if err != nil {
+		return nil, fromCursor, err
 	}
-	to := head
-	if to > from+a.MaxBlockSpan {
-		to = from + a.MaxBlockSpan
+	if snap != nil {
+		if !a.AllowCursorSnap || a.SnapGate == nil {
+			return nil, fromCursor, ErrCursorLagExceeded
+		}
+		if err := a.SnapGate(*snap); err != nil {
+			return nil, fromCursor, err
+		}
 	}
 	if from > to {
 		return nil, fmt.Sprintf("%d", head+1), nil

@@ -234,7 +234,7 @@ func (s *Server) handlePublicPaymentLinkStart(w http.ResponseWriter, r *http.Req
 			fields = fieldDefsFromDefaults(d)
 		}
 	}
-	networks := s.filterCheckoutNetworks(defaults.EnabledNetworks)
+	networks := s.filterCheckoutNetworks(r.Context(), defaults.EnabledNetworks)
 
 	orderSlug, err := randomSlug(8)
 	if err != nil {
@@ -370,7 +370,7 @@ func (s *Server) handlePublicStorePay(w http.ResponseWriter, r *http.Request) {
 	}
 	defaults, _ := s.loadCheckoutDefaults(r.Context(), merchantID)
 	fields := fieldDefsFromDefaults(defaults)
-	networks := s.filterCheckoutNetworks(defaults.EnabledNetworks)
+	networks := s.filterCheckoutNetworks(r.Context(), defaults.EnabledNetworks)
 	orderSlug, err := randomSlug(8)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())

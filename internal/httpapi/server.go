@@ -139,6 +139,7 @@ func (s *Server) Router() http.Handler {
 				r.Get("/admin/chain-events", s.handleAdminChainEvents)
 				r.Get("/admin/unmatched", s.handleAdminUnmatched)
 				r.Post("/admin/resolve", s.handleAdminResolve)
+				r.Post("/admin/watcher-gaps/acknowledge", s.handleAdminAckWatcherGaps)
 				r.Patch("/admin/merchants/{id}/status", s.handleAdminPatchMerchantStatus)
 				r.Get("/admin/search", s.handleAdminSearch)
 				r.Get("/admin/payment-intents/{id}/timeline", s.handleAdminPaymentTimeline)

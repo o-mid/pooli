@@ -96,7 +96,8 @@ func Reset(t *testing.T, pool *pgxpool.Pool) {
 			merchant_users,
 			merchants,
 			users,
-			watcher_cursors
+			watcher_cursors,
+			watcher_gaps
 		RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset database: %v", err)

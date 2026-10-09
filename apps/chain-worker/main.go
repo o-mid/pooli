@@ -76,8 +76,24 @@ func main() {
 	var adapters []chain.Adapter
 	if cfg.EnableBSCWatcher {
 		if evm, err := chain.NewEVMAdapter(cfg.BSCRPCURL, domain.NetworkBSC, cfg.BSCChainID, cfg.BSCUSDTContract, cfg.BSCUSDTDecimals, cfg.BSCConfirmations); err == nil {
+			if cfg.BSCMaxLogRange > 0 {
+				evm.MaxBlockSpan = cfg.BSCMaxLogRange
+			}
+			if cfg.BSCMaxCatchupBlocks > 0 {
+				evm.MaxCatchupBlocks = cfg.BSCMaxCatchupBlocks
+			}
+			evm.AllowCursorSnap = cfg.BSCAllowCursorSnap
+			evm.SnapGate = func(gap chain.CursorGap) error {
+				if err := ops.GateCursorSnap(ctx, pool, domain.NetworkBSC, gap.FromBlock, gap.ToBlock, gap.Reason); err != nil {
+					return err
+				}
+				log.Printf("level=WARN event=watcher_cursor_snap network=%s from_block=%d to_block=%d reason=%s",
+					domain.NetworkBSC, gap.FromBlock, gap.ToBlock, gap.Reason)
+				return nil
+			}
 			adapters = append(adapters, evm)
-			log.Printf("BSC watcher enabled; network=%s chain_id=%d conf=%d decimals=%d", cfg.BSCNetwork, cfg.BSCChainID, cfg.BSCConfirmations, cfg.BSCUSDTDecimals)
+			log.Printf("BSC watcher enabled; network=%s chain_id=%d conf=%d decimals=%d max_catchup=%d max_log_range=%d allow_snap=%t",
+				cfg.BSCNetwork, cfg.BSCChainID, cfg.BSCConfirmations, cfg.BSCUSDTDecimals, evm.MaxCatchupBlocks, evm.MaxBlockSpan, evm.AllowCursorSnap)
 		} else {
 			log.Printf("evm adapter disabled: %v", err)
 		}

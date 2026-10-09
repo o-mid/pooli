@@ -1,4 +1,4 @@
-import { siteBuildDate, siteConfig } from "@/lib/site";
+import { siteBuildDate, siteConfig, withLegalStatus } from "@/lib/site";
 
 export function GET() {
   const body = `/* TEAM */
@@ -11,6 +11,7 @@ Open-source contributors and chain RPC providers.
 
 /* SITE */
 Last update: ${siteBuildDate()}
+Legal: ${withLegalStatus("privacy and terms")}
 Stack: Next.js, Go, PostgreSQL
 `;
   return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });

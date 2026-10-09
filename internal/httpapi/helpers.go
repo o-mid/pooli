@@ -81,6 +81,33 @@ func (s *Server) loadOrderForMerchant(ctx context.Context, merchantID, orderID s
 	return out, nil
 }
 
+// hideUnhealthyCheckoutOptions drops not-yet-paid options for networks the
+// watcher is not offering. Rows in the database are left alone.
+func hideUnhealthyCheckoutOptions(intent map[string]any, effective []string) {
+	status, _ := intent["status"].(string)
+	switch status {
+	case domain.StatusAwaitingPayment, domain.StatusCreated, "":
+	default:
+		return
+	}
+	allow := map[string]bool{}
+	for _, n := range effective {
+		allow[n] = true
+	}
+	raw, ok := intent["options"].([]map[string]any)
+	if !ok {
+		return
+	}
+	kept := make([]map[string]any, 0, len(raw))
+	for _, opt := range raw {
+		net, _ := opt["network"].(string)
+		if allow[net] {
+			kept = append(kept, opt)
+		}
+	}
+	intent["options"] = kept
+}
+
 func (s *Server) loadFieldDefs(ctx context.Context, orderID string) []map[string]any {
 	rows, err := s.Pool.Query(ctx, `
 		SELECT field_key, label, field_type, required, options_json, sort_order
@@ -233,6 +260,7 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		intent, _ = s.loadPaymentIntent(ctx, intentID)
 		if intent != nil {
 			s.attachMatchedTx(ctx, intent)
+			hideUnhealthyCheckoutOptions(intent, s.effectiveCheckoutNetworks(ctx))
 		}
 	}
 	logoURL := ""
@@ -255,7 +283,7 @@ func (s *Server) loadPublicBySlug(ctx context.Context, slug string) (map[string]
 		"fulfillment_status": fulfill, "shipping_provider": shipProvider,
 		"tracking_number": tracking, "shipped_at": shippedAt,
 		"timeline": timeline, "receipt": receipt,
-		"enabled_networks": s.Cfg.CheckoutNetworks(),
+		"enabled_networks": s.effectiveCheckoutNetworks(ctx),
 		"success_message":  orderSuccess,
 		"checkout_accent":  defaults.CheckoutAccent,
 		"trust": map[string]any{
