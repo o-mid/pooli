@@ -27,7 +27,6 @@ export function SiteFooter() {
           <ul className="marketing-footer-links">
             <li><Link href="/about">{f.about}</Link></li>
             <li><Link href="/contact">{f.contact}</Link></li>
-            <li><Link href="/claude">{f.claude}</Link></li>
           </ul>
         </div>
         <div>
