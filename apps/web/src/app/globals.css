@@ -2555,6 +2555,21 @@ html[dir="rtl"] .back-chevron {
   margin: 0;
 }
 
+.contact-primary {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  max-width: 24rem;
+}
+
+.marketing-footer-legal {
+  font-size: var(--text-subhead);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
 .legal-draft-banner {
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);

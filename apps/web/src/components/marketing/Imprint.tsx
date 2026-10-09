@@ -36,18 +36,18 @@ export function Imprint({ compact = false }: { compact?: boolean }) {
             </a>
           </dd>
         </div>
-        {siteConfig.company.gemiNumber ? (
-          <div>
-            <dt>{m.gemi}</dt>
-            <dd className="mono-ltr">{siteConfig.company.gemiNumber}</dd>
-          </div>
-        ) : null}
-        {siteConfig.company.vatNumber ? (
-          <div>
-            <dt>{m.vat}</dt>
-            <dd className="mono-ltr">{siteConfig.company.vatNumber}</dd>
-          </div>
-        ) : null}
+        <div>
+          <dt>{m.gemi}</dt>
+          <dd className="mono-ltr">
+            {siteConfig.company.gemiNumber ?? m.gemiPending}
+          </dd>
+        </div>
+        <div>
+          <dt>{m.vat}</dt>
+          <dd className="mono-ltr">
+            {siteConfig.company.vatNumber ?? m.vatPending}
+          </dd>
+        </div>
         {siteConfig.foundingYear ? (
           <div>
             <dt>{m.founded}</dt>

@@ -15,7 +15,11 @@ export const siteConfig = {
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://pooli.shop",
   foundingYear,
 
-  legalReviewed: true,
+  /** False until a lawyer has reviewed privacy and terms. Every public surface reads this. */
+  legalReviewed: false,
+
+  /** Bump only when the privacy or terms text changes. Not a build date. */
+  legalDocumentsUpdatedOn: "2026-10-09",
 
   /** Friends & family pre-seed (stated by founder; not a volume/traction claim). */
   funding: {
@@ -43,10 +47,42 @@ export const siteConfig = {
 
   founder: {
     name: "Omid Mirzaei",
-    title: "Founder",
+    title: "Founder & CEO",
     email: "omid@pooli.shop",
     linkedin: "https://www.linkedin.com/in/omid-mirzaei/",
     github: "https://github.com/o-mid",
+  },
+
+  /**
+   * How Pooli uses Claude today: engineering and content workflows only.
+   * Checkout matching and Paid ✓ are deterministic Go services — not LLM-driven.
+   */
+  claudeUsage: {
+    anthropicStartupProgramUrl: "https://www.anthropic.com/startups",
+    productUsesClaude: false,
+    summaryEn:
+      "Pooli’s payment engine is Go, PostgreSQL, and on-chain verification. We use Claude in engineering and content workflows to design, test, and ship faster — with human review on anything customer-facing.",
+    summaryFa:
+      "موتور پرداخت پولی Go، PostgreSQL و تأیید روی زنجیره است. Claude را در مهندسی و محتوا به‌کار می‌بریم — با بازبینی انسانی قبل از انتشار.",
+    useCasesEn: [
+      "API and chain-matching design reviews before we ship payment logic.",
+      "Drafting EN/FA marketing and help copy, then checking every claim against our claims register.",
+      "Exploring test scenarios for payment UI states and edge cases.",
+      "Internal security, privacy, and runbook drafts (lawyer-reviewed before publication).",
+    ],
+    useCasesFa: [
+      "بازبینی طراحی API و منطق تطبیق زنجیره قبل از انتشار.",
+      "پیش‌نویس متن بازاریابی و راهنما (EN/FA) و تطبیق با ثبت ادعاها.",
+      "سناریوهای تست برای وضعیت‌های UI پرداخت.",
+      "پیش‌نویس داخلی امنیت و حریم خصوصی (بازبینی حقوقی قبل از انتشار).",
+    ],
+    modelsNoteEn:
+      "Claude Sonnet and Opus via Anthropic API in development tooling (exact model IDs vary by release).",
+    modelsNoteFa: "Claude Sonnet و Opus در ابزار توسعه (شناسه مدل با نسخه عوض می‌شود).",
+    evalsEn:
+      "Payment correctness is validated with Go tests, chain simulation, and server-side matching — not LLM judgment.",
+    evalsFa:
+      "درستی پرداخت با تست Go، شبیه‌ساز زنجیره و تطبیق سرور بررسی می‌شود — نه با قضاوت LLM.",
   },
 
   contact: {
@@ -88,6 +124,23 @@ export function sameAsUrls(): string[] {
   return [s.linkedinCompany, s.linkedinFounder, s.github, s.telegramBot].filter(Boolean) as string[];
 }
 
+/** JSON-LD identifier entries — only real registry numbers (no fake placeholders). */
+export function organizationIdentifiers(): { "@type": "PropertyValue"; name: string; value: string }[] {
+  const out: { "@type": "PropertyValue"; name: string; value: string }[] = [];
+  if (siteConfig.company.gemiNumber) {
+    out.push({ "@type": "PropertyValue", name: "GEMI", value: siteConfig.company.gemiNumber });
+  }
+  if (siteConfig.company.vatNumber) {
+    out.push({ "@type": "PropertyValue", name: "VAT", value: siteConfig.company.vatNumber });
+  }
+  return out;
+}
+
+export function organizationLogoUrl(): string {
+  const base = siteConfig.url.replace(/\/$/, "");
+  return `${base}/icons/icon-512.png`;
+}
+
 /** Stable sitemap / policy dates — set at build via NEXT_PUBLIC_SITE_BUILD_DATE (YYYY-MM-DD). */
 export function siteBuildDate(): string {
   const raw = process.env.NEXT_PUBLIC_SITE_BUILD_DATE;
@@ -103,4 +156,10 @@ export function securityTxtExpires(): string {
   const d = new Date(siteBuildIso());
   d.setUTCFullYear(d.getUTCFullYear() + 1);
   return d.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/** Appends a draft marker when legal review has not happened. */
+export function withLegalStatus(label: string): string {
+  if (siteConfig.legalReviewed) return label;
+  return `${label} (draft)`;
 }

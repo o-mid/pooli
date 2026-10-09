@@ -1,19 +1,20 @@
-import { companyAddressLine, siteConfig } from "@/lib/site";
+import { companyAddressLine, siteConfig, withLegalStatus } from "@/lib/site";
 
 export function GET() {
   const base = siteConfig.url.replace(/\/$/, "");
   const body = `# Pooli
 
-Pooli is a non-custodial USDT checkout for sellers who close sales in DMs. Sellers quote in toman and share a payment link; buyers pay exact USDT to the seller's wallet; Pooli marks Paid only after server-side blockchain verification. Pooli is not a custodian, exchange, or wallet; it does not use AI agents for follow-ups.
+Pooli is a non-custodial USDT checkout for sellers who close sales in DMs. Sellers quote in toman and share a payment link; buyers pay exact USDT to the seller's wallet; Pooli marks Paid only after server-side blockchain verification. Pooli is not a custodian, exchange, or wallet. Claude is used in engineering and content workflows; payment matching is deterministic Go code.
 
 ## Key pages
 - ${base}/ — Product overview and how it works
-- ${base}/about — Company imprint and founder
+- ${base}/about — Company imprint, founder, Claude in our workflow
+- ${base}/claude — Claude usage (engineering); what is not LLM-driven in checkout
 - ${base}/contact — support@pooli.shop and contact details
 - ${base}/faq — Networks, custody, buyers, wrong amounts
 - ${base}/security — Security design facts and disclosure
-- ${base}/privacy — Privacy policy (draft)
-- ${base}/terms — Terms of service (draft)
+- ${base}/privacy — ${withLegalStatus("Privacy policy")}
+- ${base}/terms — ${withLegalStatus("Terms of service")}
 
 ## Organization
 Legal name: ${siteConfig.company.legalNameEn}

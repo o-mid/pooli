@@ -27,6 +27,7 @@ export function SiteFooter() {
           <ul className="marketing-footer-links">
             <li><Link href="/about">{f.about}</Link></li>
             <li><Link href="/contact">{f.contact}</Link></li>
+            <li><Link href="/claude">{f.claude}</Link></li>
           </ul>
         </div>
         <div>
@@ -49,7 +50,9 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
+      <p className="marketing-footer-legal mono-ltr">{siteConfig.company.legalNameEn}</p>
       <Imprint compact />
+      {!siteConfig.legalReviewed ? <p className="marketing-footer-meta">{f.legalDraft}</p> : null}
       <p className="marketing-footer-meta">
         © {year} {siteConfig.company.legalNameEn}. {f.rights}
         <br />

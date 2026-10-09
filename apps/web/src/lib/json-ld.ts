@@ -1,26 +1,40 @@
-import { companyAddressLine, sameAsUrls, siteConfig } from "@/lib/site";
+import {
+  companyAddressLine,
+  organizationIdentifiers,
+  organizationLogoUrl,
+  sameAsUrls,
+  siteConfig,
+} from "@/lib/site";
 
 const base = siteConfig.url.replace(/\/$/, "");
 
 export function organizationNode() {
   const addr = siteConfig.company.address;
+  const identifiers = organizationIdentifiers();
   const node: Record<string, unknown> = {
     "@type": "Organization",
     "@id": `${base}/#organization`,
-    name: siteConfig.name,
+    name: siteConfig.company.legalNameEn,
+    alternateName: [siteConfig.name, siteConfig.company.legalNameEl],
     legalName: siteConfig.company.legalNameEn,
-    alternateName: siteConfig.company.legalNameEl,
     url: base,
-    logo: `${base}/icons/icon-512.png`,
+    logo: organizationLogoUrl(),
     email: siteConfig.contact.support,
+    foundingDate: siteConfig.foundingYear ? String(siteConfig.foundingYear) : undefined,
+    founder: {
+      "@type": "Person",
+      name: siteConfig.founder.name,
+      jobTitle: siteConfig.founder.title,
+      email: siteConfig.founder.email,
+      url: `${base}/about`,
+    },
     address: {
       "@type": "PostalAddress",
-      streetAddress: `${addr.street}, ${addr.area}`,
+      streetAddress: addr.street,
       addressLocality: addr.city,
       postalCode: addr.postalCode,
       addressCountry: addr.countryCode,
     },
-    founder: { "@id": `${base}/#founder` },
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
@@ -29,17 +43,9 @@ export function organizationNode() {
     },
     sameAs: sameAsUrls(),
   };
-  if (siteConfig.foundingYear) {
-    node.foundingDate = `${siteConfig.foundingYear}-01-01`;
-  }
   if (siteConfig.company.vatNumber) node.vatID = siteConfig.company.vatNumber;
-  if (siteConfig.company.gemiNumber) {
-    node.identifier = {
-      "@type": "PropertyValue",
-      name: "GEMI",
-      value: siteConfig.company.gemiNumber,
-    };
-  }
+  if (identifiers.length === 1) node.identifier = identifiers[0];
+  else if (identifiers.length > 1) node.identifier = identifiers;
   return node;
 }
 
@@ -87,6 +93,32 @@ export function landingGraph() {
       founderNode(),
       websiteNode(),
       softwareApplicationNode(),
+    ],
+  };
+}
+
+export function verificationOrganizationGraph() {
+  return {
+    "@context": "https://schema.org",
+    ...organizationNode(),
+  };
+}
+
+export function claudePageGraph(description: string) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      organizationNode(),
+      founderNode(),
+      {
+        "@type": "WebPage",
+        "@id": `${base}/claude`,
+        name: "Claude at Pooli",
+        description,
+        url: `${base}/claude`,
+        isPartOf: { "@id": `${base}/#website` },
+        about: { "@id": `${base}/#organization` },
+      },
     ],
   };
 }
@@ -161,6 +193,7 @@ export function assertOrganizationShape(node: Record<string, unknown>): void {
     }
   }
   if (node["@type"] !== "Organization") throw new Error("Not Organization");
+  if (!node.foundingDate) throw new Error("Organization missing foundingDate");
 }
 
 export function imprintTextEn(): string {

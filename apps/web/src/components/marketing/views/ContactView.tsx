@@ -14,6 +14,16 @@ export function ContactView() {
         <h1 className="marketing-h1">{c.title}</h1>
         <p className="marketing-lead">{c.intro}</p>
       </header>
+      <div className="contact-primary">
+        <p className="marketing-footer-heading">{c.primaryLabel}</p>
+        <p className="marketing-h3" style={{ margin: 0 }}>{siteConfig.founder.name}</p>
+        <p className="muted">{siteConfig.founder.title}</p>
+        <p>
+          <a className="mono-ltr" href={`mailto:${siteConfig.founder.email}`}>
+            {siteConfig.founder.email}
+          </a>
+        </p>
+      </div>
       <dl className="contact-dl">
         <div>
           <dt>{c.supportLabel}</dt>

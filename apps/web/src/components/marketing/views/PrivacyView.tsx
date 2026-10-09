@@ -3,7 +3,7 @@
 import { LegalDraftBanner } from "@/components/marketing/LegalDraftBanner";
 import { Section } from "@/components/marketing/Section";
 import { useT } from "@/i18n/LocaleProvider";
-import { siteBuildDate } from "@/lib/site";
+import { siteConfig } from "@/lib/site";
 
 export function PrivacyView() {
   const t = useT();
@@ -16,7 +16,7 @@ export function PrivacyView() {
       <header className="marketing-page-header">
         <h1 className="marketing-h1">{p.title}</h1>
         <p className="muted">
-          {p.lastUpdated}: {siteBuildDate()}
+          {p.lastUpdated}: {siteConfig.legalDocumentsUpdatedOn}
         </p>
       </header>
       <Section title={s.controller}><p>{s.controllerBody}</p></Section>

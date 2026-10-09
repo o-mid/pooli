@@ -5,6 +5,7 @@ const PUBLIC_PATHS: { path: string; priority: number; changeFrequency: MetadataR
   [
     { path: "/", priority: 1, changeFrequency: "weekly" },
     { path: "/about", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/claude", priority: 0.55, changeFrequency: "monthly" },
     { path: "/contact", priority: 0.6, changeFrequency: "monthly" },
     { path: "/faq", priority: 0.7, changeFrequency: "monthly" },
     { path: "/security", priority: 0.6, changeFrequency: "monthly" },

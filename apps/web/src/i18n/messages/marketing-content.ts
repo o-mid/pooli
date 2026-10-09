@@ -77,6 +77,7 @@ export const marketingEn = {
     company: "Company",
     legal: "Legal",
     connect: "Connect",
+    claude: "Claude at Pooli",
     howItWorks: "How it works",
     security: "Security",
     about: "About",
@@ -85,6 +86,7 @@ export const marketingEn = {
     terms: "Terms",
     builtIn: "Built in Athens, Greece.",
     rights: "All rights reserved.",
+    legalDraft: "Privacy and terms are drafts pending legal review.",
   },
   imprint: {
     legalName: "Legal name",
@@ -92,7 +94,22 @@ export const marketingEn = {
     contact: "Contact",
     gemi: "GEMI no.",
     vat: "VAT no.",
+    gemiPending: "Pending public disclosure",
+    vatPending: "Pending public disclosure",
     founded: "Founded",
+  },
+  claude: {
+    metaTitle: "Claude at Pooli",
+    metaDescription:
+      "How Pooli uses Claude in engineering and content workflows. Payment verification remains deterministic server-side code.",
+    title: "Claude at Pooli",
+    lead:
+      "A single page for partners and program verification: what Claude does here, and what it does not do in checkout.",
+    notInProductTitle: "What is not LLM-driven",
+    notInProductBody:
+      "Marking Paid ✓, amount matching, chain observation, and buyer checkout are Go services with tests and idempotent chain ingest. No model decides whether money moved.",
+    moreLink: "Anthropic startup program",
+    aboutLink: "About Pooli",
   },
   faqLanding: {
     title: "FAQ",
@@ -139,6 +156,12 @@ export const marketingEn = {
     founderTitle: "Founder",
     founderBio:
       "Omid Mirzaei is a senior full-stack and Flutter engineer with seven years of shipping experience, focused on fintech and Web3 mobile. He has shipped wallet and payments products and is based in Athens, Greece.",
+    claudeTitle: "Building with Claude",
+    claudeIntro:
+      "Pooli’s payment automation in production is deterministic code. We use Claude as an engineering and content assistant while we ship — with human review and a claims register before anything public goes live.",
+    claudeEvals:
+      "Payment correctness is validated with Go tests, chain simulation, and server-side matching — not LLM judgment.",
+    claudeMore: "Read the full Claude page",
     principlesTitle: "How we build",
     principles: [
       { title: "Non-custodial", body: "Your wallet, your keys — we never hold seller funds." },
@@ -157,7 +180,8 @@ export const marketingEn = {
     metaTitle: "Contact",
     metaDescription: "Email, address, and social links for Pooli support and the founder.",
     title: "Contact",
-    intro: "We read every message. For product help, start with support.",
+    intro: "We read every message. For partnerships and program verification, contact the founder directly.",
+    primaryLabel: "Primary contact",
     supportLabel: "Support",
     founderLabel: "Founder",
     addressLabel: "Address",
@@ -206,7 +230,7 @@ export const marketingEn = {
   },
   privacy: {
     metaTitle: "Privacy policy",
-    metaDescription: "How Pooli processes seller and buyer data (draft).",
+    metaDescription: "How Pooli processes seller and buyer data.",
     title: "Privacy policy",
     draftBanner: "Draft — pending legal review",
     lastUpdated: "Last updated",
@@ -241,7 +265,7 @@ export const marketingEn = {
   },
   terms: {
     metaTitle: "Terms of service",
-    metaDescription: "Terms for using Pooli (draft).",
+    metaDescription: "Terms for using Pooli.",
     title: "Terms of service",
     draftBanner: "Draft — pending legal review",
     lastUpdated: "Last updated",
@@ -347,6 +371,7 @@ export const marketingFa = {
     company: "شرکت",
     legal: "قانونی",
     connect: "ارتباط",
+    claude: "Claude در پولی",
     howItWorks: "چطور کار می‌کند",
     security: "امنیت",
     about: "درباره",
@@ -355,6 +380,7 @@ export const marketingFa = {
     terms: "شرایط",
     builtIn: "ساخته‌شده در آتن، یونان.",
     rights: "تمامی حقوق محفوظ است.",
+    legalDraft: "حریم خصوصی و شرایط هنوز پیش‌نویس‌اند و بررسی حقوقی نشده‌اند.",
   },
   imprint: {
     legalName: "نام حقوقی",
@@ -362,7 +388,22 @@ export const marketingFa = {
     contact: "تماس",
     gemi: "شماره GEMI",
     vat: "شماره VAT",
+    gemiPending: "در انتظار انتشار عمومی",
+    vatPending: "در انتظار انتشار عمومی",
     founded: "تأسیس",
+  },
+  claude: {
+    metaTitle: "Claude در پولی",
+    metaDescription:
+      "چطور پولی Claude را در مهندسی و محتوا به‌کار می‌برد. تأیید پرداخت همچنان کد قطعی سمت سرور است.",
+    title: "Claude در پولی",
+    lead:
+      "یک صفحه برای شرکا و تأیید برنامه‌ها: Claude اینجا چه می‌کند و در checkout چه نمی‌کند.",
+    notInProductTitle: "چه چیز LLM نیست",
+    notInProductBody:
+      "«پرداخت شد ✓»، تطبیق مبلغ، مشاهده زنجیره و checkout خریدار سرویس Go با تست است. هیچ مدلی تعیین نمی‌کند پول جابه‌جا شده.",
+    moreLink: "برنامه استارتاپ Anthropic",
+    aboutLink: "درباره پولی",
   },
   faqLanding: {
     title: "سوالات",
@@ -409,6 +450,12 @@ export const marketingFa = {
     founderTitle: "بنیان‌گذار",
     founderBio:
       "امید میرزایی مهندس ارشد فول‌استک و فلاتر با هفت سال تجربهٔ تحویل محصول است، با تمرکز روی فین‌تک و موبایل Web3. محصولات کیف پول و پرداخت تحویل داده و در آتن، یونان زندگی می‌کند.",
+    claudeTitle: "ساختن با Claude",
+    claudeIntro:
+      "اتوماسیون پرداخت در production کد قطعی است. Claude را به‌عنوان دستیار مهندسی و محتوا به‌کار می‌بریم — با بازبینی انسانی و ثبت ادعا قبل از انتشار.",
+    claudeEvals:
+      "درستی پرداخت با تست Go، شبیه‌ساز زنجیره و تطبیق سرور بررسی می‌شود — نه با قضاوت LLM.",
+    claudeMore: "صفحه کامل Claude",
     principlesTitle: "چطور می‌سازیم",
     principles: [
       { title: "غیرامانی", body: "کیف پول تو — پول فروشنده را نگه نمی‌داریم." },
@@ -427,7 +474,8 @@ export const marketingFa = {
     metaTitle: "تماس",
     metaDescription: "ایمیل، آدرس و لینک‌های اجتماعی پشتیبانی و بنیان‌گذار.",
     title: "تماس",
-    intro: "همهٔ پیام‌ها را می‌خوانیم. برای کمک محصول، از پشتیبانی شروع کن.",
+    intro: "همهٔ پیام‌ها را می‌خوانیم. برای شراکت و تأیید برنامه، مستقیم به بنیان‌گذار بنویس.",
+    primaryLabel: "تماس اصلی",
     supportLabel: "پشتیبانی",
     founderLabel: "بنیان‌گذار",
     addressLabel: "آدرس",
@@ -476,7 +524,7 @@ export const marketingFa = {
   },
   privacy: {
     metaTitle: "حریم خصوصی",
-    metaDescription: "پردازش دادهٔ فروشنده و خریدار در پولی (پیش‌نویس).",
+    metaDescription: "پردازش دادهٔ فروشنده و خریدار در پولی.",
     title: "حریم خصوصی",
     draftBanner: "پیش‌نویس — در انتظار بررسی حقوقی",
     lastUpdated: "آخرین به‌روزرسانی",
@@ -510,7 +558,7 @@ export const marketingFa = {
   },
   terms: {
     metaTitle: "شرایط استفاده",
-    metaDescription: "شرایط استفاده از پولی (پیش‌نویس).",
+    metaDescription: "شرایط استفاده از پولی.",
     title: "شرایط استفاده",
     draftBanner: "پیش‌نویس — در انتظار بررسی حقوقی",
     lastUpdated: "آخرین به‌روزرسانی",

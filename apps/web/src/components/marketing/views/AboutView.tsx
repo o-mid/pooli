@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ClaudeUsageSection } from "@/components/marketing/ClaudeUsageSection";
 import { Imprint } from "@/components/marketing/Imprint";
 import { Section } from "@/components/marketing/Section";
 import { useT } from "@/i18n/LocaleProvider";
@@ -61,6 +62,8 @@ export function AboutView() {
           </div>
         </div>
       </Section>
+
+      <ClaudeUsageSection />
 
       <Section title={a.principlesTitle}>
         <ul className="marketing-principles">
