@@ -14,6 +14,16 @@ ssh root@YOUR_HOST 'bash /opt/pooli/deploy/hostinger/deploy-web.sh'
 ssh root@YOUR_HOST 'bash /opt/pooli/deploy/hostinger/deploy-chain-worker.sh'
 ```
 
+## One-time: turn `/opt/pooli` into a git clone
+
+On the VPS (backs up `.env`, archives the old tree):
+
+```bash
+bash /opt/pooli/deploy/hostinger/setup-git-clone.sh
+```
+
+After that, `deploy-web.sh` / `deploy-chain-worker.sh` run `git pull` automatically.
+
 ## Deploy on server (after `git clone` into `/opt/pooli`)
 
 ```bash
