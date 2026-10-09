@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CheckoutDemo } from "@/components/marketing/CheckoutDemo";
 import { FaqAccordion } from "@/components/marketing/FaqAccordion";
 import { Section } from "@/components/marketing/Section";
-import { useT } from "@/i18n/LocaleProvider";
+import { useLocale, useT } from "@/i18n/LocaleProvider";
 import { siteConfig } from "@/lib/site";
 
 function scrollToHowItWorks(e: MouseEvent<HTMLAnchorElement>) {
@@ -18,7 +18,9 @@ function scrollToHowItWorks(e: MouseEvent<HTMLAnchorElement>) {
 
 export function LandingContent() {
   const t = useT();
+  const { locale } = useLocale();
   const m = t.marketing;
+  const stepNumber = new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en");
 
   return (
     <>
@@ -74,6 +76,25 @@ export function LandingContent() {
           </li>
         </ol>
       </Section>
+
+      <section className="marketing-section draft-reminders" id="draft-reminders">
+        <p className="draft-status">{m.draftReminders.status}</p>
+        <h2 className="marketing-h2">{m.draftReminders.title}</h2>
+        <p className="marketing-lead">{m.draftReminders.sub}</p>
+        <ol className="draft-steps">
+          {m.draftReminders.steps.map((step, i) => (
+            <li key={step}>
+              <span className="draft-step-num">{stepNumber.format(i + 1)}</span>
+              <p>{step}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="draft-safety">{m.draftReminders.safety}</p>
+        <div className="marketing-hero-cta">
+          <Link className="btn btn-primary" href="/register">{m.draftReminders.cta}</Link>
+          <Link className="btn btn-secondary" href="/claude">{m.draftReminders.more}</Link>
+        </div>
+      </section>
 
       <Section title={m.benefits.title}>
         <ul className="marketing-benefits">

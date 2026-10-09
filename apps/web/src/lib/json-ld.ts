@@ -113,7 +113,7 @@ export function claudePageGraph(description: string) {
       {
         "@type": "WebPage",
         "@id": `${base}/claude`,
-        name: "Claude at Pooli",
+        name: "Building with Claude",
         description,
         url: `${base}/claude`,
         isPartOf: { "@id": `${base}/#website` },

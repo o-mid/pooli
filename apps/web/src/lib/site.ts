@@ -68,13 +68,13 @@ export const siteConfig = {
       "API and chain-matching design reviews before we ship payment logic.",
       "Drafting EN/FA marketing and help copy, then checking every claim against our claims register.",
       "Exploring test scenarios for payment UI states and edge cases.",
-      "Internal security, privacy, and runbook drafts (lawyer-reviewed before publication).",
+      "Internal security, privacy, and runbook drafts. A lawyer has not reviewed the public legal pages yet.",
     ],
     useCasesFa: [
       "بازبینی طراحی API و منطق تطبیق زنجیره قبل از انتشار.",
       "پیش‌نویس متن بازاریابی و راهنما (EN/FA) و تطبیق با ثبت ادعاها.",
       "سناریوهای تست برای وضعیت‌های UI پرداخت.",
-      "پیش‌نویس داخلی امنیت و حریم خصوصی (بازبینی حقوقی قبل از انتشار).",
+      "پیش‌نویس داخلی امنیت و حریم خصوصی. وکیل هنوز صفحه‌های حقوقی عمومی را بررسی نکرده.",
     ],
     modelsNoteEn:
       "Claude Sonnet and Opus via Anthropic API in development tooling (exact model IDs vary by release).",

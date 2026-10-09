@@ -40,16 +40,30 @@ export const marketingEn = {
     s3Title: "See Paid ✓.",
     s3Body: "The buyer pays; Pooli verifies on-chain and tells you.",
   },
+  draftReminders: {
+    status: "IN DEVELOPMENT",
+    title: "Draft reminders that write themselves.",
+    sub: "Pooli drafts your payment follow-up from the job details. You review it, edit, and send. Claude writes. You decide.",
+    steps: [
+      "A payment goes unpaid.",
+      "Claude drafts a follow-up from the job note and payment status.",
+      "You review, edit, and send.",
+    ],
+    safety:
+      "Claude never touches the payment. It drafts text. Your money flow stays deterministic and non-custodial.",
+    cta: "Join the early access list",
+    more: "Engineering notes",
+  },
   benefits: {
-    title: "Why sellers use Pooli",
+    title: "What you get",
     b1Title: "Paid ✓ you can trust",
     b1Body: "Marked paid only after the blockchain confirms the exact amount.",
     b2Title: "Your wallet, your money",
     b2Body: "Funds go straight to you. Pooli never holds them.",
     b3Title: "Order details in one place",
     b3Body: "Collect name, phone and address in the checkout.",
-    b4Title: "Know the moment it lands",
-    b4Body: "Instant status in the app, plus Telegram and email alerts.",
+    b4Title: "Alerts when it lands",
+    b4Body: "Status in the app, plus Telegram and email.",
     b5Title: "Made for Persian sellers",
     b5Body: "Toman pricing, Persian and English, right-to-left.",
     b6Title: "Works where you sell",
@@ -68,7 +82,7 @@ export const marketingEn = {
     questions: "Questions?",
   },
   finalCta: {
-    title: "Get paid faster.",
+    title: "Try it on a real order.",
     button: "Create your first payment link",
     sub: "No credit card. No Pooli custody.",
   },
@@ -99,17 +113,55 @@ export const marketingEn = {
     founded: "Founded",
   },
   claude: {
-    metaTitle: "Claude at Pooli",
+    metaTitle: "Building with Claude",
     metaDescription:
-      "How Pooli uses Claude in engineering and content workflows. Payment verification remains deterministic server-side code.",
-    title: "Claude at Pooli",
+      "How Pooli uses Claude in engineering, docs, and internal tooling. Payment verification stays deterministic Go code.",
+    title: "Building with Claude",
     lead:
-      "A single page for partners and program verification: what Claude does here, and what it does not do in checkout.",
-    notInProductTitle: "What is not LLM-driven",
-    notInProductBody:
-      "Marking Paid ✓, amount matching, chain observation, and buyer checkout are Go services with tests and idempotent chain ingest. No model decides whether money moved.",
-    moreLink: "Anthropic startup program",
-    aboutLink: "About Pooli",
+      "Pooli is a non-custodial payment verification platform for service businesses. We use Claude across our engineering, documentation, and internal tooling, and we're building a Claude-powered drafting layer on top of a deterministic payment core.",
+    todayTitle: "How we use Claude today",
+    engineeringTitle: "Engineering and code review",
+    engineeringBody:
+      "Claude assists with implementation, test generation, and review across our Go services and TypeScript web app.",
+    docsTitle: "Documentation and policy",
+    docsBody:
+      "Our public site, internal runbooks, and policy drafts are written and reviewed with Claude. The privacy, terms, and security pages are drafted with Claude. A lawyer has not reviewed them yet.",
+    toolingTitle: "Internal tooling",
+    toolingBody:
+      "Claude summarizes payment activity and assists with reconciliation checks for our own operations.",
+    identityTitle: "Workload identity",
+    identityBody: "Our CI authenticates to the Claude API without static keys (see below).",
+    wifTitle: "Workload Identity Federation",
+    wifLead:
+      "Pooli authenticates to the Claude API from GitHub Actions using Workload Identity Federation. There are no static API keys in our CI.",
+    wifMeans: "What that means:",
+    wifPoints: [
+      "GitHub Actions requests a short-lived OIDC token scoped to our repository and branch.",
+      "The token is exchanged for a short-lived Anthropic access token through a federation rule.",
+      "Trust is pinned to our immutable GitHub organization ID, not just the org name — so a renamed or re-registered org cannot inherit access.",
+      "Tokens are single-use and expire in minutes.",
+    ],
+    wifClose:
+      "This is production-grade keyless authentication. It means there is no long-lived secret to leak, rotate, or accidentally commit.",
+    notLlmTitle: "What is not LLM-driven",
+    notLlmBody:
+      "Payment verification is deterministic. Matching, state transitions, and settlement checks are implemented in Go and chain workers. Claude does not decide whether a payment is valid, and it never moves money.",
+    notLlmBody2:
+      "We made this boundary explicit on purpose. Money conversations need high trust, and trust comes from code you can audit, not from a model you can't.",
+    buildingTitle: "What we're building",
+    remindersTitle: "Draft reminders",
+    remindersBody:
+      "A follow-up message for unpaid payments, drafted by Claude from the job note and payment status. The merchant reviews, edits, and sends. Claude drafts text; the merchant acts.",
+    questionsTitle: "Payment status questions",
+    questionsBody:
+      "Answering customer questions like “Did I already pay?” from verified payment state, with Claude handling the language and the deterministic core handling the truth.",
+    evals:
+      "We build evals for payment accuracy and hallucination prevention, because a wrong answer about money is worse than no answer.",
+    whyTitle: "Why Claude",
+    whyBody:
+      "Payment workflows need accuracy, long context, and reliable tool use. Claude fits. We also chose to build on Claude because the safety posture matches ours: bounded, auditable, human-in-the-loop where it matters.",
+    builtIn: "Pooli is built in Greece.",
+    program: "Applied to the Claude Startups program.",
   },
   faqLanding: {
     title: "FAQ",
@@ -293,7 +345,7 @@ export const marketingEn = {
   },
 };
 
-export const marketingFa = {
+export const marketingFa: MarketingMessages = {
   skipToContent: "رفتن به محتوا",
   nav: {
     howItWorks: "چطور کار می‌کند",
@@ -334,16 +386,29 @@ export const marketingFa = {
     s3Title: "«پرداخت شد ✓» را ببین.",
     s3Body: "خریدار پرداخت می‌کند؛ پولی روی زنجیره چک می‌کند و به تو خبر می‌دهد.",
   },
+  draftReminders: {
+    status: "در حال ساخت",
+    title: "پیش‌نویس یادآوری که خودش نوشته می‌شود.",
+    sub: "پولی پیگیری پرداخت را از جزئیات کار پیش‌نویس می‌کند. تو می‌خوانی، ویرایش می‌کنی و می‌فرستی. Claude می‌نویسد. تو تصمیم می‌گیری.",
+    steps: [
+      "یک پرداخت بی‌جواب می‌ماند.",
+      "Claude از یادداشت کار و وضعیت پرداخت یک پیگیری پیش‌نویس می‌کند.",
+      "تو می‌خوانی، ویرایش می‌کنی و می‌فرستی.",
+    ],
+    safety: "Claude به خود پرداخت دست نمی‌زند. فقط متن پیش‌نویس می‌کند. پول دست پولی نمی‌ماند و مسیر پرداخت عوض نمی‌شود.",
+    cta: "به فهرست دسترسی زودهنگام بپیوند",
+    more: "یادداشت مهندسی",
+  },
   benefits: {
-    title: "چرا فروشنده‌ها پولی را انتخاب می‌کنند",
+    title: "چه چیزی می‌گیری",
     b1Title: "پرداخت شد ✓ قابل اعتماد",
     b1Body: "فقط بعد از تأیید مبلغ دقیق روی زنجیره «پرداخت شد» می‌خورد.",
     b2Title: "کیف پول تو، پول تو",
     b2Body: "پول مستقیم به تو می‌رود. پولی نگه نمی‌دارد.",
     b3Title: "جزئیات سفارش یک‌جا",
     b3Body: "نام، موبایل و آدرس را در checkout بگیر.",
-    b4Title: "همان لحظه بفهم",
-    b4Body: "وضعیت لحظه‌ای در اپ، به‌علاوه تلگرام و ایمیل.",
+    b4Title: "وقتی رسید، خبر می‌گیری",
+    b4Body: "وضعیت در اپ، به‌علاوه تلگرام و ایمیل.",
     b5Title: "برای فروشندهٔ فارسی‌زبان",
     b5Body: "قیمت تومان، فارسی و انگلیسی، راست‌به‌چپ.",
     b6Title: "همان‌جا که می‌فروشی",
@@ -362,7 +427,7 @@ export const marketingFa = {
     questions: "سؤال داری؟",
   },
   finalCta: {
-    title: "زودتر پولت را بگیر.",
+    title: "روی یک سفارش واقعی امتحان کن.",
     button: "اولین لینک پرداخت را بساز",
     sub: "بدون کارت بانکی. بدون نگه‌داری پول توسط پولی.",
   },
@@ -393,17 +458,54 @@ export const marketingFa = {
     founded: "تأسیس",
   },
   claude: {
-    metaTitle: "Claude در پولی",
+    metaTitle: "ساختن با Claude",
     metaDescription:
-      "چطور پولی Claude را در مهندسی و محتوا به‌کار می‌برد. تأیید پرداخت همچنان کد قطعی سمت سرور است.",
-    title: "Claude در پولی",
+      "پولی Claude را در مهندسی، سند و ابزار داخلی به‌کار می‌برد. تأیید پرداخت کد قطعی Go می‌ماند.",
+    title: "ساختن با Claude",
     lead:
-      "یک صفحه برای شرکا و تأیید برنامه‌ها: Claude اینجا چه می‌کند و در checkout چه نمی‌کند.",
-    notInProductTitle: "چه چیز LLM نیست",
-    notInProductBody:
-      "«پرداخت شد ✓»، تطبیق مبلغ، مشاهده زنجیره و checkout خریدار سرویس Go با تست است. هیچ مدلی تعیین نمی‌کند پول جابه‌جا شده.",
-    moreLink: "برنامه استارتاپ Anthropic",
-    aboutLink: "درباره پولی",
+      "پولی یک بستر تأیید پرداخت غیرامانی برای کسب‌وکارهای خدماتی است. Claude را در مهندسی، سند و ابزار داخلی به‌کار می‌بریم، و یک لایهٔ پیش‌نویس روی هستهٔ قطعی پرداخت می‌سازیم.",
+    todayTitle: "امروز Claude را چطور به‌کار می‌بریم",
+    engineeringTitle: "مهندسی و بازبینی کد",
+    engineeringBody:
+      "Claude در پیاده‌سازی، ساخت تست و بازبینی سرویس‌های Go و وب TypeScript کمک می‌کند.",
+    docsTitle: "سند و سیاست",
+    docsBody:
+      "سایت عمومی، ران‌بوک‌های داخلی و پیش‌نویس سیاست با Claude نوشته و بازبینی می‌شوند. صفحه‌های حریم خصوصی، شرایط و امنیت با Claude پیش‌نویس شده‌اند. وکیل هنوز آن‌ها را بررسی نکرده.",
+    toolingTitle: "ابزار داخلی",
+    toolingBody: "Claude فعالیت پرداخت را خلاصه می‌کند و در بررسی تطبیق عملیات خودمان کمک می‌کند.",
+    identityTitle: "هویت بار کاری",
+    identityBody: "CI ما بدون کلید ثابت به API کلود وصل می‌شود (پایین را ببین).",
+    wifTitle: "Workload Identity Federation",
+    wifLead:
+      "پولی از GitHub Actions با Workload Identity Federation به API کلود وصل می‌شود. کلید API ثابت در CI نداریم.",
+    wifMeans: "یعنی چه:",
+    wifPoints: [
+      "GitHub Actions یک توکن کوتاه‌عمر OIDC می‌گیرد که به مخزن و شاخهٔ ما محدود است.",
+      "این توکن با یک قانون فدراسیون با توکن دسترسی کوتاه‌عمر Anthropic عوض می‌شود.",
+      "اعتماد به شناسهٔ ثابت سازمان گیت‌هاب بسته شده، نه فقط نام سازمان — سازمانی که اسمش عوض شود یا دوباره ثبت شود دسترسی را به ارث نمی‌برد.",
+      "توکن‌ها یک‌بارمصرف‌اند و ظرف چند دقیقه منقضی می‌شوند.",
+    ],
+    wifClose:
+      "این احراز هویت بدون کلید بلندمدت است. راز طولانی‌مدتی نیست که لو برود، بچرخد، یا اشتباهی کامیت شود.",
+    notLlmTitle: "چه چیز را مدل تصمیم نمی‌گیرد",
+    notLlmBody:
+      "تأیید پرداخت قطعی است. تطبیق، تغییر وضعیت و بررسی تسویه در Go و chain worker است. Claude تصمیم نمی‌گیرد پرداخت معتبر است یا نه، و هرگز پول جابه‌جا نمی‌کند.",
+    notLlmBody2:
+      "این مرز را عمداً روشن گذاشتیم. حرف از پول اعتماد می‌خواهد، و اعتماد از کدی می‌آید که می‌شود خواند، نه از مدلی که نمی‌شود.",
+    buildingTitle: "چه می‌سازیم",
+    remindersTitle: "پیش‌نویس یادآوری",
+    remindersBody:
+      "پیام پیگیری برای پرداخت‌های بی‌جواب، پیش‌نویس‌شده توسط Claude از یادداشت کار و وضعیت پرداخت. فروشنده می‌خواند، ویرایش می‌کند و می‌فرستد. Claude متن می‌نویسد؛ فروشنده عمل می‌کند.",
+    questionsTitle: "سؤال از وضعیت پرداخت",
+    questionsBody:
+      "جواب سؤال‌هایی مثل «قبلاً پرداخت کردم؟» از وضعیت تأییدشده. Claude زبان را می‌نویسد و هستهٔ قطعی حقیقت را نگه می‌دارد.",
+    evals:
+      "برای دقت پرداخت و جلوگیری از جواب ساختگی eval می‌سازیم، چون جواب غلط دربارهٔ پول بدتر از بی‌جوابی است.",
+    whyTitle: "چرا Claude",
+    whyBody:
+      "کار پرداخت دقت، زمینهٔ بلند و استفادهٔ مطمئن از ابزار می‌خواهد. Claude به این می‌خورد. موضع ایمنی‌اش هم با مال ما یکی است: محدود، قابل‌حسابرسی، و انسان در حلقه جایی که مهم است.",
+    builtIn: "پولی در یونان ساخته می‌شود.",
+    program: "برای برنامهٔ Claude Startups درخواست داده‌ایم.",
   },
   faqLanding: {
     title: "سوالات",

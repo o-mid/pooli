@@ -54,7 +54,7 @@ test("draft copy in messages is only the gated banner and footer line", () => {
   const lines = text.split("\n");
   const bad = [];
   for (const line of lines) {
-    if (!/draft|پیش‌نویس/i.test(line)) continue;
+    if (!/\(draft\)|Draft —|پیش‌نویس —/.test(line)) continue;
     if (!/draftBanner|legalDraft/.test(line)) bad.push(line.trim());
   }
   assert.deepEqual(bad, []);

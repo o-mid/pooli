@@ -1,40 +1,72 @@
 "use client";
 
-import Link from "next/link";
-import { ClaudeUsageSection } from "@/components/marketing/ClaudeUsageSection";
-import { Section } from "@/components/marketing/Section";
-import { useLocale, useT } from "@/i18n/LocaleProvider";
+import { useT } from "@/i18n/LocaleProvider";
 import { siteConfig } from "@/lib/site";
 
 export function ClaudeView() {
   const t = useT();
-  const { locale } = useLocale();
   const p = t.marketing.claude;
-  const c = siteConfig.claudeUsage;
+  const programUrl = siteConfig.claudeUsage.anthropicStartupProgramUrl;
 
   return (
-    <>
+    <article className="claude-notes">
       <header className="marketing-page-header">
         <h1 className="marketing-h1">{p.title}</h1>
         <p className="marketing-lead">{p.lead}</p>
       </header>
 
-      <ClaudeUsageSection showMoreLink={false} />
+      <section>
+        <h2>{p.todayTitle}</h2>
+        <h3>{p.engineeringTitle}</h3>
+        <p>{p.engineeringBody}</p>
+        <h3>{p.docsTitle}</h3>
+        <p>{p.docsBody}</p>
+        <h3>{p.toolingTitle}</h3>
+        <p>{p.toolingBody}</p>
+        <h3>{p.identityTitle}</h3>
+        <p>{p.identityBody}</p>
+      </section>
 
-      <Section title={p.notInProductTitle}>
-        <p>{p.notInProductBody}</p>
-      </Section>
+      <section>
+        <h2>{p.wifTitle}</h2>
+        <p>{p.wifLead}</p>
+        <p>{p.wifMeans}</p>
+        <ul>
+          {p.wifPoints.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p>{p.wifClose}</p>
+      </section>
 
-      <p>
-        <a href={c.anthropicStartupProgramUrl} target="_blank" rel="noopener noreferrer">
-          {p.moreLink}
-        </a>
-        {" · "}
-        <Link href="/about">{p.aboutLink}</Link>
-      </p>
-      <p className="muted mono-ltr">
-        {locale === "fa" ? c.evalsFa : c.evalsEn}
-      </p>
-    </>
+      <section>
+        <h2>{p.notLlmTitle}</h2>
+        <p>{p.notLlmBody}</p>
+        <p>{p.notLlmBody2}</p>
+      </section>
+
+      <section>
+        <h2>{p.buildingTitle}</h2>
+        <h3>{p.remindersTitle}</h3>
+        <p>{p.remindersBody}</p>
+        <h3>{p.questionsTitle}</h3>
+        <p>{p.questionsBody}</p>
+        <p>{p.evals}</p>
+      </section>
+
+      <section>
+        <h2>{p.whyTitle}</h2>
+        <p>{p.whyBody}</p>
+      </section>
+
+      <footer className="claude-notes-foot">
+        <p>{p.builtIn}</p>
+        <p>
+          <a href={programUrl} rel="noopener noreferrer">
+            {p.program}
+          </a>
+        </p>
+      </footer>
+    </article>
   );
 }
