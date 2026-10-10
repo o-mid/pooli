@@ -2194,12 +2194,25 @@ html[dir="rtl"] .back-chevron {
   color: var(--ink);
 }
 
+@media (max-width: 899px) {
+  .marketing-header .desktop-only {
+    display: none;
+  }
+}
+
 .marketing-header-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+}
+
+.marketing-header .btn,
+.marketing-hero .btn,
+.marketing-final-cta .btn,
+.draft-reminders .btn {
+  width: auto;
 }
 
 .marketing-theme-btn {
@@ -2224,6 +2237,10 @@ html[dir="rtl"] .back-chevron {
   min-height: var(--control-height);
   display: flex;
   align-items: center;
+}
+
+.marketing-mobile-nav .btn {
+  width: 100%;
 }
 
 .marketing-main {
@@ -2274,8 +2291,22 @@ html[dir="rtl"] .back-chevron {
 .marketing-hero-cta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
   margin: var(--space-5) 0;
+  align-items: center;
+}
+
+.marketing-quiet-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--ink-secondary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.marketing-quiet-link:hover {
+  color: var(--ink);
 }
 
 .marketing-hero-sub {
@@ -2285,15 +2316,10 @@ html[dir="rtl"] .back-chevron {
   margin: 0;
 }
 
-.marketing-built-for {
-  padding: var(--space-5);
-  border-block: 1px solid var(--separator);
-  text-align: center;
+.marketing-for {
+  max-width: 38rem;
+  margin: 0 0 var(--space-1);
   font-size: var(--text-subhead);
-}
-
-.marketing-built-for p {
-  margin: 0 0 var(--space-2);
 }
 
 .marketing-pain-list,
@@ -2326,11 +2352,28 @@ html[dir="rtl"] .back-chevron {
   background: var(--brand);
 }
 
-.marketing-benefits li,
+.marketing-benefits li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  max-width: none;
+}
+
 .marketing-principles li {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+.draft-reminders {
+  padding: var(--space-6);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
 }
 
 .draft-status {
@@ -2342,7 +2385,7 @@ html[dir="rtl"] .back-chevron {
   color: var(--ink-secondary);
   border: 1px solid var(--separator);
   border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
+  background: var(--bg-grouped);
 }
 
 [dir="ltr"] .draft-status {
@@ -2362,7 +2405,7 @@ html[dir="rtl"] .back-chevron {
   padding: var(--space-4);
   border: 1px solid var(--separator);
   border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
+  background: var(--bg-grouped);
   max-width: none;
 }
 
@@ -2429,67 +2472,81 @@ html[dir="rtl"] .back-chevron {
   padding: 0;
   margin: 0;
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
 .marketing-steps li {
   display: flex;
-  gap: var(--space-4);
+  flex-direction: column;
+  gap: var(--space-2);
   align-items: flex-start;
-}
-
-.marketing-step-icon {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: var(--radius-lg);
-  background: var(--brand-muted);
-  border: 1px solid var(--separator);
-}
-
-.marketing-step-icon-share {
-  border-radius: var(--radius-md);
-}
-
-.marketing-step-icon-paid::after {
-  content: "✓";
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  color: var(--brand);
-  font-weight: 700;
-}
-
-.checkout-demo {
-  margin-top: var(--space-6);
-  max-width: 28rem;
-}
-
-.checkout-demo-label {
-  font-size: var(--text-caption);
-  color: var(--ink-secondary);
-  margin-bottom: var(--space-2);
-}
-
-.checkout-demo-card {
+  margin: 0;
   padding: var(--space-4);
   border: 1px solid var(--separator);
   border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
+  background: var(--surface);
+  max-width: none;
 }
 
-.checkout-demo-states {
-  display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
+.marketing-steps li p {
+  margin: 0;
+  max-width: none;
+  color: var(--ink-secondary);
 }
 
-.checkout-demo-state {
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--bg);
+.marketing-step-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.story-phone {
+  margin: var(--space-6) 0 0;
+  width: min(100%, 22.5rem);
+  padding: var(--space-3);
+  border: 1px solid var(--separator);
+  border-radius: 2rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.story-phone-screen {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-grouped);
+}
+
+.story-trail {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-3) var(--space-1);
+}
+
+.story-trail li:not(:last-child)::after {
+  content: "·";
+  margin-inline-start: var(--space-2);
+  color: var(--ink-tertiary);
+}
+
+.story-trail li {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-tertiary);
+}
+
+.story-trail li.is-current {
+  color: var(--brand);
+  font-weight: 650;
+}
+
+.checkout-demo-label {
+  margin: var(--space-2) var(--space-2) 0;
+  font-size: var(--text-caption);
+  color: var(--ink-tertiary);
 }
 
 .marketing-final-cta {
@@ -2670,23 +2727,42 @@ html[dir="rtl"] .back-chevron {
   font-size: var(--text-subhead);
 }
 
+@media (max-width: 767px) {
+  .marketing-hero .btn-primary,
+  .marketing-final-cta .btn-primary,
+  .draft-reminders .btn {
+    width: 100%;
+  }
+}
+
 @media (min-width: 768px) {
   .marketing-hero {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     gap: var(--space-8);
     align-items: center;
   }
 
-  .checkout-demo {
+  .story-phone {
     margin-top: 0;
+    justify-self: end;
   }
 
+  .marketing-pain-list,
+  .marketing-steps,
   .draft-steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .marketing-pain-list li {
+    max-width: none;
+  }
+
   .marketing-benefits {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .marketing-final-cta .btn-primary {
+    min-width: 16rem;
   }
 }

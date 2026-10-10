@@ -30,17 +30,14 @@ export function LandingContent() {
           <p className="marketing-hero-sub">{m.hero.sub}</p>
           <div className="marketing-hero-cta">
             <Link className="btn btn-primary" href="/register">{m.hero.ctaPrimary}</Link>
-            <a className="btn btn-secondary" href="#how-it-works" onClick={scrollToHowItWorks}>
+            <a className="marketing-quiet-link" href="#how-it-works" onClick={scrollToHowItWorks}>
               {m.hero.ctaSecondary}
             </a>
           </div>
+          <p className="marketing-for">{m.builtFor.line1}</p>
+          <p className="marketing-for muted">{m.builtFor.line2}</p>
         </div>
         <CheckoutDemo label={m.hero.demoLabel} />
-      </section>
-
-      <section className="marketing-built-for" aria-label="Built for">
-        <p>{m.builtFor.line1}</p>
-        <p className="muted">{m.builtFor.line2}</p>
       </section>
 
       <Section title={m.problem.title}>
@@ -54,25 +51,19 @@ export function LandingContent() {
       <Section id="how-it-works" title={m.steps.title}>
         <ol className="marketing-steps">
           <li>
-            <span className="marketing-step-icon" aria-hidden />
-            <div>
-              <h3 className="marketing-h3">{m.steps.s1Title}</h3>
-              <p>{m.steps.s1Body}</p>
-            </div>
+            <span className="marketing-step-num">{stepNumber.format(1)}</span>
+            <h3 className="marketing-h3">{m.steps.s1Title}</h3>
+            <p>{m.steps.s1Body}</p>
           </li>
           <li>
-            <span className="marketing-step-icon marketing-step-icon-share" aria-hidden />
-            <div>
-              <h3 className="marketing-h3">{m.steps.s2Title}</h3>
-              <p>{m.steps.s2Body}</p>
-            </div>
+            <span className="marketing-step-num">{stepNumber.format(2)}</span>
+            <h3 className="marketing-h3">{m.steps.s2Title}</h3>
+            <p>{m.steps.s2Body}</p>
           </li>
           <li>
-            <span className="marketing-step-icon marketing-step-icon-paid" aria-hidden />
-            <div>
-              <h3 className="marketing-h3">{m.steps.s3Title}</h3>
-              <p>{m.steps.s3Body}</p>
-            </div>
+            <span className="marketing-step-num">{stepNumber.format(3)}</span>
+            <h3 className="marketing-h3">{m.steps.s3Title}</h3>
+            <p>{m.steps.s3Body}</p>
           </li>
         </ol>
       </Section>
@@ -91,8 +82,8 @@ export function LandingContent() {
         </ol>
         <p className="draft-safety">{m.draftReminders.safety}</p>
         <div className="marketing-hero-cta">
-          <Link className="btn btn-primary" href="/register">{m.draftReminders.cta}</Link>
-          <Link className="btn btn-secondary" href="/claude">{m.draftReminders.more}</Link>
+          <Link className="btn btn-secondary" href="/register">{m.draftReminders.cta}</Link>
+          <Link className="marketing-quiet-link" href="/claude">{m.draftReminders.more}</Link>
         </div>
       </section>
 
@@ -114,19 +105,6 @@ export function LandingContent() {
         </p>
       </Section>
 
-      <Section title={m.earlyAccess.title}>
-        <p>{m.earlyAccess.body}</p>
-        <div className="marketing-hero-cta">
-          <Link className="btn btn-primary" href="/register">{m.earlyAccess.cta}</Link>
-        </div>
-        <p className="muted">
-          {m.earlyAccess.questions}{" "}
-          <a className="mono-ltr" href={`mailto:${siteConfig.contact.support}`}>
-            {siteConfig.contact.support}
-          </a>
-        </p>
-      </Section>
-
       <Section title={m.faqLanding.title}>
         <FaqAccordion items={m.faqLanding.items} />
         <p className="marketing-view-all">
@@ -136,8 +114,15 @@ export function LandingContent() {
 
       <section className="marketing-final-cta">
         <h2 className="marketing-h2">{m.finalCta.title}</h2>
+        <p>{m.earlyAccess.body}</p>
         <Link className="btn btn-primary" href="/register">{m.finalCta.button}</Link>
         <p className="muted">{m.finalCta.sub}</p>
+        <p className="muted">
+          {m.earlyAccess.questions}{" "}
+          <a className="mono-ltr" href={`mailto:${siteConfig.contact.support}`}>
+            {siteConfig.contact.support}
+          </a>
+        </p>
       </section>
     </>
   );
