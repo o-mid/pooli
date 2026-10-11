@@ -14,15 +14,16 @@ export const marketingEn = {
     themeSystem: "System",
   },
   hero: {
+    eyebrow: "USDT checkout for DM sellers",
     h1: "Send a link. Know when they paid.",
     sub:
-      "Turn a DM order into a checkout link. Your buyer pays USDT straight to your wallet. Pooli confirms it on the blockchain, so there are no screenshots and no chasing.",
+      "Turn a DM order into a checkout link. Your buyer pays USDT to your wallet. Pooli watches the chain and marks Paid ✓ when the amount matches.",
     ctaPrimary: "Create your first payment link",
     ctaSecondary: "See how it works",
-    demoLabel: "Demo screen. Sample data.",
+    demoLabel: "Illustration. Sample amounts.",
   },
   builtFor: {
-    line1: "Built for sellers who close sales in DMs — Instagram, Telegram and WhatsApp.",
+    line1: "Built for sellers who close in DMs (Instagram, Telegram, WhatsApp).",
     line2: "USDT on TRON and BNB Smart Chain.",
   },
   problem: {
@@ -34,23 +35,24 @@ export const marketingEn = {
   steps: {
     title: "How it works",
     s1Title: "Create a payment in seconds.",
-    s1Body: "Enter the amount in USDT.",
+    s1Body: "Quote the order in USDT.",
     s2Title: "Share the link.",
     s2Body: "Paste it in the DM.",
     s3Title: "See Paid ✓.",
     s3Body: "The buyer pays; Pooli verifies on-chain and tells you.",
   },
   draftReminders: {
-    status: "AVAILABLE",
-    title: "Draft follow-ups with guardrails.",
-    sub: "Agents can propose a buyer message from verified order state. You review it in the app, enter the out-of-band code, and approve. Nothing sends until you do.",
+    status: "Optional",
+    title: "Review DM drafts before anything sends.",
+    sub:
+      "Integrations can suggest a buyer follow-up from live payment status. You read it, enter the code from your notification, and approve. Nothing leaves your account until you do.",
     steps: [
       "An agent or integration proposes a follow-up from payment status.",
       "Pooli blocks false “paid” claims and stores the draft server-side.",
       "You approve on the order screen or the gateway confirm page.",
     ],
     safety:
-      "Payment verification stays in Go. The action gateway cannot mark Paid or message buyers without your confirmation.",
+      "Payment truth stays in Go. The action gateway cannot mark Paid or message buyers without your confirmation.",
     cta: "Create account",
     more: "Agent integration docs",
   },
@@ -72,7 +74,7 @@ export const marketingEn = {
   nonCustodial: {
     title: "Non-custodial by design.",
     body:
-      "We never ask for seed phrases or private keys. Paid ✓ comes from server-side verification only. Wrong or partial payments go to review — they are never silently accepted.",
+      "We never ask for seed phrases or private keys. Paid ✓ comes from server-side verification only. Wrong or partial payments go to review. They are never silently accepted.",
     link: "How we think about security",
   },
   earlyAccess: {
@@ -138,7 +140,7 @@ export const marketingEn = {
     wifPoints: [
       "GitHub Actions requests a short-lived OIDC token scoped to our repository and branch.",
       "The token is exchanged for a short-lived Anthropic access token through a federation rule.",
-      "Trust is pinned to our immutable GitHub organization ID, not just the org name — so a renamed or re-registered org cannot inherit access.",
+      "Trust is pinned to our immutable GitHub organization ID, not just the org name, so a renamed or re-registered org cannot inherit access.",
       "Tokens are single-use and expire in minutes.",
     ],
     wifClose:
@@ -202,7 +204,7 @@ export const marketingEn = {
     whatP1:
       "Pooli is a checkout link for people who sell in DMs. You quote a price in toman, share pooli.shop/p/your-link, and your buyer pays the exact USDT amount to your own wallet.",
     whatP2:
-      "Pooli marks Paid ✓ only after server-side blockchain verification. Wrong amounts, wrong networks, or approximate payments never auto-settle — they land in review states you can see in the app.",
+      "Pooli marks Paid ✓ only after server-side blockchain verification. Wrong amounts, wrong networks, or approximate payments never auto-settle. They land in review states you can see in the app.",
     whatP3:
       "Buyers do not need an account. Sellers sign in with email or Google, get Telegram and email alerts, and run the seller app as an installable PWA in English or Persian.",
     founderTitle: "Founder",
@@ -210,16 +212,16 @@ export const marketingEn = {
       "Omid Mirzaei is a senior full-stack and Flutter engineer with seven years of shipping experience, focused on fintech and Web3 mobile. He has shipped wallet and payments products and is based in Athens, Greece.",
     claudeTitle: "Building with Claude",
     claudeIntro:
-      "Pooli’s payment automation in production is deterministic code. We use Claude as an engineering and content assistant while we ship — with human review and a claims register before anything public goes live.",
+      "Pooli’s payment automation in production is deterministic code. We use Claude as an engineering and content assistant while we ship, with human review and a claims register before anything public goes live.",
     claudeEvals:
-      "Payment correctness is validated with Go tests, chain simulation, and server-side matching — not LLM judgment.",
+      "Payment correctness is validated with Go tests, chain simulation, and server-side matching, not LLM judgment.",
     claudeMore: "Read the full Claude page",
     principlesTitle: "How we build",
     principles: [
-      { title: "Non-custodial", body: "Your wallet, your keys — we never hold seller funds." },
+      { title: "Non-custodial", body: "Your wallet, your keys. We never hold seller funds." },
       { title: "Server-verified", body: "Only the backend can mark Paid ✓." },
       { title: "Exact-match payments", body: "Unique payable amounts per active reservation." },
-      { title: "Commerce language", body: "Links and orders first — not chain jargon." },
+      { title: "Commerce language", body: "Links and orders first, not chain jargon." },
     ],
     imprintTitle: "Company details",
     companyTitle: "Company",
@@ -250,7 +252,7 @@ export const marketingEn = {
       },
       {
         q: "Can buyers pay with a wallet app?",
-        a: "Yes on supported networks — QR codes and wallet handoff where available. Copying the address always works.",
+        a: "Yes on supported networks. QR codes and wallet handoff where available. Copying the address always works.",
       },
       {
         q: "What data do you store about buyers?",
@@ -284,7 +286,7 @@ export const marketingEn = {
     metaTitle: "Privacy policy",
     metaDescription: "How Pooli processes seller and buyer data.",
     title: "Privacy policy",
-    draftBanner: "Draft — pending legal review",
+    draftBanner: "Draft (pending legal review)",
     lastUpdated: "Last updated",
     sections: {
       controller: "Who is responsible",
@@ -319,7 +321,7 @@ export const marketingEn = {
     metaTitle: "Terms of service",
     metaDescription: "Terms for using Pooli.",
     title: "Terms of service",
-    draftBanner: "Draft — pending legal review",
+    draftBanner: "Draft (pending legal review)",
     lastUpdated: "Last updated",
     sections: {
       agreement: "Agreement",
@@ -360,15 +362,16 @@ export const marketingFa: MarketingMessages = {
     themeSystem: "سیستم",
   },
   hero: {
+    eyebrow: "پرداخت USDT برای فروش در دایرکت",
     h1: "لینک رو بفرست. وقتی پرداخت شد، خودت می‌فهمی.",
     sub:
-      "سفارش دایرکت را تبدیل به لینک پرداخت کن. خریدار USDT را مستقیم به کیف پول تو می‌فرستد. پولی روی زنجیره تأیید می‌کند — بدون اسکرین‌شات و بدون پیگیری.",
+      "سفارش دایرکت را تبدیل به لینک پرداخت کن. خریدار USDT را به کیف پول تو می‌فرستد. پولی زنجیره را می‌بیند و وقتی مبلغ درست بود «پرداخت شد ✓» می‌زند.",
     ctaPrimary: "اولین لینک پرداخت را بساز",
     ctaSecondary: "ببین چطور کار می‌کند",
     demoLabel: "صفحهٔ نمایشی. دادهٔ نمونه.",
   },
   builtFor: {
-    line1: "برای فروشنده‌هایی که توی دایرکت می‌بندند — اینستاگرام، تلگرام و واتساپ.",
+    line1: "برای فروشنده‌هایی که توی دایرکت می‌بندند (اینستاگرام، تلگرام و واتساپ).",
     line2: "USDT روی TRON و BNB Smart Chain.",
   },
   problem: {
@@ -380,7 +383,7 @@ export const marketingFa: MarketingMessages = {
   steps: {
     title: "چطور کار می‌کند",
     s1Title: "در چند ثانیه پرداخت بساز.",
-    s1Body: "مبلغ را به تومان وارد کن.",
+    s1Body: "مبلغ را با USDT وارد کن.",
     s2Title: "لینک را بفرست.",
     s2Body: "توی دایرکت paste کن.",
     s3Title: "«پرداخت شد ✓» را ببین.",
@@ -417,7 +420,7 @@ export const marketingFa: MarketingMessages = {
   nonCustodial: {
     title: "غیرامانی از اول طراحی شده.",
     body:
-      "هرگز seed phrase یا کلید خصوصی نمی‌خواهیم. «پرداخت شد» فقط با تأیید سرور است. پرداخت اشتباه یا ناقص می‌رود برای بررسی — هرگز بی‌صدا قبول نمی‌شود.",
+      "هرگز seed phrase یا کلید خصوصی نمی‌خواهیم. «پرداخت شد» فقط با تأیید سرور است. پرداخت اشتباه یا ناقص می‌رود برای بررسی. هرگز بی‌صدا قبول نمی‌شود.",
     link: "نگاه ما به امنیت",
   },
   earlyAccess: {

@@ -17,6 +17,7 @@ import { fulfillmentLabel } from "@/lib/fulfillment";
 type Home = {
   today_paid_orders: number;
   today_toman_volume: number;
+  today_usdt_received?: string;
   pending_payments: number;
   needs_attention: number;
   attention_items?: Array<{
@@ -137,18 +138,33 @@ export default function HomePage() {
         <SkeletonRows count={2} />
       ) : (
         <div className="home-today">
-          <div className="home-today-amount tabular">
-            {data.today_toman_volume.toLocaleString()} {t.checkout.toman}
-          </div>
-          <div className="home-today-meta">
-            {data.today_paid_orders === 0
-              ? t.home.paidTodayNone
-              : t.home.paidCount.replace("{n}", String(data.today_paid_orders))}
-          </div>
+          {data.today_paid_orders === 0 ? (
+            <>
+              <div className="home-today-amount home-today-quiet">{t.home.paidTodayNone}</div>
+              <div className="home-today-meta">{t.home.emptyHint}</div>
+            </>
+          ) : (
+            <>
+              <div className="home-today-amount tabular">
+                {t.home.paidCount.replace("{n}", String(data.today_paid_orders))}
+              </div>
+              <div className="home-today-meta tabular mono-ltr">
+                {data.today_usdt_received
+                  ? `${t.home.usdtReceived} ${data.today_usdt_received} USDT`
+                  : `${data.today_toman_volume.toLocaleString()} ${t.checkout.toman}`}
+              </div>
+            </>
+          )}
         </div>
       )}
 
       <NewPaymentButton />
+
+      {!loading && data && data.pending_payments > 0 ? (
+        <p className="home-pending muted">
+          <Link href="/app/orders">{t.home.pendingCount.replace("{n}", String(data.pending_payments))}</Link>
+        </p>
+      ) : null}
 
       {!loading && data?.payment_link ? (
         <section className="section">

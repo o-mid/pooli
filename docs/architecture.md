@@ -4,9 +4,9 @@ Pooli is a non-custodial USDT payment/order product for social-commerce sellers.
 
 ## Shape
 
-- `apps/web` — Next.js PWA (merchant dashboard + public checkout `/p/{slug}` + admin)
-- `apps/api` — Go HTTP API (chi)
-- `apps/chain-worker` — Go background worker (observe → verify → match → notify)
+- `apps/web`: Next.js PWA (merchant dashboard + public checkout `/p/{slug}` + admin)
+- `apps/api`: Go HTTP API (chi)
+- `apps/chain-worker`: Go background worker (observe → verify → match → notify)
 - Shared Go packages under `internal/`
 - PostgreSQL is the source of truth
 - Realtime uses in-process SSE hubs (not Redis). `REDIS_URL` remains in env/compose for possible future jobs but is unused by the Go services today
@@ -71,6 +71,12 @@ flowchart TB
 ```
 
 MCP exposes only snapshot read, message propose, and proposal status. Confirmation and delivery paths are separate HTTP surfaces so prompt injection in the agent channel cannot approve on behalf of the merchant. See [`docs/agent-integration.md`](agent-integration.md) and [`apps/action-gateway/README.md`](../apps/action-gateway/README.md).
+
+## Merchant web UX
+
+- **Marketing**: `apps/web/src/components/marketing/LandingContent.tsx` with copy in `apps/web/src/i18n/messages/marketing-content.ts`. Hero leads with USDT checkout proof (`CheckoutDemo`), then register CTAs.
+- **Seller app**: `/app` uses `AppLayoutClient` (top bar + bottom `Nav`). Home reads `GET /api/v1/home` (paid count, `today_usdt_received`, pending payments, attention queue).
+- **Checkout**: Public `/p/{slug}` and `/link/{slug}` stay outside the merchant shell; payment state components are shared with the marketing demo.
 
 ## Non-goals (V1)
 

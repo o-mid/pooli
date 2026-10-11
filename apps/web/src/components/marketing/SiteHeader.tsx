@@ -40,7 +40,9 @@ export function SiteHeader() {
       </nav>
       <div className="marketing-header-actions">
         <LanguageSwitch />
-        <ThemeToggle />
+        <span className="desktop-only">
+          <ThemeToggle />
+        </span>
         <Link className="btn btn-ghost desktop-only" href={authed ? "/app" : "/login"}>
           {authed ? t.openPooli : m.signIn}
         </Link>
@@ -59,6 +61,7 @@ export function SiteHeader() {
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title={m.menu} labelledBy="marketing-menu-title">
         <h2 id="marketing-menu-title" className="sr-only">{m.menu}</h2>
         <nav className="marketing-mobile-nav" aria-label="Mobile">
+          <ThemeToggle />
           {navLinks}
           <Link className="btn btn-secondary" href={authed ? "/app" : "/login"} onClick={() => setMenuOpen(false)}>
             {authed ? t.openPooli : m.signIn}

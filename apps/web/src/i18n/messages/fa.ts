@@ -44,6 +44,8 @@ export const fa: Messages = {
     newOrder: "پرداخت جدید",
     paidToday: "پرداخت امروز",
     paidTodayNone: "امروز هنوز پرداختی نبود",
+    emptyHint: "وقتی آماده بودی یک لینک بساز و بفرست.",
+    pendingCount: "{n} پرداخت در انتظار",
     tomanVolume: "امروز",
     usdtReceived: "دریافت‌شده",
     pending: "منتظر",

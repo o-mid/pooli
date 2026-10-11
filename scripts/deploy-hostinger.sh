@@ -70,9 +70,31 @@ def env_get(key: str) -> str:
             return line.split("=", 1)[1].strip()
     return ""
 
-for k in ["APP_ENV","RATE_PROVIDER","ENABLE_CHAIN_SIMULATOR","ENABLE_BSC_WATCHER","ENABLE_BSC_CHECKOUT","TELEGRAM_ENABLED","OTP_SMS_PROVIDER","NEXT_PUBLIC_SITE_URL","GIT_SHA"]:
+import secrets
+if not env_get("AGENT_GATEWAY_SECRET"):
+    secret = secrets.token_hex(32)
+    out = p.read_text().splitlines()
+    out.append(f"AGENT_GATEWAY_SECRET={secret}")
+    p.write_text("\n".join(out) + "\n")
+    print("AGENT_GATEWAY_SECRET: generated (new)")
+for default_url in [
+    ("ACTION_GATEWAY_PUBLIC_URL", "https://agent.pooli.shop"),
+    ("NEXT_PUBLIC_ACTION_GATEWAY_URL", "https://agent.pooli.shop"),
+]:
+    k, default = default_url
+    if not env_get(k):
+        out = p.read_text().splitlines()
+        out.append(f"{k}={default}")
+        p.write_text("\n".join(out) + "\n")
+
+for k in ["APP_ENV","RATE_PROVIDER","ENABLE_CHAIN_SIMULATOR","ENABLE_BSC_WATCHER","ENABLE_BSC_CHECKOUT","TELEGRAM_ENABLED","OTP_SMS_PROVIDER","NEXT_PUBLIC_SITE_URL","GIT_SHA","AGENT_GATEWAY_SECRET","ACTION_GATEWAY_PUBLIC_URL","NEXT_PUBLIC_ACTION_GATEWAY_URL"]:
     v = env_get(k)
-    print(f"{k}={v}" if v != "" else f"{k}: MISSING")
+    if k == "AGENT_GATEWAY_SECRET" and v:
+        print(f"{k}: set (len={len(v)})")
+    elif v != "":
+        print(f"{k}={v}")
+    else:
+        print(f"{k}: MISSING")
 
 wc = env_get("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID")
 if wc:

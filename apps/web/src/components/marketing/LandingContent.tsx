@@ -25,9 +25,13 @@ export function LandingContent() {
   return (
     <>
       <section className="marketing-hero">
-        <div>
+        <div className="marketing-hero-copy">
+          <p className="marketing-hero-eyebrow">{m.hero.eyebrow}</p>
           <h1 className="marketing-h1">{m.hero.h1}</h1>
           <p className="marketing-hero-sub">{m.hero.sub}</p>
+        </div>
+        <CheckoutDemo label={m.hero.demoLabel} className="marketing-hero-demo" />
+        <div className="marketing-hero-actions">
           <div className="marketing-hero-cta">
             <Link className="btn btn-primary" href="/register">{m.hero.ctaPrimary}</Link>
             <a className="marketing-quiet-link" href="#how-it-works" onClick={scrollToHowItWorks}>
@@ -37,7 +41,6 @@ export function LandingContent() {
           <p className="marketing-for">{m.builtFor.line1}</p>
           <p className="marketing-for muted">{m.builtFor.line2}</p>
         </div>
-        <CheckoutDemo label={m.hero.demoLabel} />
       </section>
 
       <Section title={m.problem.title}>
@@ -68,25 +71,6 @@ export function LandingContent() {
         </ol>
       </Section>
 
-      <section className="marketing-section draft-reminders" id="draft-reminders">
-        <p className="draft-status">{m.draftReminders.status}</p>
-        <h2 className="marketing-h2">{m.draftReminders.title}</h2>
-        <p className="marketing-lead">{m.draftReminders.sub}</p>
-        <ol className="draft-steps">
-          {m.draftReminders.steps.map((step, i) => (
-            <li key={step}>
-              <span className="draft-step-num">{stepNumber.format(i + 1)}</span>
-              <p>{step}</p>
-            </li>
-          ))}
-        </ol>
-        <p className="draft-safety">{m.draftReminders.safety}</p>
-        <div className="marketing-hero-cta">
-          <Link className="btn btn-secondary" href="/register">{m.draftReminders.cta}</Link>
-          <Link className="marketing-quiet-link" href="/claude">{m.draftReminders.more}</Link>
-        </div>
-      </section>
-
       <Section title={m.benefits.title}>
         <ul className="marketing-benefits">
           <li><strong>{m.benefits.b1Title}</strong><span>{m.benefits.b1Body}</span></li>
@@ -97,6 +81,17 @@ export function LandingContent() {
           <li><strong>{m.benefits.b6Title}</strong><span>{m.benefits.b6Body}</span></li>
         </ul>
       </Section>
+
+      <section className="marketing-section draft-reminders" id="draft-reminders">
+        <p className="draft-status">{m.draftReminders.status}</p>
+        <h2 className="marketing-h2">{m.draftReminders.title}</h2>
+        <p className="marketing-lead">{m.draftReminders.sub}</p>
+        <p className="draft-safety">{m.draftReminders.safety}</p>
+        <div className="marketing-hero-cta">
+          <Link className="btn btn-primary" href="/register">{m.draftReminders.cta}</Link>
+          <Link className="marketing-quiet-link" href="/claude">{m.draftReminders.more}</Link>
+        </div>
+      </section>
 
       <Section title={m.nonCustodial.title}>
         <p>{m.nonCustodial.body}</p>

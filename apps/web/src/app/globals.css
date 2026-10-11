@@ -1295,6 +1295,27 @@ html[dir="rtl"] .back-chevron {
   font-size: var(--text-subhead);
 }
 
+.home-today-quiet {
+  font-size: var(--text-title2);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.home-pending {
+  margin: 0;
+  font-size: var(--text-subhead);
+}
+
+.home-pending a {
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.home-pending a:hover {
+  text-decoration: underline;
+}
+
 .quiet-link {
   display: inline-flex;
   align-items: center;
@@ -2157,7 +2178,7 @@ html[dir="rtl"] .back-chevron {
   }
 }
 
-/* —— Public marketing site —— */
+/* Public marketing site */
 
 @media (prefers-reduced-motion: no-preference) {
   html:has(.marketing-page) {
@@ -2274,6 +2295,16 @@ html[dir="rtl"] .back-chevron {
   padding: var(--space-6) var(--space-4) var(--space-8);
 }
 
+.marketing-hero {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-6);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--brand) 6%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--brand) 12%, var(--separator));
+}
+
 .marketing-h1 {
   font-size: clamp(var(--text-title1), 5vw, var(--text-large-title));
   font-weight: 700;
@@ -2334,11 +2365,32 @@ html[dir="rtl"] .back-chevron {
   color: var(--ink);
 }
 
+.marketing-hero-eyebrow {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
 .marketing-hero-sub {
   font-size: var(--text-body);
   color: var(--ink-secondary);
   max-width: 38rem;
   margin: 0;
+}
+
+.marketing-hero-demo {
+  margin-inline: auto;
+  width: min(100%, 22.5rem);
+}
+
+.story-trail-summary {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-footnote);
+  color: var(--ink-secondary);
+  text-align: center;
 }
 
 .marketing-for {
@@ -2407,10 +2459,10 @@ html[dir="rtl"] .back-chevron {
   padding: var(--space-1) var(--space-2);
   font-size: var(--text-caption);
   font-weight: 600;
-  color: var(--ink-secondary);
-  border: 1px solid var(--separator);
+  color: var(--brand);
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--separator));
   border-radius: var(--radius-sm);
-  background: var(--bg-grouped);
+  background: color-mix(in srgb, var(--brand) 10%, var(--bg));
 }
 
 [dir="ltr"] .draft-status {
@@ -2762,20 +2814,35 @@ html[dir="rtl"] .back-chevron {
 
 @media (min-width: 768px) {
   .marketing-hero {
-    display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    gap: var(--space-8);
-    align-items: center;
+    grid-template-rows: auto auto;
+    gap: var(--space-6) var(--space-8);
+    align-items: start;
+  }
+
+  .marketing-hero-copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .marketing-hero-demo {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-inline: 0;
+    justify-self: end;
+    width: min(100%, 24rem);
+  }
+
+  .marketing-hero-actions {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .story-phone {
     margin-top: 0;
-    justify-self: end;
   }
 
-  .marketing-pain-list,
-  .marketing-steps,
-  .draft-steps {
+  .marketing-steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
