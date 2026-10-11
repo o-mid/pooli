@@ -26,12 +26,20 @@ if [[ ! -f "$CERT" ]]; then
   }
 fi
 
-if [[ -f "${ROOT}/nginx-agent.pooli.shop.conf.proposed" ]]; then
+if [[ -f "$CERT" && -f "${ROOT}/nginx-agent.pooli.shop.conf.proposed" ]]; then
   cp "${ROOT}/nginx-agent.pooli.shop.conf.proposed" "$AVAIL"
   nginx -t
   systemctl reload nginx
 fi
 
-curl -fsS "https://${SITE}/healthz"
+if curl -fsS "https://${SITE}/healthz" >/dev/null 2>&1; then
+  curl -fsS "https://${SITE}/healthz"
+elif curl -fsS "http://${SITE}/healthz" >/dev/null 2>&1; then
+  curl -fsS "http://${SITE}/healthz"
+  echo "(HTTP only; add DNS A record for ${SITE} then re-run this script for TLS)"
+else
+  echo "WARN: ${SITE} does not resolve yet. Add DNS A → $(curl -fsS -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}') then re-run."
+  exit 1
+fi
 echo
 echo "agent nginx OK"

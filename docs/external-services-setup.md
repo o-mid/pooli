@@ -44,7 +44,7 @@ Apply the vars on your server, then restart API and worker. Confirm via `GET /ap
 
 `api.nobitex.ir` currently does not resolve from public resolvers (Cloudflare, Google, Quad9) or from the production host. That is a Nobitex/DNS issue, not a local stub-resolver misconfig.
 
-Production stays `RATE_PROVIDER=nobitex` with `RATE_FALLBACK_PROVIDER=wallex`. Quotes come from Wallex (`last_quote_source=wallex` on `/api/v1/ops/status`). Do not switch the primary to `wallex` unless Nobitex stays dark for a long stretch — the fail-closed fallback is the intended path.
+Production uses `RATE_PROVIDER=wallex` for legacy TMN-only create paths. USDT-native orders (ADR-009) do not call exchange rates. `nobitex` with `RATE_FALLBACK_PROVIDER=wallex` remains supported if you still need Nobitex primary for old clients.
 
 Do not add a hardcoded `/etc/hosts` entry for Nobitex. Re-check `dig +short api.nobitex.ir A` occasionally; when it resolves again, new quotes will prefer Nobitex automatically.
 
