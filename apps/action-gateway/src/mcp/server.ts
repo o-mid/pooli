@@ -47,6 +47,7 @@ function idempotencyKeyFor(
   p: {
     orderId: string;
     orderSlug: string;
+    merchantId: string;
     body: string;
     locale: string;
     paymentStatus: string;
@@ -58,6 +59,7 @@ function idempotencyKeyFor(
     principal,
     p.orderId,
     p.orderSlug,
+    p.merchantId,
     p.body,
     p.locale,
     p.paymentStatus,
@@ -127,9 +129,14 @@ export function createMcpServer(deps: McpDeps): McpServer {
         return textResult('orderSlug does not match the snapshot.', true);
       }
 
+      if (!snap.merchantId) {
+        return textResult('Snapshot is missing merchant scope; cannot propose.', true);
+      }
+
       const payload = {
         orderId: args.orderId,
         orderSlug: args.orderSlug,
+        merchantId: snap.merchantId,
         body: args.body,
         locale: args.locale,
         paymentStatus: args.paymentStatus.trim().toUpperCase(),

@@ -10,12 +10,13 @@ Pooli is a non-custodial USDT payment/order product for social-commerce sellers.
 - Shared Go packages under `internal/`
 - PostgreSQL is the source of truth
 - Realtime uses in-process SSE hubs (not Redis). `REDIS_URL` remains in env/compose for possible future jobs but is unused by the Go services today
-- Production deploy: Docker Compose (`deploy/hostinger/`) behind nginx TLS for web + API hosts
+- Production deploy: Docker Compose (`deploy/hostinger/`) behind nginx TLS for web, API, and **action-gateway** (`agent.pooli.shop`) hosts
 
 ## Money model
 
-- Seller amounts are **TMN (toman)** integers.
-- USDT is tracked in **base units** (6 decimals) as `int64` across the product.
+- Seller amounts are **USDT base units** (6 decimals) as `int64` on new orders (`amount_usdt_base_units`).
+- Legacy rows may still carry `fiat_amount_toman` / TMN from earlier pilots; new checkouts do not require Iranian exchange rates.
+- USDT on-chain matching still uses **base units** internally.
 - BNB Smart Chain Binance-Peg USDT is **18 decimals on-chain**; the EVM adapter scales to/from Pooli’s 6-decimal units at the observation / payment-URI boundary (see ADR-006).
 - Rates are `NUMERIC` with source + timestamps; never float for matching.
 

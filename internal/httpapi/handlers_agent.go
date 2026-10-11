@@ -34,6 +34,20 @@ func agentMerchantFrom(ctx context.Context) string {
 	return v
 }
 
+func (s *Server) handleAgentOrderSnapshotByOrderID(w http.ResponseWriter, r *http.Request) {
+	orderID := chi.URLParam(r, "orderId")
+	if orderID == "" {
+		writeErr(w, http.StatusBadRequest, "missing order id")
+		return
+	}
+	snap, err := agent.BuildOrderSnapshotByOrderID(r.Context(), s.Pool, orderID, s.Cfg.PublicBaseURL)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, snap)
+}
+
 func (s *Server) handleAgentOrderSnapshot(w http.ResponseWriter, r *http.Request) {
 	merchantID := chi.URLParam(r, "merchantId")
 	orderID := chi.URLParam(r, "orderId")

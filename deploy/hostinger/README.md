@@ -32,3 +32,15 @@ bash /opt/pooli/deploy/hostinger/deploy-chain-worker.sh
 ```
 
 `NEXT_PUBLIC_*` values for the web image must be set in `deploy/hostinger/.env` **before** `docker compose build pooli-web`.
+
+## Action gateway
+
+1. Set in `deploy/hostinger/.env`:
+   - `AGENT_GATEWAY_SECRET` (long random; same on API + gateway)
+   - `ACTION_GATEWAY_PUBLIC_URL=https://agent.pooli.shop`
+   - `NEXT_PUBLIC_ACTION_GATEWAY_URL=https://agent.pooli.shop`
+2. Enable nginx vhost: `nginx-agent.pooli.shop.conf.proposed` → certbot for `agent.pooli.shop`.
+3. Build and start: `docker compose build pooli-action-gateway pooli-web && docker compose up -d pooli-action-gateway`.
+4. Health: `curl -fsS http://127.0.0.1:8280/healthz`
+
+`./scripts/deploy-hostinger.sh` builds and waits on API, worker, gateway, and web together.

@@ -7,6 +7,7 @@ import { type Result, type MessageDraftPayload, err, ok } from './types.js';
 export const MAX_BODY_LEN = 2_000;
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,62}$/;
 const ORDER_ID_RE = /^[A-Za-z0-9_-]{4,64}$/;
+const MERCHANT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LOCALES = new Set(['en', 'fa']);
 const PAYMENT_STATUSES = new Set([
   'AWAITING_PAYMENT',
@@ -49,6 +50,10 @@ export function validateMessageDraft(p: MessageDraftPayload): Result<MessageDraf
   if (!ORDER_ID_RE.test(orderId)) {
     return err('VALIDATION_FAILED', 'order id is not in a valid format');
   }
+  const merchantId = (p.merchantId ?? '').trim();
+  if (merchantId && !MERCHANT_ID_RE.test(merchantId)) {
+    return err('VALIDATION_FAILED', 'merchant id is not in a valid format');
+  }
   if (!SLUG_RE.test(orderSlug)) {
     return err('VALIDATION_FAILED', 'order slug is not in a valid format');
   }
@@ -70,5 +75,5 @@ export function validateMessageDraft(p: MessageDraftPayload): Result<MessageDraf
   const lint = lintFalsePaidClaim(body, paymentStatus);
   if (!lint.ok) return lint;
 
-  return ok({ orderId, orderSlug, body, locale, paymentStatus });
+  return ok({ orderId, orderSlug, merchantId, body, locale, paymentStatus });
 }

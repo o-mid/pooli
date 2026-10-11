@@ -10,6 +10,8 @@ volumes:
     name: pooli-postgres-data
   pooli-uploads:
     name: pooli-uploads
+  pooli-gateway-data:
+    name: pooli-gateway-data
 
 services:
   pooli-postgres:
@@ -98,6 +100,44 @@ services:
       pooli-api:
         condition: service_healthy
 
+  pooli-action-gateway:
+    build:
+      context: ../..
+      dockerfile: deploy/hostinger/Dockerfile.gateway
+    image: pooli-action-gateway:local
+    container_name: pooli-action-gateway
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POOLI_API_URL: http://pooli-api:8080
+      POOLI_GATEWAY_SECRET: ${AGENT_GATEWAY_SECRET}
+      POOLI_PUBLIC_BASE_URL: ${NEXT_PUBLIC_SITE_URL:-https://pooli.shop}
+      PUBLIC_URL: ${ACTION_GATEWAY_PUBLIC_URL:-https://agent.pooli.shop}
+      OAUTH_STATE_DIR: /data
+      PROPOSAL_TTL_SECONDS: ${PROPOSAL_TTL_SECONDS:-600}
+    volumes:
+      - pooli-gateway-data:/data
+    ports:
+      - "127.0.0.1:8280:8080"
+    networks:
+      - pooli-network
+    depends_on:
+      pooli-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
+
   pooli-web:
     build:
       context: ../..
@@ -105,6 +145,7 @@ services:
       args:
         NEXT_PUBLIC_API_BASE_URL: http://pooli-api:8080
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://pooli.shop}
+        NEXT_PUBLIC_ACTION_GATEWAY_URL: ${NEXT_PUBLIC_ACTION_GATEWAY_URL:-https://agent.pooli.shop}
         # Must be present at build time (Next.js inlines NEXT_PUBLIC_* into the client bundle).
         NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID:-}
     image: pooli-web:local

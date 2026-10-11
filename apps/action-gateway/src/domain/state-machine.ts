@@ -34,6 +34,7 @@ export function digestPayload(p: MessageDraftPayload): string {
   const canonical = JSON.stringify([
     p.orderId,
     p.orderSlug,
+    p.merchantId,
     p.body,
     p.locale,
     p.paymentStatus,

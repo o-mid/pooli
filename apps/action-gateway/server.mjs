@@ -104,7 +104,48 @@ const registry = new ActionRegistry(store, { ttlSeconds: TTL_SECONDS });
  * operator reads it from the server log, playing the part of the customer's
  * phone.
  */
-function deliverLinkCode({ proposalId, linkCode, proposal }) {
+async function notifyPooliDraftReady(proposal, proposalId) {
+  const base = (process.env.POOLI_API_URL ?? '').trim().replace(/\/$/, '');
+  const secret = (process.env.POOLI_GATEWAY_SECRET ?? process.env.AGENT_GATEWAY_SECRET ?? '').trim();
+  const merchantId = proposal.payload.merchantId ?? '';
+  if (!base || !secret || !merchantId) return;
+
+  const reviewBase = (process.env.POOLI_WEB_PUBLIC_URL ?? process.env.POOLI_PUBLIC_BASE_URL ?? '').trim().replace(/\/$/, '');
+  const confirmUrl = `${PUBLIC_URL}/p/${proposalId}`;
+  const body = {
+    merchant_id: merchantId,
+    order_id: proposal.payload.orderId,
+    order_slug: proposal.payload.orderSlug,
+    proposal_id: proposalId,
+    confirm_url: confirmUrl,
+    locale: proposal.payload.locale,
+  };
+
+  try {
+    const res = await fetch(`${base}/api/v1/agent/draft-ready`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Pooli-Gateway-Secret': secret,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(8_000),
+    });
+    record('pooli_draft_ready_notify', {
+      proposalId,
+      orderId: proposal.payload.orderId,
+      status: res.status,
+      ok: res.ok,
+    });
+  } catch (e) {
+    record('pooli_draft_ready_notify_failed', {
+      proposalId,
+      message: e?.message ?? String(e),
+    });
+  }
+}
+
+async function deliverLinkCode({ proposalId, linkCode, proposal }) {
   // Plaintext goes to the side channel and nowhere else.
   deliverOutOfBand({
     to: 'customer-device',
@@ -115,9 +156,6 @@ function deliverLinkCode({ proposalId, linkCode, proposal }) {
     paymentStatus: proposal.payload.paymentStatus,
   });
 
-  // The audit log records that delivery HAPPENED, never what was delivered.
-  // `record` would redact the code anyway; not passing it is the belt to that
-  // braces, and keeps the intent legible to the next reader.
   record('link_code_delivered', {
     proposalId,
     channel: 'out-of-band (simulated: outbox file stands in for the merchant device)',
@@ -125,6 +163,8 @@ function deliverLinkCode({ proposalId, linkCode, proposal }) {
     paymentStatus: proposal.payload.paymentStatus,
     confirmUrl: `${PUBLIC_URL}/p/${proposalId}`,
   });
+
+  await notifyPooliDraftReady(proposal, proposalId);
 }
 
 // Body parsers must be installed BEFORE the OAuth routes.
@@ -342,6 +382,10 @@ ${messages.length === 0 ? '' : `<form class="clear" method="post" action="/demo/
 // credential here would collapse the two channels into one and destroy the
 // property the whole design rests on.
 app.use(createConfirmationApi(registry));
+
+app.get('/healthz', (_req, res) => {
+  res.json({ ok: true, service: 'pooli-action-gateway' });
+});
 
 app.listen(PORT, () => {
   record('boot', {

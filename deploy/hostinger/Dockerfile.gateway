@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY apps/action-gateway/package.json apps/action-gateway/package-lock.json ./
+RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
+
+COPY apps/action-gateway/tsconfig.json ./
+COPY apps/action-gateway/src ./src
+RUN npm install --no-save typescript@5 && ./node_modules/.bin/tsc && npm uninstall typescript
+
+COPY apps/action-gateway/oauth.mjs apps/action-gateway/server.mjs ./
+
+ENV OAUTH_STATE_DIR=/data
+ENV NODE_ENV=production
+ENV PORT=8080
+EXPOSE 8080
+
+RUN addgroup -S pooli && adduser -S pooli -G pooli && mkdir -p /data && chown -R pooli:pooli /data /app
+USER pooli
+
+CMD ["node", "server.mjs"]

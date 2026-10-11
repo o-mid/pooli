@@ -4,6 +4,7 @@
 
 export interface OrderSnapshot {
   readonly schemaVersion: 1;
+  readonly merchantId: string;
   readonly order: { readonly id: string; readonly title: string; readonly slug: string };
   readonly payment: { readonly status: string; readonly expiresAt: string | null };
   readonly amountUsdt: { readonly display: string; readonly baseUnits: number };
@@ -11,6 +12,7 @@ export interface OrderSnapshot {
 
 const FIXTURE: OrderSnapshot = {
   schemaVersion: 1,
+  merchantId: '00000000-0000-4000-8000-000000000001',
   order: { id: 'ord_e2e_fixture', title: 'Ceramic mug set', slug: 'ceramic-mug-e2e' },
   payment: { status: 'AWAITING_PAYMENT', expiresAt: '2030-01-01T00:00:00Z' },
   amountUsdt: { display: '12.50', baseUnits: 12_500_000 },
@@ -22,32 +24,52 @@ function pooliApiBase(): string | null {
   return raw.replace(/\/$/, '');
 }
 
-function isOrderSnapshot(value: unknown): value is OrderSnapshot {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  if (v.schemaVersion !== 1) return false;
-  const order = v.order as Record<string, unknown> | undefined;
-  const payment = v.payment as Record<string, unknown> | undefined;
-  const amount = v.amountUsdt as Record<string, unknown> | undefined;
-  return (
-    typeof order?.id === 'string' &&
-    typeof order?.title === 'string' &&
-    typeof order?.slug === 'string' &&
-    typeof payment?.status === 'string' &&
-    (payment.expiresAt === null || typeof payment.expiresAt === 'string') &&
-    typeof amount?.display === 'string' &&
-    typeof amount?.baseUnits === 'number'
-  );
+function gatewaySecret(): string | null {
+  const s = process.env.POOLI_GATEWAY_SECRET?.trim() || process.env.AGENT_GATEWAY_SECRET?.trim();
+  return s || null;
+}
+
+function formatUsdtDisplay(baseUnits: number): string {
+  if (!Number.isFinite(baseUnits) || baseUnits <= 0) return '0';
+  const whole = Math.floor(baseUnits / 1_000_000);
+  const frac = String(baseUnits % 1_000_000).padStart(6, '0').replace(/0+$/, '');
+  return frac ? `${whole}.${frac}` : String(whole);
+}
+
+function mapPooliApiSnapshot(body: Record<string, unknown>): OrderSnapshot | null {
+  const merchantId = String(body.merchant_id ?? '');
+  const orderId = String(body.order_id ?? '');
+  const slug = String(body.slug ?? '');
+  const title = String(body.title ?? '');
+  const pay = body.payment as Record<string, unknown> | undefined;
+  const status = String(pay?.status ?? body.status ?? '');
+  if (!merchantId || !orderId || !slug) return null;
+
+  let expiresAt: string | null = null;
+  if (pay?.expires_at) {
+    expiresAt = String(pay.expires_at);
+  }
+
+  const baseUnits = Number(body.amount_usdt_base_units ?? 0);
+  return {
+    schemaVersion: 1,
+    merchantId,
+    order: { id: orderId, title, slug },
+    payment: { status, expiresAt },
+    amountUsdt: { display: formatUsdtDisplay(baseUnits), baseUnits },
+  };
 }
 
 async function fetchSnapshotFromApi(orderId: string): Promise<OrderSnapshot | null> {
   const base = pooliApiBase();
-  if (!base) return null;
+  const secret = gatewaySecret();
+  if (!base || !secret) return null;
 
   const url = `${base}/api/v1/agent/orders/${encodeURIComponent(orderId)}/snapshot`;
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  const token = process.env.POOLI_AGENT_TOKEN?.trim();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Pooli-Gateway-Secret': secret,
+  };
 
   let res: Response;
   try {
@@ -60,8 +82,8 @@ async function fetchSnapshotFromApi(orderId: string): Promise<OrderSnapshot | nu
   if (!res.ok) return null;
 
   try {
-    const body: unknown = await res.json();
-    return isOrderSnapshot(body) ? body : null;
+    const body = (await res.json()) as Record<string, unknown>;
+    return mapPooliApiSnapshot(body);
   } catch {
     return null;
   }

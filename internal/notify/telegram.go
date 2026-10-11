@@ -50,6 +50,16 @@ type AttentionNotify struct {
 	Locale     string
 }
 
+// DraftReadyNotify pings the merchant when an agent registers a follow-up draft (C25).
+type DraftReadyNotify struct {
+	MerchantID string
+	OrderID    string
+	OrderSlug  string
+	ProposalID string
+	ConfirmURL string
+	Locale     string
+}
+
 func (t *Telegram) client() *http.Client {
 	if t.HTTP != nil {
 		return t.HTTP
@@ -100,6 +110,43 @@ func (t *Telegram) DeliverPaid(ctx context.Context, n PaidNotify) error {
 	orderURL := strings.TrimRight(t.PublicBase, "/") + "/app/orders/" + n.OrderID
 	if n.OrderID != "" {
 		text += "\n" + orderURL
+	}
+	return t.sendWithRetry(ctx, n.MerchantID, eventKey, chatID, text)
+}
+
+// DeliverDraftReady tells the merchant a buyer-message draft awaits approval (not sent to buyer).
+func (t *Telegram) DeliverDraftReady(ctx context.Context, n DraftReadyNotify) error {
+	if !t.Enabled || t.Token == "" {
+		return nil
+	}
+	chatID, err := t.chatID(ctx, n.MerchantID)
+	if err != nil || chatID == "" {
+		return nil
+	}
+	eventKey := "agent.draft_ready:" + n.ProposalID
+	ok, err := beginDelivery(ctx, t.Pool, n.MerchantID, "telegram", n.OrderID, "agent.draft_ready", eventKey, map[string]any{
+		"proposal_id": n.ProposalID, "order_slug": n.OrderSlug,
+	})
+	if err != nil || !ok {
+		return err
+	}
+	loc := strings.TrimSpace(n.Locale)
+	if loc != "fa" {
+		loc = "en"
+	}
+	var text string
+	if loc == "fa" {
+		text = "پیش‌نویس پیام برای سفارش «" + n.OrderSlug + "» آماده است. در پولی بررسی و تأیید کن."
+	} else {
+		text = "A follow-up draft for order \"" + n.OrderSlug + "\" is ready. Review and approve in Pooli."
+	}
+	review := strings.TrimRight(t.PublicBase, "/") + "/app/orders/" + n.OrderID
+	if n.ProposalID != "" {
+		review += "?proposal=" + n.ProposalID
+	}
+	text += "\n" + review
+	if strings.TrimSpace(n.ConfirmURL) != "" {
+		text += "\n" + strings.TrimSpace(n.ConfirmURL)
 	}
 	return t.sendWithRetry(ctx, n.MerchantID, eventKey, chatID, text)
 }

@@ -11,13 +11,16 @@ flowchart LR
   Agent[MCP client]
   GW[action-gateway]
   API[Pooli Go API]
-  Human[Merchant confirm UI]
+  TG[Telegram]
+  Human[Merchant PWA]
 
   Agent -->|OAuth /mcp| GW
   GW -->|GET snapshot| API
+  GW -->|POST draft-ready| API
+  API --> TG
   Agent -->|propose_buyer_message| GW
-  GW -->|link code| Human
   Human -->|/p/:id + code| GW
+  Human -->|proposal sheet| GW
 ```
 
 ## MCP tools (agent-visible)
@@ -28,53 +31,80 @@ flowchart LR
 | `propose_buyer_message` | Register a draft; returns proposal id and confirm URL |
 | `check_proposal_status` | Read lifecycle state (never returns the link code) |
 
-There is **no** tool to send DMs, confirm on behalf of the merchant, or transition payment status. If a client tries to call a non-existent tool, the server responds with tool-not-found — that is intentional capability reduction.
+There is **no** tool to send DMs, confirm on behalf of the merchant, or transition payment status.
 
-## Environment variables (gateway)
+## Environment variables
+
+### Go API (`apps/api`)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PORT` | No | HTTP listen port (default `8080`) |
-| `PUBLIC_URL` | Yes (deploy) | Base URL for OAuth discovery and confirmation links |
+| `AGENT_GATEWAY_SECRET` | Yes (prod gateway) | Shared secret; gateway sends `X-Pooli-Gateway-Secret` |
+
+### Action gateway (`apps/action-gateway`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PUBLIC_URL` | Yes (deploy) | Base URL for OAuth discovery and `/p/:id` confirmation |
+| `POOLI_API_URL` | Yes (deploy) | Internal API base, e.g. `http://pooli-api:8080` |
+| `POOLI_GATEWAY_SECRET` | Yes (deploy) | Same value as `AGENT_GATEWAY_SECRET` on the API |
+| `POOLI_PUBLIC_BASE_URL` | No | Merchant app links in Telegram pings (defaults to site URL) |
 | `PROPOSAL_TTL_SECONDS` | No | Proposal expiry (default `600`) |
-| `POOLI_API_URL` | No | When set, gateway fetches snapshots from the Go API instead of the local fixture |
-| `POOLI_AGENT_TOKEN` | No | Bearer token for agent snapshot routes when the API requires auth |
-| `OAUTH_STATE_DIR` | No | Persistent OAuth signing keys and registrations |
-| `OPERATOR_TOKEN` | No | Demo-only operator inbox; unset in production |
+| `OAUTH_STATE_DIR` | Yes (deploy) | Persistent OAuth signing keys (`/data` volume) |
 
-Local e2e without the API: leave `POOLI_API_URL` unset and use order id `ord_e2e_fixture` (see gateway tests).
+### Web PWA
 
-When `POOLI_API_URL` is set, the gateway calls:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_ACTION_GATEWAY_URL` | Yes (merchant UI) | Public gateway URL; baked at **build** time |
 
-`GET {POOLI_API_URL}/api/v1/agent/orders/{orderId}/snapshot`
+## API routes (gateway → API)
+
+| Method | Path | Auth |
+|--------|------|------|
+| GET | `/api/v1/agent/orders/{orderId}/snapshot` | `X-Pooli-Gateway-Secret` |
+| POST | `/api/v1/agent/draft-ready` | `X-Pooli-Gateway-Secret` |
+
+Merchant-scoped snapshot (optional integrations):
+
+`GET /api/v1/agent/merchants/{merchantId}/orders/{orderId}/snapshot` with `X-Pooli-Merchant-Id` + secret.
+
+### Draft-ready (Telegram C25)
+
+After a new proposal is registered, the gateway calls `POST /api/v1/agent/draft-ready` with:
+
+```json
+{
+  "merchant_id": "uuid",
+  "order_id": "uuid",
+  "order_slug": "my-order",
+  "proposal_id": "uuid",
+  "confirm_url": "https://agent.pooli.shop/p/{id}",
+  "locale": "en"
+}
+```
+
+The API sends a **Telegram** message to the connected merchant (idempotent per `proposal_id`). Nothing is sent to the buyer.
 
 ## Confirmation flow
 
 1. Agent calls `get_order_snapshot` for an order id.
-2. Agent calls `propose_buyer_message` with `body`, `locale`, `paymentStatus`, and `orderSlug` copied from that snapshot.
-3. Gateway validates the draft (including a **false-paid linter**), stores a proposal, and delivers a **link code** on a channel the agent cannot read (SMS, Telegram to merchant, demo outbox, etc.).
-4. Merchant opens `{PUBLIC_URL}/p/{proposalId}`, reviews the **server-stored** draft (not agent paraphrase), and submits the link code.
-5. Agent may poll `check_proposal_status` but never receives the code or executes delivery.
-
-Payment status in the draft is frozen at propose time and checked against the snapshot; mismatches are refused.
-
-## Orchestrator guidance
-
-- Always snapshot before propose for the same order id.
-- Do not ask the user for the link code in chat; it is out-of-band by design.
-- Treat tool descriptions as normative: proposing does not send anything.
+2. Agent calls `propose_buyer_message` with fields copied from that snapshot.
+3. Gateway validates the draft (false-paid linter), stores the proposal, delivers the link code out-of-band, and notifies the merchant via Telegram when configured.
+4. Merchant reviews in the PWA order screen (`?proposal=`) or on `{PUBLIC_URL}/p/{proposalId}` with the code.
+5. Agent may poll `check_proposal_status`; it never receives the code.
 
 ## Verification
 
-From repo root:
-
 ```bash
-make evals          # deterministic agent-safety cases (30+)
-make verify-agent   # evals + gateway unit tests + sticky e2e
+make evals
+make verify-agent
 ```
 
-Case definitions: [`evals/dataset/cases.yaml`](../evals/dataset/cases.yaml). Analysis notes: [`evals/analysis/README.md`](../evals/analysis/README.md).
+## Production (Hostinger)
 
-## Docker Compose
+- Compose service: `pooli-action-gateway` on `127.0.0.1:8280`
+- Nginx sample: [`deploy/hostinger/nginx-agent.pooli.shop.conf.proposed`](../deploy/hostinger/nginx-agent.pooli.shop.conf.proposed)
+- Set `AGENT_GATEWAY_SECRET`, `ACTION_GATEWAY_PUBLIC_URL`, and `NEXT_PUBLIC_ACTION_GATEWAY_URL` in `deploy/hostinger/.env` before building **web** and **gateway** images.
 
-Use the `agent` profile when running the full stack with the gateway (see [`docs/local-development.md`](local-development.md) if documented) or start the gateway from `apps/action-gateway` after `npm run build`.
+See [`deploy/hostinger/README.md`](../deploy/hostinger/README.md) and [`docs/self-hosting.md`](self-hosting.md).

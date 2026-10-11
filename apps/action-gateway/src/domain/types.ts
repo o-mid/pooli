@@ -23,6 +23,7 @@ export function isTerminal(s: ProposalState): boolean {
 export interface MessageDraftPayload {
   readonly orderId: string;
   readonly orderSlug: string;
+  readonly merchantId: string;
   readonly body: string;
   readonly locale: string;
   /** Payment status copied from the order snapshot at propose time. */

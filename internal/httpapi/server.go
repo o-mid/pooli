@@ -176,8 +176,15 @@ func (s *Server) Router() http.Handler {
 		}
 
 		r.Route("/agent", func(r chi.Router) {
-			r.Use(s.requireAgentGateway)
-			r.Get("/merchants/{merchantId}/orders/{orderId}/snapshot", s.handleAgentOrderSnapshot)
+			r.Group(func(r chi.Router) {
+				r.Use(s.requireAgentGatewaySecret)
+				r.Get("/orders/{orderId}/snapshot", s.handleAgentOrderSnapshotByOrderID)
+				r.Post("/draft-ready", s.handleInternalAgentDraftReady)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(s.requireAgentGateway)
+				r.Get("/merchants/{merchantId}/orders/{orderId}/snapshot", s.handleAgentOrderSnapshot)
+			})
 		})
 	})
 

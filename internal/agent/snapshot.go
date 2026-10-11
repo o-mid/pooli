@@ -39,6 +39,15 @@ type TimelineItem struct {
 	At        time.Time `json:"at"`
 }
 
+// BuildOrderSnapshotByOrderID resolves the merchant from the order row (gateway service calls).
+func BuildOrderSnapshotByOrderID(ctx context.Context, pool *pgxpool.Pool, orderID, publicBaseURL string) (OrderSnapshot, error) {
+	var merchantID string
+	if err := pool.QueryRow(ctx, `SELECT merchant_id::text FROM orders WHERE id=$1::uuid`, orderID).Scan(&merchantID); err != nil {
+		return OrderSnapshot{}, err
+	}
+	return BuildOrderSnapshot(ctx, pool, merchantID, orderID, publicBaseURL)
+}
+
 // BuildOrderSnapshot loads merchant-scoped order state and applies agent policy.
 func BuildOrderSnapshot(ctx context.Context, pool *pgxpool.Pool, merchantID, orderID, publicBaseURL string) (OrderSnapshot, error) {
 	var snap OrderSnapshot
