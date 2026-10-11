@@ -2207,6 +2207,7 @@ html[dir="rtl"] .back-chevron {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--ink);
+  overflow-x: clip;
 }
 
 .marketing-header {
@@ -2299,7 +2300,7 @@ html[dir="rtl"] .back-chevron {
   display: grid;
   gap: var(--space-5);
   padding: var(--space-5);
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-6);
+  margin: 0 0 var(--space-6);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--brand) 6%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--brand) 12%, var(--separator));
