@@ -39,8 +39,9 @@ bash /opt/pooli/deploy/hostinger/deploy-chain-worker.sh
    - `AGENT_GATEWAY_SECRET` (long random; same on API + gateway)
    - `ACTION_GATEWAY_PUBLIC_URL=https://agent.pooli.shop`
    - `NEXT_PUBLIC_ACTION_GATEWAY_URL=https://agent.pooli.shop`
-2. Enable nginx vhost: `nginx-agent.pooli.shop.conf.proposed` → certbot for `agent.pooli.shop`.
-3. Build and start: `docker compose build pooli-action-gateway pooli-web && docker compose up -d pooli-action-gateway`.
-4. Health: `curl -fsS http://127.0.0.1:8280/healthz`
+2. DNS: `A` record `agent` → your VPS IPv4 (same as `pooli.shop`).
+3. Enable nginx: `bash /opt/pooli/deploy/hostinger/install-agent-nginx.sh` (HTTP bootstrap + certbot + SSL vhost).
+4. Build and start: `docker compose build pooli-action-gateway pooli-web && docker compose up -d pooli-action-gateway`.
+5. Health: `curl -fsS http://127.0.0.1:8280/healthz`
 
 `./scripts/deploy-hostinger.sh` builds and waits on API, worker, gateway, and web together.

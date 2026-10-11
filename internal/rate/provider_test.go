@@ -148,6 +148,18 @@ func TestBuildProviderMockForbiddenInProduction(t *testing.T) {
 	}
 }
 
+func TestBuildProviderWallexPrimary(t *testing.T) {
+	p, err := BuildProviderOpts(Options{
+		Name: "wallex", MockRate: "126000", Timeout: time.Second, MaxAge: time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Name() != "wallex" {
+		t.Fatalf("name %s", p.Name())
+	}
+}
+
 func TestCacheHit(t *testing.T) {
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

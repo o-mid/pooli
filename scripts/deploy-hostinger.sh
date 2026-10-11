@@ -44,6 +44,7 @@ wanted = {
     "ENABLE_CHAIN_SIMULATOR": "false",
     "OTP_SMS_PROVIDER": "mock",
     "NEXT_PUBLIC_SITE_URL": "https://pooli.shop",
+    "RATE_PROVIDER": "wallex",
     "GIT_SHA": os.environ["GIT_SHA"],
 }
 out, seen = [], set()
@@ -205,6 +206,9 @@ grep -q 'pooli-unavailable' /etc/nginx/sites-available/pooli.shop
 grep -q 'root /opt/pooli/deploy/hostinger/static' /etc/nginx/sites-available/pooli.shop
 grep -q 'merchant/events' /etc/nginx/sites-available/pooli.shop
 echo "nginx live vhost unchanged (opt/pooli paths preserved)"
+if [[ -x /opt/pooli/deploy/hostinger/install-agent-nginx.sh ]]; then
+  bash /opt/pooli/deploy/hostinger/install-agent-nginx.sh || echo "WARN: agent.pooli.shop nginx install skipped (DNS or certbot)"
+fi
 NGINX
 
 echo

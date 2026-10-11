@@ -137,6 +137,16 @@ func BuildProviderOpts(opts Options) (Provider, error) {
 			return nil, fmt.Errorf("RATE_PROVIDER=mock is forbidden in production")
 		}
 		return mock, nil
+	case "wallex":
+		p := &WallexProvider{
+			Timeout: opts.Timeout,
+			MinRate: opts.MinTMNPerUSDT,
+			MaxRate: opts.MaxTMNPerUSDT,
+		}
+		if opts.CacheTTL > 0 {
+			return NewCachedProvider(p, opts.CacheTTL, opts.MaxAge), nil
+		}
+		return p, nil
 	case "nobitex", "live":
 		primary := &NobitexProvider{
 			Policy:  opts.Policy,
@@ -170,7 +180,7 @@ func BuildProviderOpts(opts Options) (Provider, error) {
 		}
 		return chain, nil
 	default:
-		return nil, fmt.Errorf("unknown RATE_PROVIDER %q (use mock|nobitex|live)", name)
+		return nil, fmt.Errorf("unknown RATE_PROVIDER %q (use mock|wallex|nobitex|live)", name)
 	}
 }
 
