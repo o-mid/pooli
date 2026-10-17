@@ -90,6 +90,11 @@ export const fa: Messages = {
   },
   proposals: {
     section: "پیش‌نویس پیام",
+    suggestClaude: "پیشنهاد پیام (Claude)",
+    suggestClaudeHint: "بر اساس وضعیت واقعی پرداخت. تا تأیید تو چیزی ارسال نمی‌شود.",
+    suggestClaudeBusy: "در حال نوشتن…",
+    suggestClaudeError: "پیش‌نویس نشد. دوباره بزن یا خودت بنویس.",
+    suggestClaudeReady: "پیش‌نویس آماده است — پایین بررسی کن",
     pendingRow: "پیش‌نویس پیام منتظر تأیید توست",
     review: "بررسی",
     sheetTitle: "بررسی پیش‌نویس پیام",

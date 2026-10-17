@@ -62,6 +62,9 @@ services:
       GIT_SHA: ${GIT_SHA:-unknown}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pooli-postgres:5432/${POSTGRES_DB}?sslmode=disable
       UPLOAD_DIR: /data/uploads
+      ACTION_GATEWAY_INTERNAL_URL: http://pooli-action-gateway:8080
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
     volumes:
       - pooli-uploads:/data/uploads
     ports:

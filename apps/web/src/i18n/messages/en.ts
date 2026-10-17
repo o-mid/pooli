@@ -89,6 +89,11 @@ export const en = {
   },
   proposals: {
     section: "Draft follow-up",
+    suggestClaude: "Suggest follow-up (Claude)",
+    suggestClaudeHint: "Drafts from live payment status. You approve before anything sends.",
+    suggestClaudeBusy: "Drafting…",
+    suggestClaudeError: "Could not draft. Try again or write your own.",
+    suggestClaudeReady: "Draft ready — review below",
     pendingRow: "Message draft waiting for you",
     review: "Review",
     sheetTitle: "Review message draft",

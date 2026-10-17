@@ -45,7 +45,7 @@ export const marketingEn = {
     status: "Optional",
     title: "Review DM drafts before anything sends.",
     sub:
-      "Integrations can suggest a buyer follow-up from live payment status. You read it, enter the code from your notification, and approve. Nothing leaves your account until you do.",
+      "Tap Suggest follow-up on an order (Claude drafts from live payment status) or let an agent propose via MCP. You read it, enter the code from your notification, and approve. Nothing leaves your account until you do.",
     steps: [
       "An agent or integration proposes a follow-up from payment status.",
       "Pooli blocks false “paid” claims and stores the draft server-side.",
@@ -163,7 +163,11 @@ export const marketingEn = {
     whyBody:
       "Payment workflows need accuracy, long context, and reliable tool use. Claude fits. We also chose to build on Claude because the safety posture matches ours: bounded, auditable, human-in-the-loop where it matters.",
     builtIn: "Pooli is built in Greece.",
-    program: "Applied to the Claude Startups program.",
+    program: "Claude Startups program (apply when cohort opens).",
+    suggestLiveTitle: "Suggest follow-up (live)",
+    suggestLiveBody:
+      "Merchants tap Suggest follow-up on an order. Pooli calls the Claude Messages API on a structured payment snapshot, runs the same false-paid linter as agent proposals, and registers a draft for merchant approval — nothing sends without your code.",
+    integrationDoc: "Agent integration docs",
   },
   faqLanding: {
     title: "FAQ",
@@ -508,7 +512,11 @@ export const marketingFa: MarketingMessages = {
     whyBody:
       "کار پرداخت دقت، زمینهٔ بلند و استفادهٔ مطمئن از ابزار می‌خواهد. Claude به این می‌خورد. موضع ایمنی‌اش هم با مال ما یکی است: محدود، قابل‌حسابرسی، و انسان در حلقه جایی که مهم است.",
     builtIn: "پولی در یونان ساخته می‌شود.",
-    program: "برای برنامهٔ Claude Startups درخواست داده‌ایم.",
+    program: "برنامه Claude Startups (وقتی ثبت‌نام باز شد).",
+    suggestLiveTitle: "پیشنهاد پیام (فعال)",
+    suggestLiveBody:
+      "در صفحهٔ سفارش، «پیشنهاد پیام» را بزن. پولی از Claude Messages API روی وضعیت پرداخت ساخت‌یافته پیش‌نویس می‌سازد، همان linter «پرداخت نشده» را اجرا می‌کند و پیش‌نویس را برای تأیید تو ثبت می‌کند — بدون کد تو چیزی ارسال نمی‌شود.",
+    integrationDoc: "مستندات یکپارچه‌سازی agent",
   },
   faqLanding: {
     title: "سوالات",

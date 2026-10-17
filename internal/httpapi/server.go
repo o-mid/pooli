@@ -113,6 +113,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/orders", s.handleListOrders)
 			r.Get("/orders/{id}", s.handleGetOrder)
 			r.Get("/orders/{id}/proposals", s.handleOrderProposals)
+			r.Post("/orders/{id}/suggest-follow-up", s.handleSuggestFollowUp)
 			r.Get("/orders/{id}/timeline", s.handleGetOrderTimeline)
 			r.Patch("/orders/{id}/fulfillment", s.handlePatchFulfillment)
 			r.Post("/orders/{id}/payment-intent", s.handleCreatePaymentIntent)

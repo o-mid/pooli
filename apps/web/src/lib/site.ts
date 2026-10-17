@@ -59,7 +59,7 @@ export const siteConfig = {
    */
   claudeUsage: {
     anthropicStartupProgramUrl: "https://www.anthropic.com/startups",
-    productUsesClaude: false,
+    productUsesClaude: true,
     summaryEn:
       "Pooli’s payment engine is Go, PostgreSQL, and on-chain verification. We use Claude in engineering and content workflows to design, test, and ship faster — with human review on anything customer-facing.",
     summaryFa:

@@ -46,9 +46,17 @@ export function ClaudeView() {
       </section>
 
       <section>
+        <h2>{p.suggestLiveTitle}</h2>
+        <p>{p.suggestLiveBody}</p>
+        <p>
+          <a href="https://github.com/o-mid/pooli/blob/main/docs/agent-integration.md" rel="noopener noreferrer">
+            {p.integrationDoc}
+          </a>
+        </p>
+      </section>
+
+      <section>
         <h2>{p.buildingTitle}</h2>
-        <h3>{p.remindersTitle}</h3>
-        <p>{p.remindersBody}</p>
         <h3>{p.questionsTitle}</h3>
         <p>{p.questionsBody}</p>
         <p>{p.evals}</p>

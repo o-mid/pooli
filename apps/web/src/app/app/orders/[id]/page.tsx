@@ -19,7 +19,7 @@ import { buildShareText, sharePaymentLink } from "@/lib/share";
 import { networkLabel } from "@/lib/address";
 import { timelineLabel } from "@/lib/timeline";
 import { usePaymentStatusPoll } from "@/lib/usePaymentStatusPoll";
-import { actionGatewayPublicBase } from "@/lib/action-gateway";
+import { actionGatewayPublicBase, fetchProposal } from "@/lib/action-gateway";
 import { loadPendingProposalsForOrder } from "@/lib/order-proposals";
 import { MessageProposalSheet } from "@/components/orders/MessageProposalSheet";
 import type { ProposalView } from "@/lib/action-gateway";
@@ -84,6 +84,7 @@ export default function OrderDetailPage() {
   const [pendingProposals, setPendingProposals] = useState<ProposalView[]>([]);
   const [activeProposal, setActiveProposal] = useState<ProposalView | null>(null);
   const [proposalSheetOpen, setProposalSheetOpen] = useState(false);
+  const [suggestBusy, setSuggestBusy] = useState(false);
   const gatewayConfigured = Boolean(actionGatewayPublicBase());
 
   async function load() {
@@ -206,15 +207,55 @@ export default function OrderDetailPage() {
     }
   }
 
+  async function suggestFollowUp() {
+    if (!order?.id || suggestBusy) return;
+    setSuggestBusy(true);
+    try {
+      const q = locale === "fa" ? "?locale=fa" : "";
+      const res = await api<{
+        proposal_id: string;
+        body: string;
+        confirm_url?: string;
+      }>(`/api/v1/orders/${order.id}/suggest-follow-up${q}`, { method: "POST" });
+      showToast(t.proposals.suggestClaudeReady);
+      const view = await fetchProposal(res.proposal_id);
+      setPendingProposals((prev) => {
+        const rest = prev.filter((p) => p.id !== view.id);
+        return [view, ...rest];
+      });
+      setActiveProposal(view);
+      setProposalSheetOpen(true);
+      if (typeof window !== "undefined" && res.confirm_url) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("proposal", res.proposal_id);
+        window.history.replaceState({}, "", url.toString());
+      }
+    } catch {
+      showToast(t.proposals.suggestClaudeError);
+    } finally {
+      setSuggestBusy(false);
+    }
+  }
+
   return (
     <div className="rise page-stack">
       <BackLink href="/app/orders" />
       <PageHeader title={order.title || t.checkout.orderRef} />
 
-      {gatewayConfigured && pendingProposals.length > 0 ? (
+      {gatewayConfigured ? (
         <section className="section">
           <h2 className="section-title">{t.proposals.section}</h2>
-          <div className="list-group">
+          <p className="muted" style={{ marginBottom: "var(--space-3)" }}>{t.proposals.suggestClaudeHint}</p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={suggestBusy}
+            onClick={() => suggestFollowUp().catch(() => undefined)}
+          >
+            {suggestBusy ? t.proposals.suggestClaudeBusy : t.proposals.suggestClaude}
+          </button>
+          {pendingProposals.length > 0 ? (
+          <div className="list-group" style={{ marginTop: "var(--space-4)" }}>
             {pendingProposals.map((p) => (
               <button
                 key={p.id}
@@ -235,6 +276,7 @@ export default function OrderDetailPage() {
               </button>
             ))}
           </div>
+          ) : null}
         </section>
       ) : null}
 

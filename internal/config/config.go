@@ -17,6 +17,9 @@ type Config struct {
 	RedisURL                    string
 	SessionSecret               string
 	AgentGatewaySecret          string
+	ActionGatewayInternalURL    string
+	AnthropicAPIKey             string
+	AnthropicModel              string
 	AdminEmails                 map[string]bool
 	RateProvider                string
 	RateFallbackProvider        string
@@ -123,6 +126,9 @@ func Load() Config {
 		RedisURL:                    getenv("REDIS_URL", "redis://localhost:6379/0"),
 		SessionSecret:               getenv("SESSION_SECRET", "dev-session-secret-change-me-32chars"),
 		AgentGatewaySecret:          getenv("AGENT_GATEWAY_SECRET", ""),
+		ActionGatewayInternalURL:    getenv("ACTION_GATEWAY_INTERNAL_URL", "http://localhost:8787"),
+		AnthropicAPIKey:             getenv("ANTHROPIC_API_KEY", ""),
+		AnthropicModel:              getenv("ANTHROPIC_MODEL", ""),
 		AdminEmails:                 admin,
 		RateProvider:                getenv("RATE_PROVIDER", "mock"),
 		RateFallbackProvider:        getenv("RATE_FALLBACK_PROVIDER", ""),

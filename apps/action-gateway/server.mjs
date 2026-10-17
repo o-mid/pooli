@@ -26,6 +26,7 @@ import { installOAuth } from './oauth.mjs';
 import { ActionRegistry } from './dist/domain/registry.js';
 import { InMemoryProposalStore } from './dist/domain/store.js';
 import { createConfirmationApi } from './dist/http/confirmation-api.js';
+import { createInternalApi } from './dist/http/internal-api.js';
 import { redact } from './dist/observability/redact.js';
 import { createMcpServer } from './dist/mcp/server.js';
 
@@ -374,6 +375,23 @@ ${messages.length === 0 ? '' : `<form class="clear" method="post" action="/demo/
 </form>`}
 </main></body></html>`);
   });
+}
+
+const gatewaySecret = (
+  process.env.POOLI_GATEWAY_SECRET ??
+  process.env.AGENT_GATEWAY_SECRET ??
+  ''
+).trim();
+
+if (gatewaySecret) {
+  app.use(
+    createInternalApi({
+      registry,
+      gatewaySecret,
+      deliverLinkCode,
+      confirmationBaseUrl: PUBLIC_URL,
+    }),
+  );
 }
 
 // --- Human surface --------------------------------------------------------

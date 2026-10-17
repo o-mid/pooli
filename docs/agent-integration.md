@@ -23,6 +23,10 @@ flowchart LR
   Human -->|proposal sheet| GW
 ```
 
+## Merchant Claude drafting (first-party)
+
+`POST /api/v1/orders/{id}/suggest-follow-up?locale=en|fa` (merchant session) calls the **Anthropic Messages API** on a grounded order snapshot, then registers the text through the **same** action-gateway proposal path as MCP (`POST /internal/v1/proposals` on the gateway). Requires `ANTHROPIC_API_KEY`, `ACTION_GATEWAY_INTERNAL_URL`, and `AGENT_GATEWAY_SECRET` on the API.
+
 ## MCP tools (agent-visible)
 
 | Tool | Purpose |

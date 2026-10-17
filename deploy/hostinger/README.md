@@ -39,6 +39,8 @@ bash /opt/pooli/deploy/hostinger/deploy-chain-worker.sh
    - `AGENT_GATEWAY_SECRET` (long random; same on API + gateway)
    - `ACTION_GATEWAY_PUBLIC_URL=https://agent.pooli.shop`
    - `NEXT_PUBLIC_ACTION_GATEWAY_URL=https://agent.pooli.shop`
+   - `ANTHROPIC_API_KEY` (merchant **Suggest follow-up (Claude)** on order detail; API calls Messages API then gateway propose)
+   - Optional: `ANTHROPIC_MODEL` (default in `.env.example`)
 2. DNS: `A` record `agent` → your VPS IPv4 (same as `pooli.shop`).
 3. Enable nginx: `bash /opt/pooli/deploy/hostinger/install-agent-nginx.sh` (HTTP bootstrap + certbot + SSL vhost).
 4. Build and start: `docker compose build pooli-action-gateway pooli-web && docker compose up -d pooli-action-gateway`.
