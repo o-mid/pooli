@@ -1,11 +1,12 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { useState } from "react";
 
-/** Magic UI border-beam — traveling highlight on card edges (motion offset-path). */
+/** Magic UI border-beam — one pass when scrolled into view (loops once). */
 export function BorderBeam({
   size = 72,
-  duration = 5.5,
+  duration = 2.8,
   className = "",
 }: {
   size?: number;
@@ -13,7 +14,8 @@ export function BorderBeam({
   className?: string;
 }) {
   const reduce = useReducedMotion();
-  if (reduce) return null;
+  const [done, setDone] = useState(false);
+  if (reduce || done) return null;
 
   return (
     <div className={["lp-border-beam-mask", className].filter(Boolean).join(" ")} aria-hidden="true">
@@ -23,9 +25,11 @@ export function BorderBeam({
           width: size,
           offsetPath: "rect(0 auto auto 0 round var(--radius-lg))",
         }}
-        initial={{ offsetDistance: "0%" }}
-        animate={{ offsetDistance: "100%" }}
-        transition={{ duration, repeat: Infinity, ease: "linear" }}
+        initial={{ offsetDistance: "0%", opacity: 0 }}
+        whileInView={{ offsetDistance: "100%", opacity: 1 }}
+        viewport={{ once: true, amount: 0.4 }}
+        transition={{ duration, ease: "linear" }}
+        onAnimationComplete={() => setDone(true)}
       />
     </div>
   );

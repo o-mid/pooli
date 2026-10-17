@@ -26,7 +26,7 @@ export function CheckoutDemo({ label, className }: { label: string; className?: 
       <div className="checkout-preview-body">
         <p className="checkout-preview-merchant muted">{t.marketing.hero.demoOrder}</p>
         <AmountDisplay primary={`125,000 ${t.checkout.toman}`} secondary="12.45 USDT" primaryClassName="mono-ltr" />
-        <PaymentState intentStatus="PAID" />
+        <PaymentState intentStatus="PAID" announce={false} />
       </div>
       <figcaption className="checkout-demo-label">{label}</figcaption>
     </motion.figure>

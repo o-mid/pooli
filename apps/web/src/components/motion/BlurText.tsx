@@ -12,7 +12,7 @@ export function BlurText({ text, className = "" }: { text: string; className?: s
   const parts = text.split(/(\s+)/);
 
   return (
-    <span className={className} aria-label={text}>
+    <span className={className}>
       {parts.map((part, i) =>
         /^\s+$/.test(part) ? (
           part

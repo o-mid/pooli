@@ -2,9 +2,10 @@
 
 import { Icons8Icon, type Icons8Name } from "@/components/icons/Icons8Icon";
 import { BorderBeam } from "@/components/motion/BorderBeam";
+import { HoverLift } from "@/components/motion/HoverLift";
 import { StaggerItem, StaggerRoot } from "@/components/motion/Stagger";
 import { TextReveal } from "@/components/motion/TextReveal";
-import { useT } from "@/i18n/LocaleProvider";
+import { useLocale, useT } from "@/i18n/LocaleProvider";
 
 const rows: Array<{
   titleKey: "s1Title" | "s2Title" | "s3Title";
@@ -18,6 +19,8 @@ const rows: Array<{
 
 export function LandingFeatureRows() {
   const m = useT().marketing;
+  const { locale } = useLocale();
+  const stepFmt = new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en", { minimumIntegerDigits: 2 });
 
   return (
     <div className="lp-features" id="how-it-works">
@@ -29,18 +32,21 @@ export function LandingFeatureRows() {
           const flip = index % 2 === 1;
           return (
             <StaggerItem key={row.titleKey}>
-              <article className={`lp-feature-row${flip ? " lp-feature-row-flip" : ""}`}>
-                <div className="lp-feature-copy">
-                  <h3 className="lp-feature-heading">{m.steps[row.titleKey]}</h3>
-                  <p className="muted">{m.steps[row.bodyKey]}</p>
-                </div>
-                <div className="lp-feature-visual" aria-hidden="true">
-                  <div className="lp-feature-icon-card lp-beam-host">
-                    <BorderBeam size={56} duration={4.5} />
-                    <Icons8Icon name={row.icon} size="lg" />
+              <HoverLift>
+                <article className={`lp-feature-row${flip ? " lp-feature-row-flip" : ""}`}>
+                  <div className="lp-feature-copy">
+                    <p className="lp-feature-step" aria-hidden="true">{stepFmt.format(index + 1)}</p>
+                    <h3 className="lp-feature-heading">{m.steps[row.titleKey]}</h3>
+                    <p className="muted">{m.steps[row.bodyKey]}</p>
                   </div>
-                </div>
-              </article>
+                  <div className="lp-feature-visual" aria-hidden="true">
+                    <div className="lp-feature-icon-card lp-beam-host">
+                      <BorderBeam size={56} duration={2.4} />
+                      <Icons8Icon name={row.icon} size="lg" />
+                    </div>
+                  </div>
+                </article>
+              </HoverLift>
             </StaggerItem>
           );
         })}

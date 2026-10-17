@@ -1,6 +1,7 @@
 "use client";
 
 import { Icons8Icon, type Icons8Name } from "@/components/icons/Icons8Icon";
+import { HoverLift } from "@/components/motion/HoverLift";
 import { StaggerItem, StaggerRoot } from "@/components/motion/Stagger";
 import { TextReveal } from "@/components/motion/TextReveal";
 import { useT } from "@/i18n/LocaleProvider";
@@ -29,13 +30,15 @@ export function LandingBenefits() {
       <StaggerRoot className="lp-benefit-grid">
         {benefitRows.map((row) => (
           <StaggerItem key={row.titleKey}>
-            <div className="lp-benefit-card">
-              <Icons8Icon name={row.icon} size="lg" />
-              <div>
-                <strong>{m.benefits[row.titleKey]}</strong>
-                <p className="muted">{m.benefits[row.bodyKey]}</p>
+            <HoverLift>
+              <div className="lp-benefit-card">
+                <Icons8Icon name={row.icon} size="lg" />
+                <div>
+                  <strong>{m.benefits[row.titleKey]}</strong>
+                  <p className="muted">{m.benefits[row.bodyKey]}</p>
+                </div>
               </div>
-            </div>
+            </HoverLift>
           </StaggerItem>
         ))}
       </StaggerRoot>

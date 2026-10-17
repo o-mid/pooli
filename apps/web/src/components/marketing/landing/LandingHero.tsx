@@ -25,15 +25,15 @@ export function LandingHero() {
       <div className="lp-hero-fade" aria-hidden="true" />
 
       <div className="lp-hero-inner">
-        <SlideIn direction="top" delay={0}>
-          <p className="lp-hero-badge">{m.hero.eyebrow}</p>
-        </SlideIn>
+        <p className="lp-hero-badge lp-hero-badge-in">{m.hero.eyebrow}</p>
         <h1 className="lp-hero-title lp-hero-title-gradient">
           <BlurText text={m.hero.h1} />
         </h1>
-        <SlideIn className="lp-hero-sub-wrap">
-          <p className="lp-hero-sub">{m.hero.sub}</p>
-        </SlideIn>
+        <div className="lp-hero-sub-wrap">
+          <SlideIn>
+            <p className="lp-hero-sub">{m.hero.sub}</p>
+          </SlideIn>
+        </div>
         <SlideIn delay={0.08} className="lp-hero-actions">
           <LandingPrimaryCta href="/register">{m.hero.ctaPrimary}</LandingPrimaryCta>
           <a className="btn btn-secondary lp-btn-pill" href="#how-it-works" onClick={scrollToHowItWorks}>

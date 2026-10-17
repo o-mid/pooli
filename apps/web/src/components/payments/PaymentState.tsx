@@ -10,12 +10,15 @@ export function PaymentState({
   offline,
   confirmations,
   requiredConfirmations,
+  announce = true,
 }: {
   intentStatus?: string | null;
   openingWallet?: boolean;
   offline?: boolean;
   confirmations?: number | null;
   requiredConfirmations?: number | null;
+  /** Set false for static marketing demos so SR users are not spammed on load. */
+  announce?: boolean;
 }) {
   const t = useT();
   const ui = resolvePaymentUiState({ intentStatus, openingWallet, offline });
@@ -30,7 +33,11 @@ export function PaymentState({
       : null;
 
   return (
-    <section className={`payment-state payment-state-${ui.toLowerCase()}`} aria-live="polite" aria-atomic="true">
+    <section
+      className={`payment-state payment-state-${ui.toLowerCase()}`}
+      aria-live={announce ? "polite" : undefined}
+      aria-atomic={announce ? "true" : undefined}
+    >
       <p className="payment-state-title">{copy.title}</p>
       {copy.body ? <p className="payment-state-body">{copy.body}</p> : null}
       {conf ? <p className="payment-state-meta tabular">{conf}</p> : null}

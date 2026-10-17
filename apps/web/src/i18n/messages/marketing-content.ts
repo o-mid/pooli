@@ -55,7 +55,7 @@ export const marketingEn = {
   steps: {
     title: "How it works",
     s1Title: "Create a payment in seconds.",
-    s1Body: "Quote the order in USDT.",
+    s1Body: "Quote the order in toman; Pooli shows the exact USDT amount at checkout.",
     s2Title: "Share the link.",
     s2Body: "Paste it in the DM.",
     s3Title: "See paid in the app.",
@@ -425,7 +425,7 @@ export const marketingFa: MarketingMessages = {
   steps: {
     title: "چطور کار می‌کند",
     s1Title: "در چند ثانیه پرداخت بساز.",
-    s1Body: "مبلغ را با USDT وارد کن.",
+    s1Body: "مبلغ را با تومان بگو؛ پولی مبلغ دقیق USDT را در checkout نشان می‌دهد.",
     s2Title: "لینک را بفرست.",
     s2Body: "توی دایرکت paste کن.",
     s3Title: "وضعیت پرداخت را در اپ ببین.",
