@@ -8,7 +8,7 @@ export function Section({
   className = "",
 }: {
   id?: string;
-  title?: string;
+  title?: ReactNode;
   lead?: string;
   children: ReactNode;
   className?: string;

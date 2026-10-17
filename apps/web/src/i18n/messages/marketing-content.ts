@@ -27,6 +27,13 @@ export const marketingEn = {
     line1: "Built for sellers who close in DMs (Instagram, Telegram, WhatsApp).",
     line2: "USDT on TRON and BNB Smart Chain.",
   },
+  marquee: {
+    instagram: "Instagram",
+    telegram: "Telegram",
+    whatsapp: "WhatsApp",
+    tron: "TRON",
+    bsc: "BNB Chain",
+  },
   flowDiagram: {
     title: "Verified payment pipeline",
     caption: "Server-side truth from link creation to seller notification — same flow in the product.",
@@ -389,6 +396,13 @@ export const marketingFa: MarketingMessages = {
   builtFor: {
     line1: "برای فروشنده‌هایی که توی دایرکت می‌بندند (اینستاگرام، تلگرام و واتساپ).",
     line2: "USDT روی TRON و BNB Smart Chain.",
+  },
+  marquee: {
+    instagram: "اینستاگرام",
+    telegram: "تلگرام",
+    whatsapp: "واتساپ",
+    tron: "TRON",
+    bsc: "BNB Chain",
   },
   flowDiagram: {
     title: "مسیر تأیید پرداخت",

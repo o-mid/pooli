@@ -1,16 +1,20 @@
 "use client";
 
+import { StaggerItem, StaggerRoot } from "@/components/motion/Stagger";
+
 type Item = { q: string; a: string };
 
 export function FaqAccordion({ items }: { items: Item[] }) {
   return (
-    <div className="faq-list">
+    <StaggerRoot className="faq-list">
       {items.map((item) => (
-        <details key={item.q} className="faq-item">
-          <summary className="faq-summary">{item.q}</summary>
-          <p className="faq-answer">{item.a}</p>
-        </details>
+        <StaggerItem key={item.q}>
+          <details className="faq-item">
+            <summary className="faq-summary">{item.q}</summary>
+            <p className="faq-answer">{item.a}</p>
+          </details>
+        </StaggerItem>
       ))}
-    </div>
+    </StaggerRoot>
   );
 }

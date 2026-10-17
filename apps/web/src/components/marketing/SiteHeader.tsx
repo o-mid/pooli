@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -15,6 +16,7 @@ export function SiteHeader() {
   const m = t.marketing.nav;
   const [menuOpen, setMenuOpen] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     api<{ user?: { id?: string } }>("/api/v1/me")
@@ -31,7 +33,7 @@ export function SiteHeader() {
   );
 
   return (
-    <header className="marketing-header">
+    <header className="marketing-header lp-header">
       <Link href="/" className="marketing-logo">
         <BrandMark localeHint={locale} size={32} />
       </Link>
@@ -49,14 +51,16 @@ export function SiteHeader() {
         <Link className="btn btn-primary desktop-only" href="/register">
           {m.createAccount}
         </Link>
-        <button
+        <motion.button
           type="button"
           className="btn btn-secondary mobile-only marketing-menu-btn"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen(true)}
+          whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+          transition={{ duration: 0.2 }}
         >
           {m.menu}
-        </button>
+        </motion.button>
       </div>
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title={m.menu} labelledBy="marketing-menu-title">
         <h2 id="marketing-menu-title" className="sr-only">{m.menu}</h2>
