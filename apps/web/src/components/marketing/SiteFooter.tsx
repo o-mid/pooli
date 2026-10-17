@@ -56,6 +56,8 @@ export function SiteFooter() {
         © {year} {siteConfig.company.legalNameEn}. {f.rights}
         <br />
         {f.builtIn}
+        <br />
+        <a href="https://icons8.com" target="_blank" rel="noopener noreferrer">Icons8</a>
       </p>
     </footer>
   );

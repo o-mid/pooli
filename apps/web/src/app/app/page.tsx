@@ -8,6 +8,7 @@ import { NewPaymentButton } from "@/components/NewPaymentButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorRetry } from "@/components/ui/ErrorRetry";
 import { OrderListRow } from "@/components/ui/OrderListRow";
+import { PageFade } from "@/components/motion/Reveal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { useT } from "@/i18n/LocaleProvider";
@@ -131,7 +132,7 @@ export default function HomePage() {
   const title = displayName ? t.home.greetingNamed.replace("{greeting}", greet).replace("{name}", displayName) : greet;
 
   return (
-    <div className="page-stack">
+    <PageFade className="page-stack">
       <PageHeader title={title} />
 
       {loading ? (
@@ -254,6 +255,6 @@ export default function HomePage() {
           </EmptyState>
         )}
       </section>
-    </div>
+    </PageFade>
   );
 }

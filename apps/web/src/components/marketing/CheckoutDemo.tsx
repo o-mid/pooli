@@ -1,19 +1,25 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import { PaymentState } from "@/components/payments/PaymentState";
 import { AmountDisplay } from "@/components/ui/AmountDisplay";
+import { Icons8Icon } from "@/components/icons/Icons8Icon";
 import { useT } from "@/i18n/LocaleProvider";
 
 export function CheckoutDemo({ label, className }: { label: string; className?: string }) {
   const t = useT();
+  const reduce = useReducedMotion();
 
   return (
-    <figure
-      className={["checkout-preview", className].filter(Boolean).join(" ")}
+    <motion.figure
+      className={["checkout-preview checkout-preview-ai", className].filter(Boolean).join(" ")}
       aria-label={label}
+      initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+      animate={reduce ? undefined : { opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
       <div className="checkout-preview-chrome">
-        <span className="checkout-preview-dot" aria-hidden="true" />
+        <Icons8Icon name="sparkles" size="sm" />
         <span className="checkout-preview-title">{t.brand}</span>
       </div>
       <div className="checkout-preview-body">
@@ -22,6 +28,6 @@ export function CheckoutDemo({ label, className }: { label: string; className?: 
         <PaymentState intentStatus="PAID" />
       </div>
       <figcaption className="checkout-demo-label">{label}</figcaption>
-    </figure>
+    </motion.figure>
   );
 }

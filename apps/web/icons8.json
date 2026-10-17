@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "icons": {
+    "pack": "m_outlined",
+    "sizes": [24, 48],
+    "color": "currentColor",
+    "items": {
+      "home": { "id": "83326", "commonName": "home--v2", "file": "home.png" },
+      "orders": { "id": "85462", "commonName": "purchase-order", "file": "orders.png" },
+      "customers": { "id": "87209", "commonName": "user-group-man-woman", "file": "customers.png" },
+      "settings": { "id": "82535", "commonName": "settings", "file": "settings.png" },
+      "verified": { "id": "85778", "commonName": "security-checked", "file": "verified.png" },
+      "wallet": { "id": "85087", "commonName": "wallet", "file": "wallet.png" },
+      "add-link": { "id": "94206", "commonName": "add-link", "file": "add-link.png" },
+      "share": { "id": "90278", "commonName": "share-3", "file": "share.png" },
+      "notification": { "id": "82754", "commonName": "appointment-reminders", "file": "notification.png" },
+      "globe": { "id": "89777", "commonName": "globe", "file": "globe.png" },
+      "bot": { "id": "102886", "commonName": "bot", "file": "bot.png" },
+      "sparkles": { "id": "7FRSm1RlZ1SV", "commonName": "sparkles", "file": "sparkles.png" },
+      "link": { "id": "85777", "commonName": "link", "file": "link.png" }
+    }
+  },
+  "tokens": {
+    "iconColor": "--ink",
+    "accent": "--brand"
+  }
+}

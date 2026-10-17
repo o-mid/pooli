@@ -27,6 +27,18 @@ export const marketingEn = {
     line1: "Built for sellers who close in DMs (Instagram, Telegram, WhatsApp).",
     line2: "USDT on TRON and BNB Smart Chain.",
   },
+  flowDiagram: {
+    title: "Verified payment pipeline",
+    caption: "Server-side truth from link creation to seller notification — same flow in the product.",
+    labels: {
+      dm: "DM order",
+      link: "Pooli link",
+      pay: "USDT pay",
+      verify: "Chain verify",
+      notify: "You notified",
+      openDiagram: "Open full architecture map (ToDiagram)",
+    },
+  },
   problem: {
     title: "You're losing time on payments you already earned.",
     p1: "Screenshots and “did you get it?” messages eat your day.",
@@ -377,6 +389,18 @@ export const marketingFa: MarketingMessages = {
   builtFor: {
     line1: "برای فروشنده‌هایی که توی دایرکت می‌بندند (اینستاگرام، تلگرام و واتساپ).",
     line2: "USDT روی TRON و BNB Smart Chain.",
+  },
+  flowDiagram: {
+    title: "مسیر تأیید پرداخت",
+    caption: "از لینک تا اعلان — همان منطق سرور در محصول.",
+    labels: {
+      dm: "سفارش دایرکت",
+      link: "لینک پولی",
+      pay: "پرداخت USDT",
+      verify: "تأیید زنجیره",
+      notify: "خبر به تو",
+      openDiagram: "نقشهٔ کامل معماری (ToDiagram)",
+    },
   },
   problem: {
     title: "روی پولی که حقش را داری، وقتت را از دست می‌دهی.",

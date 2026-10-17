@@ -2298,6 +2298,227 @@ html[dir="rtl"] .back-chevron {
   border-bottom: 1px solid var(--separator);
 }
 
+.marketing-hero-ai {
+  position: relative;
+  isolation: isolate;
+  padding: var(--space-6) var(--space-4);
+  margin-inline: calc(-1 * var(--space-4));
+  border-bottom: none;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--brand) 10%, var(--bg)) 0%,
+    var(--bg) 42%,
+    color-mix(in srgb, var(--info) 6%, var(--bg)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--separator));
+  overflow: hidden;
+}
+
+.marketing-hero-aurora {
+  position: absolute;
+  inset: -40% -20% auto;
+  height: 70%;
+  background: radial-gradient(
+    ellipse 60% 50% at 70% 30%,
+    color-mix(in srgb, var(--brand) 22%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
+}
+
+.marketing-hero-ai > *:not(.marketing-hero-aurora) {
+  position: relative;
+  z-index: 1;
+}
+
+.marketing-kicker-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--separator));
+  color: var(--ink);
+}
+
+.marketing-kicker-icon {
+  opacity: 0.9;
+}
+
+.btn-ai-glow {
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 35%, transparent);
+  transition: box-shadow var(--duration) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn-ai-glow:hover {
+    box-shadow: 0 8px 28px color-mix(in srgb, var(--brand) 28%, transparent);
+  }
+}
+
+.checkout-preview-ai {
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--separator));
+  box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+.flow-diagram-card {
+  margin-block: var(--space-8);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--separator));
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.flow-diagram-card-head {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  max-width: 40rem;
+}
+
+.flow-diagram-spark {
+  opacity: 0.85;
+}
+
+.flow-diagram-caption {
+  margin: 0;
+  font-size: var(--text-subhead);
+}
+
+.flow-diagram-pipeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.flow-diagram-pipeline li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.flow-diagram-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 4.5rem;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--bg-grouped);
+  border: 1px solid var(--separator);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-align: center;
+}
+
+.flow-diagram-arrow {
+  width: 1.25rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 20%, transparent));
+  border-radius: 1px;
+}
+
+html[dir="rtl"] .flow-diagram-arrow {
+  transform: scaleX(-1);
+}
+
+.flow-diagram-foot {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-subhead);
+}
+
+.flow-diagram-foot a {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.marketing-timeline-ai .marketing-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  margin-inline-start: calc(-1 * var(--space-5) - 1.25rem);
+}
+
+.marketing-step-num-inline {
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.marketing-feature-row {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.marketing-feature-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-grouped);
+}
+
+.draft-reminders-ai {
+  border-color: color-mix(in srgb, var(--info) 25%, var(--separator));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--info) 8%, var(--surface)),
+    var(--surface)
+  );
+}
+
+.draft-reminders-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.draft-reminders-head .marketing-h2 {
+  margin: 0;
+}
+
+.marketing-final-cta-ai {
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--bg-grouped);
+}
+
+.nav-ai a.active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand) 18%, var(--surface)),
+    var(--brand-soft)
+  );
+}
+
+.nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icons8-icon {
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .marketing-h1 {
   font-size: clamp(var(--text-title1), 4.5vw, 2.75rem);
   font-weight: 700;
