@@ -22,7 +22,7 @@ describe('internal api', () => {
     const addr = server.address();
     const port = typeof addr === 'object' && addr ? addr.port : 0;
 
-    const res = await fetch(`http://127.0.0.1:${port}/internal/v1/proposals`, {
+    const res = await fetch(`http://127.0.0.1:${port}/v1/proposals`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

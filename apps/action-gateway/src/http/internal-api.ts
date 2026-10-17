@@ -29,7 +29,7 @@ export function createInternalApi(deps: InternalApiDeps): Express {
   app.disable('x-powered-by');
   app.use(express.json({ limit: '64kb' }));
 
-  app.use((req, res, next) => {
+  const requireGatewaySecret = (req: Request, res: Response, next: () => void) => {
     const expected = deps.gatewaySecret.trim();
     const got = String(req.get('x-pooli-gateway-secret') ?? '').trim();
     if (!expected || !got || !secretOk(expected, got)) {
@@ -37,9 +37,9 @@ export function createInternalApi(deps: InternalApiDeps): Express {
       return;
     }
     next();
-  });
+  };
 
-  app.post('/internal/v1/proposals', async (req: Request, res: Response) => {
+  app.post('/v1/proposals', requireGatewaySecret, async (req: Request, res: Response) => {
     const body = req.body ?? {};
     const orderId = String(body.orderId ?? '').trim();
     const orderSlug = String(body.orderSlug ?? '').trim();

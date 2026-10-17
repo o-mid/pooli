@@ -385,6 +385,7 @@ const gatewaySecret = (
 
 if (gatewaySecret) {
   app.use(
+    '/internal',
     createInternalApi({
       registry,
       gatewaySecret,
