@@ -20,7 +20,7 @@ export default function AppLanguageSettingsPage() {
   }, []);
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings" />
       <PageHeader title={t.settings.appLanguage} subtitle={t.settings.appLanguageHint} />
       <div className="list-group">

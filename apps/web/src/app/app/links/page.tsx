@@ -70,7 +70,7 @@ export default function PaymentLinksPage() {
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings/getting-paid" />
       <PageHeader title={t.links.title} subtitle={t.links.hint} />
       {error ? (

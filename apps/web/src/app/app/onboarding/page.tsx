@@ -158,7 +158,7 @@ export default function OnboardingPage() {
   const stepLabel = t.onboarding.stepOf.replace("{n}", String(step + 1)).replace("{total}", String(TOTAL));
 
   return (
-    <div className="rise page-stack onboarding">
+    <div className="page-stack onboarding">
       <header className="onboarding-head">
         <p className="eyebrow">{stepLabel}</p>
         <h1>{t.onboarding.title}</h1>

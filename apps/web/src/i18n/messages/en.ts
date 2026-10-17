@@ -4,7 +4,7 @@ export const en = {
   brand: "Pooli",
   brandFa: "پولی",
   tagline: "Send a link. Know when they paid.",
-  taglineSub: "Create a payment, share it, and see Paid ✓ without chasing receipts.",
+  taglineSub: "Create a payment, share it, and see paid status without chasing receipts.",
   openSeller: "Open seller app",
   openPooli: "Open Pooli",
   createAccount: "Create account",

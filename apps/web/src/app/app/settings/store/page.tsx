@@ -83,7 +83,7 @@ export default function StoreSettingsPage() {
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings" />
       <PageHeader title={t.settings.store} subtitle={t.settings.storeHint} />
       <form className="card-panel" onSubmit={saveStore}>

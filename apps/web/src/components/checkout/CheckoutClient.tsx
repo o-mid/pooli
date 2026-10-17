@@ -378,7 +378,7 @@ export default function CheckoutClient({
 
   if (!pay) {
     return (
-      <main className="shell rise page-stack">
+      <main className="shell page-stack">
         {chrome !== "telegram" ? <InstagramInAppBanner /> : null}
         <Skeleton height="2.5rem" width="60%" />
         <Skeleton height="1rem" width="40%" />
@@ -407,7 +407,7 @@ export default function CheckoutClient({
       : `${(pay.fiat_amount_toman ?? 0).toLocaleString()} ${t.checkout.toman}`;
 
     return (
-    <main className={`shell rise page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}${accentClass}`}>
+    <main className={`shell page-stack${step === "pay" && intentStatus !== "PAID" ? " checkout-pay" : ""}${accentClass}`}>
       {chrome !== "telegram" ? <InstagramInAppBanner /> : null}
       <header className="checkout-header">
         <div className="row-split" style={{ minWidth: 0 }}>

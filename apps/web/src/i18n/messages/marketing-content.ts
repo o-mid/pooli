@@ -14,13 +14,14 @@ export const marketingEn = {
     themeSystem: "System",
   },
   hero: {
-    eyebrow: "USDT checkout for DM sellers",
+    eyebrow: "Payment links for Instagram and Telegram sellers",
     h1: "Send a link. Know when they paid.",
     sub:
-      "Turn a DM order into a checkout link. Your buyer pays USDT to your wallet. Pooli watches the chain and marks Paid ✓ when the amount matches.",
+      "Quote the order in toman, share one link in the DM, and get a server-verified paid status when the exact USDT lands in your wallet.",
     ctaPrimary: "Create your first payment link",
     ctaSecondary: "See how it works",
-    demoLabel: "Illustration. Sample amounts.",
+    demoLabel: "Sample checkout screen. Not a live payment.",
+    demoOrder: "DM order · scarf set",
   },
   builtFor: {
     line1: "Built for sellers who close in DMs (Instagram, Telegram, WhatsApp).",
@@ -38,8 +39,8 @@ export const marketingEn = {
     s1Body: "Quote the order in USDT.",
     s2Title: "Share the link.",
     s2Body: "Paste it in the DM.",
-    s3Title: "See Paid ✓.",
-    s3Body: "The buyer pays; Pooli verifies on-chain and tells you.",
+    s3Title: "See paid in the app.",
+    s3Body: "The buyer pays; Pooli verifies on-chain and updates the order.",
   },
   draftReminders: {
     status: "Optional",
@@ -58,7 +59,7 @@ export const marketingEn = {
   },
   benefits: {
     title: "What you get",
-    b1Title: "Paid ✓ you can trust",
+    b1Title: "Paid status you can trust",
     b1Body: "Marked paid only after the blockchain confirms the exact amount.",
     b2Title: "Your wallet, your money",
     b2Body: "Funds go straight to you. Pooli never holds them.",
@@ -66,15 +67,15 @@ export const marketingEn = {
     b3Body: "Collect name, phone and address in the checkout.",
     b4Title: "Alerts when it lands",
     b4Body: "Status in the app, plus Telegram and email.",
-    b5Title: "Works globally",
-    b5Body: "USDT pricing, English and Persian, right-to-left when you need it.",
+    b5Title: "Toman quote, USDT settlement",
+    b5Body: "Show buyers a familiar toman price; they pay the exact USDT amount on TRON or BNB Chain.",
     b6Title: "Works where you sell",
     b6Body: "Buyers pay from Instagram and Telegram without installing anything.",
   },
   nonCustodial: {
     title: "Non-custodial by design.",
     body:
-      "We never ask for seed phrases or private keys. Paid ✓ comes from server-side verification only. Wrong or partial payments go to review. They are never silently accepted.",
+      "We never ask for seed phrases or private keys. Paid status comes from server-side verification only. Wrong or partial payments go to review. They are never silently accepted.",
     link: "How we think about security",
   },
   earlyAccess: {
@@ -110,8 +111,6 @@ export const marketingEn = {
     contact: "Contact",
     gemi: "GEMI no.",
     vat: "VAT no.",
-    gemiPending: "Pending public disclosure",
-    vatPending: "Pending public disclosure",
     founded: "Founded",
   },
   claude: {
@@ -366,13 +365,14 @@ export const marketingFa: MarketingMessages = {
     themeSystem: "سیستم",
   },
   hero: {
-    eyebrow: "پرداخت USDT برای فروش در دایرکت",
+    eyebrow: "لینک پرداخت برای فروش در دایرکت",
     h1: "لینک رو بفرست. وقتی پرداخت شد، خودت می‌فهمی.",
     sub:
-      "سفارش دایرکت را تبدیل به لینک پرداخت کن. خریدار USDT را به کیف پول تو می‌فرستد. پولی زنجیره را می‌بیند و وقتی مبلغ درست بود «پرداخت شد ✓» می‌زند.",
+      "مبلغ را با تومان بگو، یک لینک در دایرکت بفرست، و وقتی USDT دقیق به کیف پولت رسید، وضعیت پرداخت از سرور تأیید می‌شود.",
     ctaPrimary: "اولین لینک پرداخت را بساز",
     ctaSecondary: "ببین چطور کار می‌کند",
-    demoLabel: "صفحهٔ نمایشی. دادهٔ نمونه.",
+    demoLabel: "نمای checkout. پرداخت واقعی نیست.",
+    demoOrder: "سفارش دایرکت · ست شال",
   },
   builtFor: {
     line1: "برای فروشنده‌هایی که توی دایرکت می‌بندند (اینستاگرام، تلگرام و واتساپ).",
@@ -390,8 +390,8 @@ export const marketingFa: MarketingMessages = {
     s1Body: "مبلغ را با USDT وارد کن.",
     s2Title: "لینک را بفرست.",
     s2Body: "توی دایرکت paste کن.",
-    s3Title: "«پرداخت شد ✓» را ببین.",
-    s3Body: "خریدار پرداخت می‌کند؛ پولی روی زنجیره چک می‌کند و به تو خبر می‌دهد.",
+    s3Title: "وضعیت پرداخت را در اپ ببین.",
+    s3Body: "خریدار پرداخت می‌کند؛ پولی روی زنجیره چک می‌کند و سفارش را به‌روز می‌کند.",
   },
   draftReminders: {
     status: "فعال",
@@ -408,7 +408,7 @@ export const marketingFa: MarketingMessages = {
   },
   benefits: {
     title: "چه چیزی می‌گیری",
-    b1Title: "پرداخت شد ✓ قابل اعتماد",
+    b1Title: "وضعیت پرداخت قابل اعتماد",
     b1Body: "فقط بعد از تأیید مبلغ دقیق روی زنجیره «پرداخت شد» می‌خورد.",
     b2Title: "کیف پول تو، پول تو",
     b2Body: "پول مستقیم به تو می‌رود. پولی نگه نمی‌دارد.",
@@ -416,8 +416,8 @@ export const marketingFa: MarketingMessages = {
     b3Body: "نام، موبایل و آدرس را در checkout بگیر.",
     b4Title: "وقتی رسید، خبر می‌گیری",
     b4Body: "وضعیت در اپ، به‌علاوه تلگرام و ایمیل.",
-    b5Title: "جهانی",
-    b5Body: "قیمت USDT، فارسی و انگلیسی، راست‌به‌چپ.",
+    b5Title: "قیمت تومان، تسویه USDT",
+    b5Body: "خریدار تومان را می‌بیند؛ مبلغ دقیق USDT را روی TRON یا BNB Chain می‌فرستد.",
     b6Title: "همان‌جا که می‌فروشی",
     b6Body: "خریدار بدون نصب، از اینستاگرام و تلگرام پرداخت می‌کند.",
   },
@@ -460,8 +460,6 @@ export const marketingFa: MarketingMessages = {
     contact: "تماس",
     gemi: "شماره GEMI",
     vat: "شماره VAT",
-    gemiPending: "در انتظار انتشار عمومی",
-    vatPending: "در انتظار انتشار عمومی",
     founded: "تأسیس",
   },
   claude: {

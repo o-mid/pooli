@@ -68,7 +68,7 @@ export default function TelegramCreatePage() {
 
   if (result) {
     return (
-      <main className="shell rise page-stack">
+      <main className="shell page-stack">
         <h1 className="page-title">{t.create.created}</h1>
         <div className="cta-stack">
           <button type="button" className="btn btn-primary" onClick={shareTelegram}>
@@ -86,7 +86,7 @@ export default function TelegramCreatePage() {
   }
 
   return (
-    <main className="shell rise page-stack">
+    <main className="shell page-stack">
       <h1 className="page-title">{t.miniapp.create}</h1>
       <p className="muted">{t.miniapp.connectHint}</p>
       <form className="form-stack" onSubmit={onSubmit}>

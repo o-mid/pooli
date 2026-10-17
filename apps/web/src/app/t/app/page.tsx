@@ -6,7 +6,7 @@ import { useT } from "@/i18n/LocaleProvider";
 export default function TelegramHomeLite() {
   const t = useT();
   return (
-    <main className="shell rise page-stack">
+    <main className="shell page-stack">
       <h1 className="page-title">{t.miniapp.title}</h1>
       <p className="muted">{t.miniapp.connectHint}</p>
       <div className="cta-stack">

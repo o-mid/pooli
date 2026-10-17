@@ -60,9 +60,9 @@ export function ReceiptCard({ receipt, storeName, title, fiatAmountToman, showAc
   }
 
   return (
-    <section className="receipt-card success-pulse" data-receipt>
-      <div className="alert alert-success" role="status" style={{ textAlign: "center" }}>
-        ✓ {t.receipt.title}
+    <section className="receipt-card" data-receipt>
+      <div className="alert alert-success" role="status">
+        {t.receipt.title}
       </div>
       <p className="receipt-store">{merchant}</p>
       {title || receipt.order_title ? <p className="muted">{title || receipt.order_title}</p> : null}

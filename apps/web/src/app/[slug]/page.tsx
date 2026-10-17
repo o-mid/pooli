@@ -83,7 +83,7 @@ export default function PublicStorePage() {
   }
 
   return (
-    <main className="shell store-page rise">
+    <main className="shell store-page">
       <div className="store-hero">
         {store.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element

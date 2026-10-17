@@ -75,7 +75,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="shell rise page-stack shell-wide">
+    <main className="shell page-stack shell-wide">
       <BackLink href="/app/settings" />
       <PageHeader title={t.admin.title} />
       {error && (

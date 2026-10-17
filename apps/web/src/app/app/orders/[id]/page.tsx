@@ -139,7 +139,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="rise page-stack">
+      <div className="page-stack">
         <Skeleton height="1.75rem" width="40%" />
         <Skeleton height="3rem" width="100%" />
         <Skeleton height="12rem" width="100%" />
@@ -238,7 +238,7 @@ export default function OrderDetailPage() {
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/orders" />
       <PageHeader title={order.title || t.checkout.orderRef} />
 

@@ -78,7 +78,7 @@ function OrdersContent() {
     (!loading && orders.some((o) => o.payment_status !== "AWAITING_PAYMENT" && o.payment_status !== "CREATED"));
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <PageHeader title={t.orders.title} trailing={<NewPaymentButton compact />} />
 
       {showSearch || showFilters ? (
@@ -175,7 +175,7 @@ export default function OrdersPage() {
   return (
     <Suspense
       fallback={
-        <div className="rise page-stack">
+        <div className="page-stack">
           <SkeletonRows count={5} />
         </div>
       }

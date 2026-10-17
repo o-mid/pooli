@@ -219,7 +219,7 @@ export default function NotificationsSettingsPage() {
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings" />
       <PageHeader title={t.settings.notifications} subtitle={t.settings.notificationsHint} />
       <div className="card-panel">

@@ -133,7 +133,7 @@ export default function WalletsPage() {
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings/getting-paid" />
       <PageHeader title={t.wallets.title} />
 

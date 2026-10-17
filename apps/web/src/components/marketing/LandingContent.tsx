@@ -16,6 +16,8 @@ function scrollToHowItWorks(e: MouseEvent<HTMLAnchorElement>) {
   el.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
 }
 
+const benefitKeys = ["b1", "b2", "b3", "b4", "b5", "b6"] as const;
+
 export function LandingContent() {
   const t = useT();
   const { locale } = useLocale();
@@ -26,12 +28,9 @@ export function LandingContent() {
     <>
       <section className="marketing-hero">
         <div className="marketing-hero-copy">
-          <p className="marketing-hero-eyebrow">{m.hero.eyebrow}</p>
+          <p className="marketing-kicker">{m.hero.eyebrow}</p>
           <h1 className="marketing-h1">{m.hero.h1}</h1>
           <p className="marketing-hero-sub">{m.hero.sub}</p>
-        </div>
-        <CheckoutDemo label={m.hero.demoLabel} className="marketing-hero-demo" />
-        <div className="marketing-hero-actions">
           <div className="marketing-hero-cta">
             <Link className="btn btn-primary" href="/register">{m.hero.ctaPrimary}</Link>
             <a className="marketing-quiet-link" href="#how-it-works" onClick={scrollToHowItWorks}>
@@ -41,6 +40,7 @@ export function LandingContent() {
           <p className="marketing-for">{m.builtFor.line1}</p>
           <p className="marketing-for muted">{m.builtFor.line2}</p>
         </div>
+        <CheckoutDemo label={m.hero.demoLabel} className="marketing-hero-demo" />
       </section>
 
       <Section title={m.problem.title}>
@@ -52,38 +52,51 @@ export function LandingContent() {
       </Section>
 
       <Section id="how-it-works" title={m.steps.title}>
-        <ol className="marketing-steps">
+        <ol className="marketing-timeline">
           <li>
-            <span className="marketing-step-num">{stepNumber.format(1)}</span>
-            <h3 className="marketing-h3">{m.steps.s1Title}</h3>
-            <p>{m.steps.s1Body}</p>
+            <span className="marketing-step-num" aria-hidden="true">{stepNumber.format(1)}</span>
+            <div>
+              <h3 className="marketing-h3">{m.steps.s1Title}</h3>
+              <p>{m.steps.s1Body}</p>
+            </div>
           </li>
           <li>
-            <span className="marketing-step-num">{stepNumber.format(2)}</span>
-            <h3 className="marketing-h3">{m.steps.s2Title}</h3>
-            <p>{m.steps.s2Body}</p>
+            <span className="marketing-step-num" aria-hidden="true">{stepNumber.format(2)}</span>
+            <div>
+              <h3 className="marketing-h3">{m.steps.s2Title}</h3>
+              <p>{m.steps.s2Body}</p>
+            </div>
           </li>
           <li>
-            <span className="marketing-step-num">{stepNumber.format(3)}</span>
-            <h3 className="marketing-h3">{m.steps.s3Title}</h3>
-            <p>{m.steps.s3Body}</p>
+            <span className="marketing-step-num" aria-hidden="true">{stepNumber.format(3)}</span>
+            <div>
+              <h3 className="marketing-h3">{m.steps.s3Title}</h3>
+              <p>{m.steps.s3Body}</p>
+            </div>
           </li>
         </ol>
       </Section>
 
       <Section title={m.benefits.title}>
-        <ul className="marketing-benefits">
-          <li><strong>{m.benefits.b1Title}</strong><span>{m.benefits.b1Body}</span></li>
-          <li><strong>{m.benefits.b2Title}</strong><span>{m.benefits.b2Body}</span></li>
-          <li><strong>{m.benefits.b3Title}</strong><span>{m.benefits.b3Body}</span></li>
-          <li><strong>{m.benefits.b4Title}</strong><span>{m.benefits.b4Body}</span></li>
-          <li><strong>{m.benefits.b5Title}</strong><span>{m.benefits.b5Body}</span></li>
-          <li><strong>{m.benefits.b6Title}</strong><span>{m.benefits.b6Body}</span></li>
-        </ul>
+        <div className="list-group marketing-feature-group">
+          <ul className="marketing-feature-list">
+            {benefitKeys.map((key) => {
+              const title = m.benefits[`${key}Title` as keyof typeof m.benefits] as string;
+              const body = m.benefits[`${key}Body` as keyof typeof m.benefits] as string;
+              return (
+                <li key={key} className="list-row marketing-feature-row">
+                  <div className="marketing-feature-text">
+                    <strong>{title}</strong>
+                    <span className="muted">{body}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </Section>
 
       <section className="marketing-section draft-reminders" id="draft-reminders">
-        <p className="draft-status">{m.draftReminders.status}</p>
         <h2 className="marketing-h2">{m.draftReminders.title}</h2>
         <p className="marketing-lead">{m.draftReminders.sub}</p>
         <p className="draft-safety">{m.draftReminders.safety}</p>

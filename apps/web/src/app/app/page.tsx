@@ -131,7 +131,7 @@ export default function HomePage() {
   const title = displayName ? t.home.greetingNamed.replace("{greeting}", greet).replace("{name}", displayName) : greet;
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <PageHeader title={title} />
 
       {loading ? (

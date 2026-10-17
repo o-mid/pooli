@@ -82,7 +82,7 @@ export default function CustomerDetailPage() {
 
   if (!customer) {
     return (
-      <div className="rise page-stack">
+      <div className="page-stack">
         <Skeleton height="1.75rem" width="40%" />
         <Skeleton height="8rem" width="100%" />
       </div>
@@ -92,7 +92,7 @@ export default function CustomerDetailPage() {
   const newOrderHref = `/app/create?customer_id=${encodeURIComponent(customer.id)}&customer_name=${encodeURIComponent(customer.full_name || "")}`;
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/customers" />
       <PageHeader title={customer.full_name || t.customers.title} />
 

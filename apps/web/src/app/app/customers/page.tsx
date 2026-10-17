@@ -47,7 +47,7 @@ export default function CustomersPage() {
   }, [q, t.common.error]);
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <PageHeader title={t.customers.title} />
       <div className="field" style={{ margin: 0 }}>
         <label htmlFor="customer-search" className="sr-only">

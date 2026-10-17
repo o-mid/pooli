@@ -112,7 +112,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="shell rise page-stack">
+    <main className="shell page-stack">
       <header className="auth-topbar">
         <BrandMark localeHint={locale} size={28} />
         <LanguageSwitch />

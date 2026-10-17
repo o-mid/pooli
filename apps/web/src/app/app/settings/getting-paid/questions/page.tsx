@@ -65,7 +65,7 @@ export default function BuyerQuestionsPage() {
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings/getting-paid" />
       <PageHeader title={t.settings.buyerQuestions} subtitle={t.settings.defaultsHint} />
       <form className="card-panel" onSubmit={save}>

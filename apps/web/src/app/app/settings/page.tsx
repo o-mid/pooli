@@ -37,7 +37,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <PageHeader title={t.settings.title} />
       <div className="list-group">
         {groups.map((g) => (

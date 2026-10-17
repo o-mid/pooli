@@ -149,7 +149,7 @@ function CreateOrderForm() {
       url: result.checkout_url,
     });
     return (
-      <div className="rise page-stack">
+      <div className="page-stack">
         <PageHeader title={t.create.created} />
         <div>
           {result.amount_usdt_base_units ? (
@@ -213,11 +213,11 @@ function CreateOrderForm() {
   }
 
   if (gate) {
-    return <div className="rise page-stack muted">…</div>;
+    return <div className="page-stack muted">…</div>;
   }
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <PageHeader title={t.create.title} />
       {fromIg ? <p className="muted">{t.create.fromIgHint}</p> : null}
       {customerName ? (
@@ -312,7 +312,7 @@ function CreateOrderForm() {
 
 export default function CreateOrderPage() {
   return (
-    <Suspense fallback={<div className="rise page-stack muted">…</div>}>
+    <Suspense fallback={<div className="page-stack muted">…</div>}>
       <CreateOrderForm />
     </Suspense>
   );

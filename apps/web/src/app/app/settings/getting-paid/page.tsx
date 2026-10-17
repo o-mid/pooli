@@ -14,7 +14,7 @@ export default function GettingPaidPage() {
   ];
 
   return (
-    <div className="rise page-stack">
+    <div className="page-stack">
       <BackLink href="/app/settings" />
       <PageHeader title={t.settings.gettingPaid} subtitle={t.settings.gettingPaidHint} />
       <div className="list-group">
